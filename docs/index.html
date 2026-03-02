@@ -28,6 +28,7 @@
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#install">Install</a>
+            <a href="#updating">Updating</a>
             <a href="#metadata">Metadata</a>
             <a href="https://github.com/richardkentgates/metamanager" class="nav-github" target="_blank" rel="noopener">
                 GitHub ↗
@@ -96,6 +97,11 @@
                 <h3>Re-queue Failed Jobs</h3>
                 <p>Every failed job appears in the history table with a one-click Re-queue button. No manual file hunting, no WP-CLI commands needed to recover from a temporary failure.</p>
             </div>
+            <div class="feature-card">
+                <div class="feature-icon">📦</div>
+                <h3>Native Auto-Updates</h3>
+                <p>Integrates with the WordPress update pipeline. New releases published to GitHub appear automatically in <strong>Dashboard → Updates</strong> — update with one click, just like any other plugin. A manual “Check for Updates” link is also available on the Plugins page.</p>
+            </div>
         </div>
     </div>
 </section>
@@ -156,6 +162,32 @@ Write job JSON to          ◄── inotifywait detects new file
 WP-Cron (60s) ◄──── result JSON ────────┘
 reads, inserts to DB,
 updates history table</code></pre>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ UPDATING -->
+<section class="section section-alt" id="updating">
+    <div class="container">
+        <h2 class="section-title">Keeping Metamanager Up to Date</h2>
+        <p class="section-subtitle">Two methods — choose what fits your workflow.</p>
+
+        <div class="feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+            <div class="feature-card">
+                <div class="feature-icon">📦</div>
+                <h3>WordPress Dashboard (recommended)</h3>
+                <p>Metamanager integrates with the native WordPress update system. When a new release is tagged on GitHub, it appears in <strong>Dashboard → Updates</strong> automatically within 12 hours. Click <strong>Update now</strong> — exactly the same as any other plugin.</p>
+                <p style="margin-top:.75em;">A <strong>Check for Updates</strong> link is available next to the plugin on <strong>Plugins → Installed Plugins</strong> for an immediate check.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🖥</div>
+                <h3>Server Script (plugin files only)</h3>
+                <p>Use <code>--update</code> to sync only PHP, JS, and asset files. Daemons keep running, dependencies are not reinstalled, and systemd services are not restarted — zero downtime for the compression and metadata pipelines.</p>
+                <div class="code-block" style="margin-top:1em;">
+                    <code>sudo bash install.sh --update</code>
+                    <button class="copy-btn" data-copy="sudo bash install.sh --update">Copy</button>
+                </div>
+            </div>
         </div>
     </div>
 </section>
@@ -270,6 +302,14 @@ updates history table</code></pre>
             <div class="code-block">
                 <code>sudo bash install.sh --wp-path /var/www/html</code>
                 <button class="copy-btn" data-copy="sudo bash install.sh --wp-path /var/www/html">Copy</button>
+            </div>
+        </div>
+
+        <div class="install-box">
+            <div class="install-label">Update plugin files only (keeps daemons running, skips dependencies)</div>
+            <div class="code-block">
+                <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash -s -- --update</code>
+                <button class="copy-btn" data-copy="wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash -s -- --update">Copy</button>
             </div>
         </div>
 

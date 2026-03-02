@@ -61,6 +61,124 @@ class MM_Admin {
 
 		// Bulk spinner (lightweight UX touch on the Media Library).
 		add_action( 'admin_footer-upload.php', [ __CLASS__, 'bulk_spinner_markup' ] );
+
+		// Contextual help tabs (appear in the top-right "Help" tab on WP screens).
+		add_action( 'current_screen', [ __CLASS__, 'add_help_tabs' ] );
+	}
+
+	// -----------------------------------------------------------------------
+	// Contextual Help Tabs (WordPress Screen API)
+	// Appear in the top-right "Help" dropdown on the Metamanager Jobs screen
+	// and on the Media Library screen.
+	// -----------------------------------------------------------------------
+
+	public static function add_help_tabs( \WP_Screen $screen ): void {
+		// Jobs dashboard help.
+		if ( 'media_page_metamanager-jobs' === $screen->id ) {
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_overview',
+				'title'   => __( 'Overview', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'Metamanager Job Dashboard', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'This page shows everything Metamanager is doing or has done. The top section is the live queue — jobs waiting to be processed by the OS daemons. The bottom section is the history of completed and failed jobs pulled from the database.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Both sections refresh automatically every 5 seconds. You do not need to reload the page.', 'metamanager' ) . '</p>',
+			] );
+
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_queue',
+				'title'   => __( 'Job Queue', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'Job Queue', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'Jobs enter the queue when you upload an image, save metadata fields on an image edit screen, or trigger a bulk action from the Media Library.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Each job is written as a small JSON file to one of two directories inside wp-content/metamanager-jobs/: compress/ for image compression jobs, and meta/ for metadata embedding jobs.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'The OS daemons watch these directories with inotifywait and process jobs immediately — no polling delay. Jobs disappear from this view as soon as a daemon processes them.', 'metamanager' ) . '</p>',
+			] );
+
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_history',
+				'title'   => __( 'Job History', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'Job History', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'After a daemon finishes a job it writes a result JSON to the completed/ or failed/ directory. WP-Cron reads these files every 60 seconds and records them in the database.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Completed jobs show the file size, image dimensions, and timestamps. Failed jobs show a Re-queue button — click it to re-submit the original job file without any manual steps.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Use the search box to filter by image name, job type, or status. Clear History removes all records from the database but does not affect any image files.', 'metamanager' ) . '</p>',
+			] );
+
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_daemons',
+				'title'   => __( 'Daemons', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'OS Daemons', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'Two systemd services handle all image processing:', 'metamanager' ) . '</p>' .
+					'<ul>' .
+					'<li><strong>metamanager-compress-daemon</strong> — ' . esc_html__( 'lossless JPEG compression via jpegtran; lossless PNG compression via optipng. Files are only replaced if the result is smaller.', 'metamanager' ) . '</li>' .
+					'<li><strong>metamanager-meta-daemon</strong> — ' . esc_html__( 'writes EXIF, IPTC, and XMP metadata simultaneously via ExifTool in a single pass.', 'metamanager' ) . '</li>' .
+					'</ul>' .
+					'<p>' . esc_html__( 'Daemon status is shown in the banner at the top of this page and the Media Library. Status is read from a PID file in /tmp/ — no systemctl privileges are needed.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'To restart a daemon from the server:', 'metamanager' ) . '</p>' .
+					'<code>sudo systemctl restart metamanager-compress-daemon</code><br>' .
+					'<code>sudo systemctl restart metamanager-meta-daemon</code>',
+			] );
+
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_metadata',
+				'title'   => __( 'Metadata Fields', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'Metadata Fields', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'Metamanager maps WordPress fields to EXIF, IPTC, and XMP tags and writes all three simultaneously:', 'metamanager' ) . '</p>' .
+					'<table style="border-collapse:collapse;width:100%;font-size:13px;">' .
+					'<tr style="border-bottom:1px solid #ddd;"><th style="text-align:left;padding:4px 8px;">Field</th><th style="text-align:left;padding:4px 8px;">Source</th><th style="text-align:left;padding:4px 8px;">Bulk?</th></tr>' .
+					'<tr><td style="padding:4px 8px;">Title</td><td style="padding:4px 8px;">WP Post Title</td><td style="padding:4px 8px;">No</td></tr>' .
+					'<tr><td style="padding:4px 8px;">Description</td><td style="padding:4px 8px;">WP Post Content</td><td style="padding:4px 8px;">No</td></tr>' .
+					'<tr><td style="padding:4px 8px;">Caption</td><td style="padding:4px 8px;">WP Excerpt</td><td style="padding:4px 8px;">No</td></tr>' .
+					'<tr><td style="padding:4px 8px;">Alt Text</td><td style="padding:4px 8px;">WP Alt Field</td><td style="padding:4px 8px;">No</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Creator</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;"><strong style="color:#e54c3c;">Never</strong></td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Copyright</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;"><strong style="color:#e54c3c;">Never</strong></td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Owner</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;"><strong style="color:#e54c3c;">Never</strong></td></tr>' .
+					'<tr><td style="padding:4px 8px;">Publisher</td><td style="padding:4px 8px;">Site name (auto)</td><td style="padding:4px 8px;">Yes — Inject Site Info</td></tr>' .
+					'<tr><td style="padding:4px 8px;">Website</td><td style="padding:4px 8px;">Site URL (auto)</td><td style="padding:4px 8px;">Yes — Inject Site Info</td></tr>' .
+					'</table>' .
+					'<p style="margin-top:.75em;">' . esc_html__( 'Creator, Copyright, and Owner carry rights and attribution meaning. They are intentionally unavailable as bulk actions and must be set per image.', 'metamanager' ) . '</p>',
+			] );
+
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_updates',
+				'title'   => __( 'Updates', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'Keeping Metamanager Up to Date', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'Metamanager integrates with the WordPress update system. New GitHub releases appear automatically in Dashboard → Updates within 12 hours.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'To check immediately, go to Plugins → Installed Plugins and click the “Check for Updates” link next to Metamanager.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'To update only the plugin files from the server without restarting daemons:', 'metamanager' ) . '</p>' .
+					'<code>sudo bash install.sh --update</code>',
+			] );
+
+			$screen->set_help_sidebar(
+				'<p><strong>' . esc_html__( 'Metamanager', 'metamanager' ) . ' ' . MM_VERSION . '</strong></p>' .
+				'<p><a href="https://metamanager.richardkentgates.com" target="_blank" rel="noopener">' . esc_html__( 'Documentation Website', 'metamanager' ) . ' ↗</a></p>' .
+				'<p><a href="https://github.com/richardkentgates/metamanager" target="_blank" rel="noopener">' . esc_html__( 'GitHub Repository', 'metamanager' ) . ' ↗</a></p>' .
+				'<p><a href="https://github.com/richardkentgates/metamanager/issues" target="_blank" rel="noopener">' . esc_html__( 'Report an Issue', 'metamanager' ) . ' ↗</a></p>' .
+				'<p><a href="https://github.com/richardkentgates/metamanager/blob/main/CHANGELOG.md" target="_blank" rel="noopener">' . esc_html__( 'Changelog', 'metamanager' ) . ' ↗</a></p>'
+			);
+		}
+
+		// Media Library help sidebar addendum.
+		if ( 'upload' === $screen->id ) {
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_media_column',
+				'title'   => __( 'Compression Column', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'Metamanager Compression Column', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'The Compression column shows the lossless compression status of each image. It polls the server every 10 seconds and updates without a page reload.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Status meanings:', 'metamanager' ) . '</p>' .
+					'<ul>' .
+					'<li><strong style="color:#13bb2c;">' . esc_html__( 'Compressed', 'metamanager' ) . '</strong> — ' . esc_html__( 'All image sizes have been losslessly optimised.', 'metamanager' ) . '</li>' .
+					'<li><strong style="color:#e6b800;">' . esc_html__( 'Pending', 'metamanager' ) . '</strong> — ' . esc_html__( 'A compression job is queued and waiting for the daemon.', 'metamanager' ) . '</li>' .
+					'<li><strong style="color:#e54c3c;">' . esc_html__( 'Failed', 'metamanager' ) . '</strong> — ' . esc_html__( 'The last compression attempt failed. Go to Media → Metamanager to re-queue.', 'metamanager' ) . '</li>' .
+					'<li><strong style="color:#888;">' . esc_html__( 'Not compressed', 'metamanager' ) . '</strong> — ' . esc_html__( 'No compression job has run yet. Use Compress Lossless from the Bulk Actions menu.', 'metamanager' ) . '</li>' .
+					'</ul>' .
+					'<p><a href="' . esc_url( admin_url( 'upload.php?page=metamanager-jobs' ) ) . '">' . esc_html__( 'View Job Dashboard →', 'metamanager' ) . '</a></p>',
+			] );
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -420,6 +538,26 @@ class MM_Admin {
 		?>
 		<div class="wrap mm-admin-wrap">
 			<h1 class="mm-title"><?php esc_html_e( 'Metamanager — Job Dashboard', 'metamanager' ); ?></h1>
+
+			<details class="mm-help-box" style="background:#f0f7ff;border:1px solid #c5dff8;border-radius:6px;padding:14px 18px;margin-bottom:1.5em;font-size:13px;">
+				<summary style="cursor:pointer;font-weight:600;color:#2d8cf0;"><?php esc_html_e( 'About this page (click to expand)', 'metamanager' ); ?></summary>
+				<div style="margin-top:1em;line-height:1.7;">
+					<p><?php esc_html_e( 'This dashboard shows all Metamanager activity in real time. It refreshes every 5 seconds automatically — no page reload needed.', 'metamanager' ); ?></p>
+					<h4 style="margin:.75em 0 .3em;"><?php esc_html_e( 'Job Queue', 'metamanager' ); ?></h4>
+					<p><?php esc_html_e( 'Jobs appear here when an image is uploaded, metadata fields are saved, or a bulk action is triggered. Each job is a small JSON file the OS daemon picks up via inotifywait. Jobs vanish as soon as the daemon processes them.', 'metamanager' ); ?></p>
+					<h4 style="margin:.75em 0 .3em;"><?php esc_html_e( 'Job History', 'metamanager' ); ?></h4>
+					<p><?php esc_html_e( 'Once a daemon finishes a job it writes a result file to completed/ or failed/. WP-Cron reads those files every 60 seconds and records them here. Click the image name to open the edit screen. Use Re-queue on any failed job to resubmit it without manual steps.', 'metamanager' ); ?></p>
+					<h4 style="margin:.75em 0 .3em;"><?php esc_html_e( 'Bulk Actions (Media Library)', 'metamanager' ); ?></h4>
+					<ul style="margin:.3em 0 0 1.5em;">
+						<li><strong><?php esc_html_e( 'Compress Lossless', 'metamanager' ); ?></strong> — <?php esc_html_e( 'queues lossless compression for all uncompressed sizes of selected images. JPEG via jpegtran, PNG via optipng. Files are only replaced if the result is smaller.', 'metamanager' ); ?></li>
+						<li><strong><?php esc_html_e( 'Inject Site Info into Metadata', 'metamanager' ); ?></strong> — <?php esc_html_e( 'writes Publisher (your site name) and Website (your site URL) into IPTC and XMP. This is neutral provenance — it never sets Creator, Copyright, or Owner.', 'metamanager' ); ?></li>
+					</ul>
+					<h4 style="margin:.75em 0 .3em;"><?php esc_html_e( 'Status Banner', 'metamanager' ); ?></h4>
+					<p><?php esc_html_e( 'The banner at the top shows tool availability and daemon health. A green checkmark means the tool is installed and reachable. A red cross means it is missing or the daemon is not running. Daemon status is read from a PID file in /tmp/ — no elevated privileges are needed.', 'metamanager' ); ?></p>
+					<p style="margin-top:.75em;"><?php esc_html_e( 'Full documentation is available in the Help tab (top right) and at', 'metamanager' ); ?> <a href="https://metamanager.richardkentgates.com" target="_blank" rel="noopener">metamanager.richardkentgates.com</a>.</p>
+				</div>
+			</details>
+
 			<div id="mm-jobs-dashboard">
 				<?php self::render_jobs_content(); ?>
 			</div>

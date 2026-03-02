@@ -26,6 +26,7 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 - **Real-time job dashboard**: live queue view and searchable/paginated history under Media → Metamanager
 - **Re-queue on failure**: one-click retry for any failed job from the history table
 - **Daemon health indicator**: status banner shows whether each daemon is running (via PID file — no `systemctl` privilege required)
+- **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates like any hosted plugin; includes a manual "Check for Updates" link on the Plugins page
 
 ---
 
@@ -63,6 +64,29 @@ The install script:
 4. Patches daemon scripts with your actual `WP_CONTENT_DIR`
 5. Installs, enables, and starts both systemd daemons
 6. Activates the plugin via WP-CLI if available
+
+---
+
+## Updating
+
+**Via WordPress admin (recommended):**
+Metamanager integrates with the native WordPress update system. When a new GitHub release is tagged, it appears automatically in **Dashboard → Updates** within 12 hours. Click **Update now** exactly as you would for any plugin.
+
+A **Check for Updates** action link on **Plugins → Installed Plugins** forces an immediate check without waiting.
+
+**Via server script (plugin files only — daemons untouched):**
+
+```bash
+wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash -s -- --update
+```
+
+Or from a cloned directory:
+
+```bash
+sudo bash install.sh --update
+```
+
+The `--update` flag skips dependency installation, daemon patching, and systemd service management. It only syncs plugin PHP, JS, and asset files, fixes permissions, and flushes the WordPress object cache.
 
 ---
 

@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.1] — 2026-03-02
+
+### Added
+- Native WordPress auto-updater (`MM_Updater`) — hooks into the core plugin-update pipeline so Metamanager appears in Dashboard → Updates automatically when a new GitHub release is published
+- "Check for Updates" action link on the Plugins page for immediate on-demand update checks
+- `install.sh --update` flag — updates plugin PHP/JS/asset files only without re-installing daemons, dependencies, or systemd services; flushes WordPress object cache via WP-CLI when available
+- Contextual help tabs on the Media → Metamanager admin screen (via WordPress Screen API)
+- Inline help section on the job dashboard with explanations of the queue, history, bulk actions, daemon statuses, and metadata field behaviour
+
+### Changed
+- README.md: added Updating section, auto-updates feature, and `--update` usage
+- CHANGELOG.md, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md: added community and documentation files
+
+---
+
 ## [1.0.0] — 2026-03-02
 
 ### Added
