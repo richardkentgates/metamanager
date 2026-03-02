@@ -31,6 +31,7 @@
             <a href="#updating">Updating</a>
             <a href="#metadata">Metadata</a>
             <a href="#schema">Schema &amp; OG</a>
+            <a href="#credits">Credits</a>
             <a href="https://github.com/richardkentgates/metamanager" class="nav-github" target="_blank" rel="noopener">
                 GitHub ↗
             </a>
@@ -520,6 +521,144 @@ updates history table</code></pre>
     </div>
 </section>
 
+<!-- ============================================================ CREDITS -->
+<section class="section" id="credits">
+    <div class="container">
+        <h2 class="section-title">Open Source Credits</h2>
+        <p class="section-subtitle">Metamanager is built on the shoulders of these outstanding open source projects. Full credit and gratitude to their authors and maintainers.</p>
+
+        <div class="credits-grid">
+
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">🏷</span>
+                    <div>
+                        <h3 class="credit-name">ExifTool</h3>
+                        <span class="credit-author">Phil Harvey</span>
+                    </div>
+                    <span class="credit-license">Artistic License / GPL</span>
+                </div>
+                <p>The backbone of all metadata work in Metamanager. ExifTool reads and writes EXIF, IPTC, and XMP tags across virtually every image format in existence. We use it to import embedded metadata on upload and to write all metadata fields back to the file.</p>
+                <div class="credit-links">
+                    <a href="https://exiftool.org" target="_blank" rel="noopener">exiftool.org</a>
+                    <a href="https://github.com/exiftool/exiftool" target="_blank" rel="noopener">GitHub ↗</a>
+                </div>
+            </div>
+
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">🗜</span>
+                    <div>
+                        <h3 class="credit-name">libjpeg-turbo / jpegtran</h3>
+                        <span class="credit-author">libjpeg-turbo Project · Independent JPEG Group</span>
+                    </div>
+                    <span class="credit-license">BSD / IJG License</span>
+                </div>
+                <p><code>jpegtran</code> performs lossless JPEG optimisation — reordering Huffman tables and enabling progressive scan without decoding or re-encoding a single pixel. The IJG created the original implementation; libjpeg-turbo maintains and accelerates it.</p>
+                <div class="credit-links">
+                    <a href="https://libjpeg-turbo.org" target="_blank" rel="noopener">libjpeg-turbo.org</a>
+                    <a href="https://github.com/libjpeg-turbo/libjpeg-turbo" target="_blank" rel="noopener">GitHub ↗</a>
+                </div>
+            </div>
+
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">🖼</span>
+                    <div>
+                        <h3 class="credit-name">optipng</h3>
+                        <span class="credit-author">Cosmin Truță</span>
+                    </div>
+                    <span class="credit-license">zlib / libpng License</span>
+                </div>
+                <p><code>optipng</code> tries multiple DEFLATE parameters and filter combinations to find the smallest lossless PNG representation. No pixels are changed. We use <code>-o2 -preserve</code> to balance speed and compression while retaining all file metadata.</p>
+                <div class="credit-links">
+                    <a href="https://optipng.sourceforge.net" target="_blank" rel="noopener">optipng.sourceforge.net</a>
+                </div>
+            </div>
+
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">👁</span>
+                    <div>
+                        <h3 class="credit-name">inotify-tools</h3>
+                        <span class="credit-author">inotify-tools contributors</span>
+                    </div>
+                    <span class="credit-license">GPL v2</span>
+                </div>
+                <p><code>inotifywait</code> is what makes the daemons instant-response rather than polling. When a job file is written, <code>inotifywait</code> fires immediately — no sleep loops, no latency. The Linux kernel's inotify subsystem watches; inotify-tools provides the userspace interface.</p>
+                <div class="credit-links">
+                    <a href="https://github.com/inotify-tools/inotify-tools" target="_blank" rel="noopener">GitHub ↗</a>
+                </div>
+            </div>
+
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">{ }</span>
+                    <div>
+                        <h3 class="credit-name">jq</h3>
+                        <span class="credit-author">Stephen Dolan · jqlang organisation</span>
+                    </div>
+                    <span class="credit-license">MIT License</span>
+                </div>
+                <p><code>jq</code> is used inside the Bash daemons to parse job JSON files written by PHP — extracting field values by key without requiring any additional runtime. Lightweight, dependency-free in execution, and universally available on our supported Linux distributions.</p>
+                <div class="credit-links">
+                    <a href="https://jqlang.github.io/jq/" target="_blank" rel="noopener">jqlang.github.io/jq</a>
+                    <a href="https://github.com/jqlang/jq" target="_blank" rel="noopener">GitHub ↗</a>
+                </div>
+            </div>
+
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">⚙</span>
+                    <div>
+                        <h3 class="credit-name">systemd</h3>
+                        <span class="credit-author">systemd contributors</span>
+                    </div>
+                    <span class="credit-license">LGPL v2.1+</span>
+                </div>
+                <p>The compression and metadata daemons run as systemd services. systemd manages process lifecycle, automatic restart on failure, boot-time startup, and journal-based logging. We use a PID-file pattern so the WordPress plugin never needs <code>systemctl</code> privileges.</p>
+                <div class="credit-links">
+                    <a href="https://systemd.io" target="_blank" rel="noopener">systemd.io</a>
+                    <a href="https://github.com/systemd/systemd" target="_blank" rel="noopener">GitHub ↗</a>
+                </div>
+            </div>
+
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">🌐</span>
+                    <div>
+                        <h3 class="credit-name">WordPress</h3>
+                        <span class="credit-author">WordPress Foundation &amp; contributors</span>
+                    </div>
+                    <span class="credit-license">GPL v2+</span>
+                </div>
+                <p>Metamanager is a WordPress plugin and relies on the WordPress API — hooks, post meta, REST API, WP-Cron, the admin UI framework, media handling, and the plugin update pipeline. WordPress is itself GPL v2+, the reason Metamanager is GPLv3 (a compatible later version).</p>
+                <div class="credit-links">
+                    <a href="https://wordpress.org" target="_blank" rel="noopener">wordpress.org</a>
+                    <a href="https://github.com/WordPress/WordPress" target="_blank" rel="noopener">GitHub ↗</a>
+                </div>
+            </div>
+
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">Aa</span>
+                    <div>
+                        <h3 class="credit-name">Inter &amp; JetBrains Mono</h3>
+                        <span class="credit-author">Rasmus Andersson · JetBrains</span>
+                    </div>
+                    <span class="credit-license">SIL Open Font License 1.1</span>
+                </div>
+                <p>The typefaces used on this website. <strong>Inter</strong> (Rasmus Andersson) for UI text; <strong>JetBrains Mono</strong> (JetBrains) for code samples. Both are served via Google Fonts and are not bundled with the plugin itself.</p>
+                <div class="credit-links">
+                    <a href="https://rsms.me/inter/" target="_blank" rel="noopener">rsms.me/inter</a>
+                    <a href="https://www.jetbrains.com/lp/mono/" target="_blank" rel="noopener">JetBrains Mono ↗</a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
 <!-- ============================================================ FOOTER -->
 <footer class="site-footer">
     <div class="container footer-inner">
@@ -534,6 +673,7 @@ updates history table</code></pre>
             <a href="https://github.com/richardkentgates/metamanager/issues" target="_blank" rel="noopener">Issues</a>
             <a href="https://github.com/richardkentgates/metamanager/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
             <a href="https://github.com/richardkentgates/metamanager/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
+            <a href="#credits">Credits</a>
         </div>
     </div>
 </footer>

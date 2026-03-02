@@ -351,6 +351,84 @@ body { font-family: var(--sans); color: var(--mid); background: var(--white); li
 .footer-right a { color: #8fa4c8; text-decoration: none; font-size: .88rem; transition: color .15s; }
 .footer-right a:hover { color: var(--white); }
 
+/* ================================================================ CREDITS */
+.credits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
+    margin-top: 2rem;
+}
+.credit-card {
+    background: var(--white);
+    border: 1px solid #dde6f5;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: box-shadow .2s, transform .2s;
+}
+.credit-card:hover {
+    box-shadow: 0 6px 24px rgba(45,140,240,.12);
+    transform: translateY(-2px);
+}
+.credit-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+.credit-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.credit-header > div { flex: 1; min-width: 0; }
+.credit-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--blue-dark);
+    margin: 0 0 2px;
+}
+.credit-author {
+    font-size: .78rem;
+    color: var(--muted);
+    display: block;
+}
+.credit-license {
+    flex-shrink: 0;
+    font-size: .7rem;
+    font-weight: 600;
+    background: #eef4ff;
+    color: var(--blue);
+    border-radius: 4px;
+    padding: 3px 8px;
+    white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 2px;
+}
+.credit-card p {
+    font-size: .88rem;
+    color: var(--text);
+    line-height: 1.65;
+    margin: 0;
+}
+.credit-links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+.credit-links a {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--blue);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color .15s;
+}
+.credit-links a:hover { border-color: var(--blue); }
+
 /* ================================================================ RESPONSIVE */
 @media (max-width: 768px) {
     .site-nav a:not(.nav-github):not(:last-child) { display: none; }

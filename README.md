@@ -284,6 +284,92 @@ DROP TABLE IF EXISTS wp_metamanager_jobs;
 
 ---
 
+## Open Source Credits
+
+Metamanager would not exist without the following open source tools and projects. Full credit, respect, and gratitude to their authors and maintainers.
+
+---
+
+### ExifTool
+**Author:** Phil Harvey
+**License:** [Perl Artistic License / GPL v1+](https://exiftool.org/#license)
+**Website:** <https://exiftool.org>
+**Repository:** <https://github.com/exiftool/exiftool>
+
+The backbone of all metadata work in Metamanager. ExifTool reads and writes EXIF, IPTC, and XMP tags across virtually every image format in existence. Nothing else comes close to its breadth of format support and tag coverage. We use it both to import embedded metadata on upload and to write all metadata fields back to the file.
+
+---
+
+### libjpeg-turbo / jpegtran
+**Maintainer:** libjpeg-turbo Project
+**Original author:** Independent JPEG Group (IJG)
+**License:** [BSD 3-Clause / IJG License / zlib](https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/LICENSE.md)
+**Website:** <https://libjpeg-turbo.org>
+**Repository:** <https://github.com/libjpeg-turbo/libjpeg-turbo>
+
+`jpegtran`, part of the libjpeg-turbo package, performs lossless JPEG optimisation — reordering Huffman tables and enabling progressive scan without decoding or re-encoding a single pixel. The Independent JPEG Group created the original implementation; libjpeg-turbo maintains and significantly accelerates it.
+
+---
+
+### optipng
+**Author:** Cosmin Truța
+**License:** [zlib/libpng License](https://optipng.sourceforge.net/pngtech/optipng.html)
+**Website:** <https://optipng.sourceforge.net>
+
+`optipng` performs lossless PNG compression by trying multiple DEFLATE parameters and filter combinations to find the smallest lossless representation. No pixels are changed. We use it with `-o2 -preserve` to balance compression efficiency against processing time while preserving all file metadata.
+
+---
+
+### inotify-tools
+**Maintainer:** inotify-tools contributors
+**License:** [GPL v2](https://github.com/inotify-tools/inotify-tools/blob/master/COPYING)
+**Repository:** <https://github.com/inotify-tools/inotify-tools>
+
+`inotifywait` is the event source that makes Metamanager's daemons instant-response rather than polling. When a job JSON file is written to the queue directory, `inotifywait` fires immediately — no sleep loops, no delay. The Linux kernel's inotify subsystem does the actual watching; inotify-tools provides the userspace interface.
+
+---
+
+### jq
+**Original author:** Stephen Dolan
+**Maintainer:** [jqlang organisation](https://github.com/jqlang)
+**License:** [MIT License](https://github.com/jqlang/jq/blob/master/COPYING)
+**Website:** <https://jqlang.github.io/jq/>
+**Repository:** <https://github.com/jqlang/jq>
+
+`jq` is used inside the Bash daemons to parse the job JSON files written by PHP — extracting field values by key without requiring any additional runtime. It is lightweight, dependency-free in execution, and universally available across the Linux distributions we support.
+
+---
+
+### systemd
+**Maintainers:** systemd contributors
+**License:** [LGPL v2.1+](https://github.com/systemd/systemd/blob/main/LICENSE.LGPL2.1)
+**Website:** <https://systemd.io>
+**Repository:** <https://github.com/systemd/systemd>
+
+Metamanager's compression and metadata daemons run as systemd services — `metamanager-compress-daemon.service` and `metamanager-meta-daemon.service`. systemd manages process lifecycle, automatic restart on failure, boot-time start, and journal-based logging for both daemons. We use a PID-file pattern for health checks so that the WordPress plugin does not require `systemctl` privileges.
+
+---
+
+### WordPress
+**Maintainer:** [WordPress Foundation](https://wordpressfoundation.org)
+**License:** [GPL v2+](https://wordpress.org/about/license/)
+**Website:** <https://wordpress.org>
+**Repository:** <https://github.com/WordPress/WordPress>
+
+Metamanager is a WordPress plugin and relies entirely on the WordPress API — hooks, post meta, REST API, WP-Cron, the admin UI framework, media handling, and the plugin update pipeline. WordPress is itself GPL v2+, which is why Metamanager is licensed under GPL v3 (a compatible and later version).
+
+---
+
+### Website fonts
+
+**Inter** — designed by Rasmus Andersson. [SIL Open Font License 1.1](https://github.com/rsms/inter/blob/master/LICENSE.txt). <https://rsms.me/inter/>
+
+**JetBrains Mono** — designed by JetBrains. [SIL Open Font License 1.1](https://github.com/JetBrains/JetBrainsMono/blob/main/OFL.txt). <https://www.jetbrains.com/lp/mono/>
+
+Both fonts are served via [Google Fonts](https://fonts.google.com) on the documentation website only — they are not bundled with the plugin.
+
+---
+
 ## License
 
 GPLv3 or later. See [LICENSE](LICENSE).
