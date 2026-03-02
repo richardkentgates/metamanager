@@ -148,6 +148,9 @@ function mm_import_completed_jobs(): void {
 // Core hook registrations (single, authoritative source — no duplicates)
 // ---------------------------------------------------------------------------
 
+// Register custom attachment post meta — type safety, sanitisation, REST API.
+add_action( 'init', [ 'MM_Metadata', 'register_meta' ] );
+
 // After WordPress generates image sizes on upload, enqueue both job types.
 add_filter( 'wp_generate_attachment_metadata', [ 'MM_Job_Queue', 'on_upload' ], 20, 2 );
 

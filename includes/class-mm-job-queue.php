@@ -166,6 +166,9 @@ class MM_Job_Queue {
 	 */
 	public static function on_upload( array $metadata, int $attachment_id ): array {
 		if ( wp_attachment_is_image( $attachment_id ) ) {
+			// Import any embedded metadata from file into WP fields before
+			// queuing jobs so the job payload can include already-imported values.
+			MM_Metadata::import_from_file( $attachment_id );
 			self::enqueue_all_sizes( $attachment_id, $metadata, 'both', [ 'trigger' => 'upload' ] );
 		}
 		return $metadata;

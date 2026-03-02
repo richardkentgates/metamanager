@@ -119,6 +119,38 @@ process_job() {
                                  append_tag "XMP:Publisher"           "${v}"
 
     v=$(get_val "Website");     append_tag "XMP:WebStatement"        "${v}"
+
+    # --- Editorial ---
+    v=$(get_val "Headline");    append_tag "IPTC:Headline"                      "${v}"
+                                 append_tag "XMP:Headline"                       "${v}"
+
+    v=$(get_val "Credit");     append_tag "IPTC:Credit"                        "${v}"
+                                 append_tag "XMP:Credit"                         "${v}"
+
+    # --- Classification ---
+    # Keywords: stored semicolon-separated; write each as a separate multi-value tag.
+    IFS='; ' read -ra _kw_arr <<< "$(get_val 'Keywords')"
+    for _kw in "${_kw_arr[@]}"; do
+        [[ -n "${_kw}" ]] && exif_args+=( "-IPTC:Keywords+=${_kw}" "-XMP:Subject+=${_kw}" )
+    done
+    unset _kw_arr _kw
+
+    v=$(get_val "DateCreated"); append_tag "EXIF:DateTimeOriginal"             "${v}"
+                                 append_tag "IPTC:DateCreated"                   "${v}"
+                                 append_tag "XMP:DateCreated"                    "${v}"
+
+    v=$(get_val "Rating");     append_tag "XMP:Rating"                          "${v}"
+
+    # --- Location (IPTC Photo Metadata Standard) ---
+    v=$(get_val "City");        append_tag "IPTC:City"                           "${v}"
+                                 append_tag "XMP:City"                            "${v}"
+
+    v=$(get_val "State");       append_tag "IPTC:Province-State"                "${v}"
+                                 append_tag "XMP:State"                           "${v}"
+
+    v=$(get_val "Country");     append_tag "IPTC:Country-PrimaryLocationName"   "${v}"
+                                 append_tag "XMP:Country"                         "${v}"
+
     # Note: IPTC:Source is shared with Publisher — write whichever is present.
     # If both Publisher and Website are set, Website takes precedence for IPTC:Source.
     v_pub=$(get_val "Publisher")
