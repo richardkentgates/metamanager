@@ -60,6 +60,7 @@ require_once MM_PLUGIN_DIR . 'includes/class-mm-job-queue.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-metadata.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-status.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-admin.php';
+require_once MM_PLUGIN_DIR . 'includes/class-mm-updater.php';
 
 // ---------------------------------------------------------------------------
 // Activation / deactivation
@@ -165,4 +166,21 @@ add_action( 'delete_attachment', [ 'MM_Job_Queue', 'on_delete_attachment' ] );
 
 if ( is_admin() ) {
 	MM_Admin::init();
+	MM_Updater::init();
+
+	// Display the one-shot notice produced by the manual "Check for Updates" redirect.
+	add_action( 'admin_notices', function (): void {
+		if ( empty( $_GET['mm_notice'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$type    = in_array( $_GET['mm_notice_type'] ?? '', [ 'updated', 'error' ], true )
+			? sanitize_key( $_GET['mm_notice_type'] )
+			: 'updated';
+		$message = sanitize_text_field( urldecode( $_GET['mm_notice'] ) );
+		printf(
+			'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+			esc_attr( $type ),
+			esc_html( $message )
+		);
+	} );
 }
