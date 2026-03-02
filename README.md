@@ -1,6 +1,6 @@
 # Metamanager
 
-**Metamanager** is a WordPress plugin that provides lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) through OS-level daemons, while expanding the WordPress Media Library admin with native metadata editing and a real-time job dashboard.
+**Metamanager** is a WordPress plugin that provides lossless image compression, bidirectional metadata sync between WordPress fields and embedded EXIF/IPTC/XMP tags, and automatic front-end Schema.org and Open Graph output — all powered by OS-level daemons and native WordPress APIs.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-blue)](https://wordpress.org)
@@ -20,13 +20,20 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 
 - **Lossless compression**: JPEG via `jpegtran` (no re-encoding), PNG via `optipng`
 - **Standards-compliant metadata**: EXIF, IPTC, and XMP written simultaneously via ExifTool
+- **Bidirectional metadata sync**: on upload, embedded EXIF/IPTC/XMP is read from the file and populates WordPress fields automatically — existing user values are never overwritten
+- **Expanded metadata fields**: Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating (0–5 stars), City, State/Province, Country — stored as registered post meta, REST-exposed, and embedded by the daemon
+- **GPS coordinates**: latitude, longitude, and altitude read from camera-embedded GPS tags and stored automatically — no manual entry required
+- **Schema.org JSON-LD**: `ImageObject` block emitted on attachment pages and posts with a featured image — includes all fields plus `GeoCoordinates` when GPS data is present
+- **Open Graph tags**: `og:image`, `og:image:alt`, `og:image:width`, `og:image:height`, `og:image:type`, `og:image:secure_url`
+- **License link**: `<link rel="license">` for URL-format copyright values, `<meta name="copyright">` for plain-text notices
 - **Native WordPress integration**: metadata fields on every image edit screen; compression status column in Media Library
+- **Grouped edit UI**: Attribution & Rights, Editorial, Classification, Location — clearly separated in the attachment editor
 - **Bulk operations**: compress all uncompressed images, or inject site provenance (Publisher + Website URL) into metadata
-- **No false attribution**: bulk actions never set Creator, Copyright, or Owner — those are individual image fields
+- **No false attribution**: bulk actions never set Creator, Copyright, Owner, or any per-image field
 - **Real-time job dashboard**: live queue view and searchable/paginated history under Media → Metamanager
 - **Re-queue on failure**: one-click retry for any failed job from the history table
 - **Daemon health indicator**: status banner shows whether each daemon is running (via PID file — no `systemctl` privilege required)
-- **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates like any hosted plugin; includes a manual "Check for Updates" link on the Plugins page
+- **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates; includes a manual "Check for Updates" link on the Plugins page
 
 ---
 
@@ -141,19 +148,97 @@ History table updated
 
 ## Metadata Fields
 
-| Field | Where set | EXIF | IPTC | XMP |
-|-------|-----------|------|------|-----|
-| Title | WP post title | Title | ObjectName | Title |
-| Description | WP post content | ImageDescription | Caption-Abstract | Description |
-| Caption | WP excerpt | — | Caption-Abstract | Caption |
-| Alt Text | WP alt field | — | — | AltTextAccessibility |
-| Creator | Per-image field | Artist | By-line | Creator |
-| Copyright | Per-image field | Copyright | CopyrightNotice | Rights |
-| Owner | Per-image field | OwnerName | — | Owner |
-| Publisher | Site name (auto) | — | Source | Publisher |
-| Website | Site URL (auto) | — | Source | WebStatement |
+### Attribution & Rights *(per-image only — never bulk)*
 
-**Creator, Copyright, and Owner are never set by bulk actions.** These fields carry attribution and rights meaning — they should be set deliberately per image. Bulk operations only ever inject Publisher and Website (neutral provenance).
+| Field | EXIF | IPTC | XMP |
+|-------|------|------|-----|
+| Creator | Artist | By-line | Creator |
+| Copyright | Copyright | CopyrightNotice | Rights |
+| Owner | OwnerName | — | Owner |
+
+### Editorial
+
+| Field | EXIF | IPTC | XMP |
+|-------|------|------|-----|
+| Headline | — | Headline | Headline |
+| Credit | — | Credit | Credit |
+
+### Classification
+
+| Field | EXIF | IPTC | XMP |
+|-------|------|------|-----|
+| Keywords *(semicolon-separated)* | — | Keywords | Subject |
+| Date Created | DateTimeOriginal | DateCreated | DateCreated |
+| Rating *(0–5)* | — | — | Rating |
+
+### Location *(IPTC Photo Metadata Standard)*
+
+| Field | EXIF | IPTC | XMP |
+|-------|------|------|-----|
+| City | — | City | City |
+| State / Province | — | Province-State | State |
+| Country | — | Country-PrimaryLocationName | Country |
+
+### GPS *(read-only — imported from camera, never editable)*
+
+| Field | ExifTool source | Schema.org property |
+|-------|----------------|---------------------|
+| Latitude | `Composite:GPSLatitude` | `GeoCoordinates.latitude` |
+| Longitude | `Composite:GPSLongitude` | `GeoCoordinates.longitude` |
+| Altitude (m) | `Composite:GPSAltitude` | `GeoCoordinates.elevation` |
+
+### WordPress Native *(bidirectional sync)*
+
+| Field | WP source | EXIF | IPTC | XMP |
+|-------|-----------|------|------|-----|
+| Title | Post title | Title | ObjectName | Title |
+| Description | Post content | ImageDescription | Caption-Abstract | Description |
+| Caption | Post excerpt | — | Caption-Abstract | Caption |
+| Alt Text | Alt field | — | — | AltTextAccessibility |
+
+### Site Provenance *(bulk-safe — neutral, no ownership claim)*
+
+| Field | Source | IPTC | XMP |
+|-------|--------|------|-----|
+| Publisher | Site name | Source | Publisher |
+| Website | Site URL | Source | WebStatement |
+
+**Creator, Copyright, Owner, and all per-image fields are never set by bulk actions.** Bulk operations only ever inject Publisher and Website.
+
+---
+
+## Front-End Schema & Open Graph
+
+On every attachment page and single post/page with a featured image, Metamanager emits:
+
+**Schema.org `ImageObject` JSON-LD** — all stored fields map to standard properties:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "ImageObject",
+  "url": "https://example.com/wp-content/uploads/photo.jpg",
+  "name": "Sunrise over the ridge",
+  "creator": { "@type": "Person", "name": "Jane Doe" },
+  "copyrightNotice": "© 2026 Jane Doe",
+  "keywords": ["landscape", "sunrise", "nature"],
+  "dateCreated": "2026-01-15",
+  "locationCreated": {
+    "@type": "Place",
+    "name": "Boulder, CO, USA",
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 40.014984,
+      "longitude": -105.270546,
+      "elevation": 1655.0
+    }
+  }
+}
+```
+
+**Open Graph tags** — `og:image`, `og:image:alt`, `og:image:width`, `og:image:height`, `og:image:type`, `og:image:secure_url`
+
+**License tag** — `<link rel="license">` when the copyright field is a URL; `<meta name="copyright">` for plain-text notices
 
 ---
 

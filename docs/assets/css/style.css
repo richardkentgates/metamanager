@@ -257,11 +257,22 @@ body { font-family: var(--sans); color: var(--mid); background: var(--white); li
 .meta-table code { font-family: var(--mono); font-size: .82em; background: #f0f4fa; padding: 2px 6px; border-radius: 3px; color: var(--blue-dark); }
 .row-individual td { border-left: 3px solid var(--amber); }
 .row-site td { border-left: 3px solid var(--green); }
+.row-group-header td {
+    background: #f0f4fa !important;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--blue);
+    padding: 6px 10px;
+    border-top: 2px solid var(--blue-light);
+}
 
 .badge { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: .75rem; font-weight: 600; white-space: nowrap; }
 .badge-wp         { background: #e8f3fe; color: var(--blue); }
 .badge-individual { background: #fff8e0; color: #a07800; }
 .badge-site       { background: #e6f9eb; color: #0a8a20; }
+.badge-gps        { background: #f0e8fe; color: #6a0aad; }
 
 .table-note { font-size: .88rem; color: var(--muted); line-height: 1.6; }
 

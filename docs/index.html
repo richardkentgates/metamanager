@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Metamanager — Lossless image compression and standards-compliant EXIF, IPTC, XMP metadata embedding for WordPress, powered by OS-level daemons.">
+    <meta name="description" content="Metamanager — Lossless image compression, bidirectional EXIF/IPTC/XMP metadata sync, GPS import, and automatic Schema.org JSON-LD and Open Graph output for WordPress.">
     <meta name="author" content="Richard Kent Gates">
     <meta property="og:title" content="Metamanager — WordPress Media Manager">
     <meta property="og:description" content="Lossless image compression and full EXIF/IPTC/XMP metadata embedding for WordPress, via OS-level daemons.">
@@ -30,6 +30,7 @@
             <a href="#install">Install</a>
             <a href="#updating">Updating</a>
             <a href="#metadata">Metadata</a>
+            <a href="#schema">Schema &amp; OG</a>
             <a href="https://github.com/richardkentgates/metamanager" class="nav-github" target="_blank" rel="noopener">
                 GitHub ↗
             </a>
@@ -47,8 +48,9 @@
         </h1>
         <p class="hero-subtitle">
             Metamanager pairs WordPress's media library with OS-level daemons to deliver
-            truly lossless image compression and standards-compliant EXIF, IPTC, and XMP
-            metadata embedding — all managed natively from your dashboard.
+            truly lossless image compression, bidirectional EXIF/IPTC/XMP metadata sync,
+            GPS coordinate import, and automatic Schema.org and Open Graph output —
+            all managed natively from your dashboard.
         </p>
         <div class="hero-actions">
             <a href="#install" class="btn btn-primary">Quick Install</a>
@@ -76,6 +78,21 @@
                 <div class="feature-icon">🏷</div>
                 <h3>Full Metadata Standards</h3>
                 <p>Write EXIF, IPTC, and XMP simultaneously via ExifTool — the industry standard. Every tag written in all three formats at once for maximum compatibility across editing software, search engines, and CMS platforms.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔄</div>
+                <h3>Bidirectional Metadata Sync</h3>
+                <p>On upload, embedded EXIF/IPTC/XMP tags are read from the file and used to pre-populate WordPress fields automatically. User-set values are never overwritten. Edit fields in WordPress and the daemon writes them back into the file.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📍</div>
+                <h3>GPS Coordinates</h3>
+                <p>When clients shoot with location services enabled, Metamanager reads GPS latitude, longitude, and altitude directly from the camera's EXIF data. No manual entry — coordinates are imported and stored automatically at upload time.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>Schema.org &amp; Open Graph</h3>
+                <p>Every attachment page and post with a featured image automatically receives an <code>ImageObject</code> JSON-LD block and Open Graph tags. When GPS data is present, a full <code>GeoCoordinates</code> object is included — everything Google Images and social platforms need.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🖥</div>
@@ -117,7 +134,7 @@
                 <div class="flow-number">1</div>
                 <div class="flow-content">
                     <h4>Upload or Edit</h4>
-                    <p>WordPress triggers <code>wp_generate_attachment_metadata</code> or saves attachment fields.</p>
+                    <p>On upload, embedded metadata is read from the file into WordPress fields. On edit, changed fields are queued for writing back to the file.</p>
                 </div>
             </div>
             <div class="flow-arrow">→</div>
@@ -149,7 +166,11 @@
         <div class="arch-diagram">
 <pre><code>WordPress (PHP)                  OS (Bash Daemons)
 ────────────────                 ──────────────────────────────────
-Upload / edit image
+Upload image
+        │
+        ▼
+import_from_file()         ◄── ExifTool reads embedded tags
+  populates empty WP fields         (EXIF / IPTC / XMP / GPS)
         │
         ▼
 Write job JSON to          ◄── inotifywait detects new file
@@ -157,7 +178,7 @@ Write job JSON to          ◄── inotifywait detects new file
   compress/ or meta/                     ▼
                                   Process image:
                                     jpegtran / optipng  [compression]
-                                    ExifTool            [metadata]
+                                    ExifTool            [metadata write]
                                          │
 WP-Cron (60s) ◄──── result JSON ────────┘
 reads, inserts to DB,
@@ -210,6 +231,7 @@ updates history table</code></pre>
                     </tr>
                 </thead>
                 <tbody>
+                    <tr class="row-group-header"><td colspan="5">WordPress Native — bidirectional sync</td></tr>
                     <tr>
                         <td><strong>Title</strong></td>
                         <td><span class="badge badge-wp">WP Post Title</span></td>
@@ -238,6 +260,7 @@ updates history table</code></pre>
                         <td>—</td>
                         <td><code>AltTextAccessibility</code></td>
                     </tr>
+                    <tr class="row-group-header"><td colspan="5">Attribution &amp; Rights — per-image only, never bulk</td></tr>
                     <tr class="row-individual">
                         <td><strong>Creator</strong></td>
                         <td><span class="badge badge-individual">Per-image</span></td>
@@ -259,6 +282,88 @@ updates history table</code></pre>
                         <td>—</td>
                         <td><code>Owner</code></td>
                     </tr>
+                    <tr class="row-group-header"><td colspan="5">Editorial</td></tr>
+                    <tr class="row-individual">
+                        <td><strong>Headline</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td>—</td>
+                        <td><code>Headline</code></td>
+                        <td><code>Headline</code></td>
+                    </tr>
+                    <tr class="row-individual">
+                        <td><strong>Credit</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td>—</td>
+                        <td><code>Credit</code></td>
+                        <td><code>Credit</code></td>
+                    </tr>
+                    <tr class="row-group-header"><td colspan="5">Classification</td></tr>
+                    <tr class="row-individual">
+                        <td><strong>Keywords</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td>—</td>
+                        <td><code>Keywords</code></td>
+                        <td><code>Subject</code></td>
+                    </tr>
+                    <tr class="row-individual">
+                        <td><strong>Date Created</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td><code>DateTimeOriginal</code></td>
+                        <td><code>DateCreated</code></td>
+                        <td><code>DateCreated</code></td>
+                    </tr>
+                    <tr class="row-individual">
+                        <td><strong>Rating</strong> (0–5)</td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td><code>Rating</code></td>
+                    </tr>
+                    <tr class="row-group-header"><td colspan="5">Location — IPTC Photo Metadata Standard</td></tr>
+                    <tr class="row-individual">
+                        <td><strong>City</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td>—</td>
+                        <td><code>City</code></td>
+                        <td><code>City</code></td>
+                    </tr>
+                    <tr class="row-individual">
+                        <td><strong>State / Province</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td>—</td>
+                        <td><code>Province-State</code></td>
+                        <td><code>State</code></td>
+                    </tr>
+                    <tr class="row-individual">
+                        <td><strong>Country</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td>—</td>
+                        <td><code>Country-PrimaryLocationName</code></td>
+                        <td><code>Country</code></td>
+                    </tr>
+                    <tr class="row-group-header"><td colspan="5">GPS — read-only, auto-imported from camera EXIF</td></tr>
+                    <tr>
+                        <td><strong>Latitude</strong></td>
+                        <td><span class="badge badge-gps">GPS Auto</span></td>
+                        <td><code>Composite:GPSLatitude</code></td>
+                        <td>—</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Longitude</strong></td>
+                        <td><span class="badge badge-gps">GPS Auto</span></td>
+                        <td><code>Composite:GPSLongitude</code></td>
+                        <td>—</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Altitude (m)</strong></td>
+                        <td><span class="badge badge-gps">GPS Auto</span></td>
+                        <td><code>Composite:GPSAltitude</code></td>
+                        <td>—</td>
+                        <td>—</td>
+                    </tr>
+                    <tr class="row-group-header"><td colspan="5">Site Provenance — bulk-safe, neutral</td></tr>
                     <tr class="row-site">
                         <td><strong>Publisher</strong></td>
                         <td><span class="badge badge-site">Site Name (auto)</span></td>
@@ -279,7 +384,68 @@ updates history table</code></pre>
         <p class="table-note">
             <span class="badge badge-individual">Per-image</span> fields are <strong>never touched by bulk actions</strong>.
             Only <span class="badge badge-site">Site auto</span> fields (Publisher + Website) can be injected in bulk — neutral provenance, not an ownership claim.
+            <span class="badge badge-gps">GPS Auto</span> fields are imported from the camera at upload time and are never editable in the UI.
         </p>
+    </div>
+</section>
+
+<!-- ============================================================ SCHEMA & OG -->
+<section class="section section-alt" id="schema">
+    <div class="container">
+        <h2 class="section-title">Schema.org &amp; Open Graph</h2>
+        <p class="section-subtitle">Every image page gets structured data automatically — no configuration required.</p>
+
+        <div class="feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 2.5rem;">
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>Schema.org <code>ImageObject</code></h3>
+                <p>A full JSON-LD block is emitted in <code>&lt;head&gt;</code> on attachment pages and any post with a featured image. Includes name, description, creator, copyright, keywords, date, location, and GPS coordinates when available. Eligible for Google Images rich results and Google Discover.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📲</div>
+                <h3>Open Graph Tags</h3>
+                <p>Correct <code>og:image</code>, <code>og:image:alt</code>, <code>og:image:width</code>, <code>og:image:height</code>, and <code>og:image:type</code> tags are written for every image. Social platforms — Facebook, LinkedIn, Slack, iMessage — use these to generate accurate link previews.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚖️</div>
+                <h3>License Link</h3>
+                <p>When a copyright value is set, Metamanager emits <code>&lt;link rel="license"&gt;</code> for URL-format values (e.g. Creative Commons URIs) or <code>&lt;meta name="copyright"&gt;</code> for plain-text notices — giving crawlers and aggregators a machine-readable rights signal.</p>
+            </div>
+        </div>
+
+        <h3 style="margin-bottom:.75rem;">Sample <code>ImageObject</code> JSON-LD output</h3>
+        <div class="arch-diagram">
+<pre><code>{
+  "@context": "https://schema.org",
+  "@type": "ImageObject",
+  "url": "https://example.com/wp-content/uploads/2026/01/photo.jpg",
+  "contentUrl": "https://example.com/wp-content/uploads/2026/01/photo.jpg",
+  "width": 4032,
+  "height": 3024,
+  "name": "Sunrise over the ridge",
+  "description": "Morning light breaking through the canyon walls.",
+  "headline": "Golden Hour in Red Rock Canyon",
+  "creditText": "Jane Doe / Mountain Light Photography",
+  "creator": { "@type": "Person", "name": "Jane Doe" },
+  "copyrightNotice": "© 2026 Jane Doe",
+  "copyrightHolder": { "@type": "Organization", "name": "Mountain Light Photography" },
+  "keywords": ["landscape", "sunrise", "canyon", "nature"],
+  "dateCreated": "2026-01-15",
+  "locationCreated": {
+    "@type": "Place",
+    "name": "Boulder, CO, USA",
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 40.014984,
+      "longitude": -105.270546,
+      "elevation": 1655.0
+    }
+  },
+  "contentLocation": { "@type": "Place", "name": "Boulder, CO, USA", "geo": { ... } },
+  "thumbnail": { "@type": "ImageObject", "url": "https://example.com/.../photo-300x225.jpg" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=42" }
+}</code></pre>
+        </div>
     </div>
 </section>
 
