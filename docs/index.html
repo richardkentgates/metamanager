@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Metamanager — Lossless image compression and standards-compliant EXIF, IPTC, XMP metadata embedding for WordPress, powered by OS-level daemons.">
+    <meta name="author" content="Richard Kent Gates">
+    <meta property="og:title" content="Metamanager — WordPress Media Manager">
+    <meta property="og:description" content="Lossless image compression and full EXIF/IPTC/XMP metadata embedding for WordPress, via OS-level daemons.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://metamanager.richardkentgates.com">
+    <title>Metamanager — WordPress Media Metadata & Compression</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ============================================================ HEADER -->
+<header class="site-header">
+    <div class="container header-inner">
+        <div class="logo">
+            <span class="logo-icon">⚙</span>
+            <span class="logo-name">Metamanager</span>
+            <span class="logo-tag">for WordPress</span>
+        </div>
+        <nav class="site-nav">
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#install">Install</a>
+            <a href="#metadata">Metadata</a>
+            <a href="https://github.com/richardkentgates/metamanager" class="nav-github" target="_blank" rel="noopener">
+                GitHub ↗
+            </a>
+        </nav>
+    </div>
+</header>
+
+<!-- ============================================================ HERO -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-badge">Open Source · GPL v3 · WordPress 6.0+</div>
+        <h1 class="hero-title">
+            Image Compression &amp; Metadata<br>
+            <span class="accent">the way it should work.</span>
+        </h1>
+        <p class="hero-subtitle">
+            Metamanager pairs WordPress's media library with OS-level daemons to deliver
+            truly lossless image compression and standards-compliant EXIF, IPTC, and XMP
+            metadata embedding — all managed natively from your dashboard.
+        </p>
+        <div class="hero-actions">
+            <a href="#install" class="btn btn-primary">Quick Install</a>
+            <a href="https://github.com/richardkentgates/metamanager" class="btn btn-outline" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+        <div class="hero-install-preview">
+            <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash</code>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ FEATURES -->
+<section class="section" id="features">
+    <div class="container">
+        <h2 class="section-title">What Metamanager Does</h2>
+        <p class="section-subtitle">PHP can't do lossless compression or write IPTC and XMP. Metamanager can.</p>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🗜</div>
+                <h3>True Lossless Compression</h3>
+                <p>JPEG files are optimised with <code>jpegtran</code> — no re-encoding, no quality loss, no pixel changes. PNG files are processed by <code>optipng</code>. Files are only replaced if the result is smaller.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏷</div>
+                <h3>Full Metadata Standards</h3>
+                <p>Write EXIF, IPTC, and XMP simultaneously via ExifTool — the industry standard. Every tag written in all three formats at once for maximum compatibility across editing software, search engines, and CMS platforms.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🖥</div>
+                <h3>Native Dashboard Integration</h3>
+                <p>Custom fields on every image edit screen. A live compression-status column in the Media Library. Searchable job history. All inside WordPress — no separate admin interface to learn.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Asynchronous by Design</h3>
+                <p>Image uploads never slow down. Jobs are queued as JSON files. Two <code>inotifywait</code>-powered daemons process them immediately in the background. Results feed back into WordPress via WP-Cron.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3>Bulk Without False Attribution</h3>
+                <p>Bulk actions are limited to injecting Publisher and Website — neutral site provenance only. Creator, Copyright, and Owner are individual fields, intentionally never overwritten in bulk.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔁</div>
+                <h3>Re-queue Failed Jobs</h3>
+                <p>Every failed job appears in the history table with a one-click Re-queue button. No manual file hunting, no WP-CLI commands needed to recover from a temporary failure.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ HOW IT WORKS -->
+<section class="section section-alt" id="how-it-works">
+    <div class="container">
+        <h2 class="section-title">How It Works</h2>
+        <p class="section-subtitle">PHP coordinates. The OS executes. Clean separation of responsibility.</p>
+
+        <div class="flow-diagram">
+            <div class="flow-step">
+                <div class="flow-number">1</div>
+                <div class="flow-content">
+                    <h4>Upload or Edit</h4>
+                    <p>WordPress triggers <code>wp_generate_attachment_metadata</code> or saves attachment fields.</p>
+                </div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-number">2</div>
+                <div class="flow-content">
+                    <h4>Job Written</h4>
+                    <p>Metamanager writes a small JSON job file to the queue directory. PHP does nothing else.</p>
+                </div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-number">3</div>
+                <div class="flow-content">
+                    <h4>Daemon Processes</h4>
+                    <p><code>inotifywait</code> detects the new file. The daemon processes the image with <code>jpegtran</code>, <code>optipng</code>, or ExifTool.</p>
+                </div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-number">4</div>
+                <div class="flow-content">
+                    <h4>Result Recorded</h4>
+                    <p>The daemon writes a result JSON to the completed folder. WP-Cron picks it up every minute and records it in the database.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="arch-diagram">
+<pre><code>WordPress (PHP)                  OS (Bash Daemons)
+────────────────                 ──────────────────────────────────
+Upload / edit image
+        │
+        ▼
+Write job JSON to          ◄── inotifywait detects new file
+  metamanager-jobs/                      │
+  compress/ or meta/                     ▼
+                                  Process image:
+                                    jpegtran / optipng  [compression]
+                                    ExifTool            [metadata]
+                                         │
+WP-Cron (60s) ◄──── result JSON ────────┘
+reads, inserts to DB,
+updates history table</code></pre>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ METADATA TABLE -->
+<section class="section" id="metadata">
+    <div class="container">
+        <h2 class="section-title">Metadata Field Map</h2>
+        <p class="section-subtitle">Every logical field writes to all three standards simultaneously.</p>
+
+        <div class="table-wrap">
+            <table class="meta-table">
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Set By</th>
+                        <th>EXIF</th>
+                        <th>IPTC</th>
+                        <th>XMP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Title</strong></td>
+                        <td><span class="badge badge-wp">WP Post Title</span></td>
+                        <td><code>Title</code></td>
+                        <td><code>ObjectName</code></td>
+                        <td><code>Title</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Description</strong></td>
+                        <td><span class="badge badge-wp">WP Post Content</span></td>
+                        <td><code>ImageDescription</code></td>
+                        <td><code>Caption-Abstract</code></td>
+                        <td><code>Description</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Caption</strong></td>
+                        <td><span class="badge badge-wp">WP Excerpt</span></td>
+                        <td>—</td>
+                        <td><code>Caption-Abstract</code></td>
+                        <td><code>Caption</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Alt Text</strong></td>
+                        <td><span class="badge badge-wp">WP Alt Field</span></td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td><code>AltTextAccessibility</code></td>
+                    </tr>
+                    <tr class="row-individual">
+                        <td><strong>Creator</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td><code>Artist</code></td>
+                        <td><code>By-line</code></td>
+                        <td><code>Creator</code></td>
+                    </tr>
+                    <tr class="row-individual">
+                        <td><strong>Copyright</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td><code>Copyright</code></td>
+                        <td><code>CopyrightNotice</code></td>
+                        <td><code>Rights</code></td>
+                    </tr>
+                    <tr class="row-individual">
+                        <td><strong>Owner</strong></td>
+                        <td><span class="badge badge-individual">Per-image</span></td>
+                        <td><code>OwnerName</code></td>
+                        <td>—</td>
+                        <td><code>Owner</code></td>
+                    </tr>
+                    <tr class="row-site">
+                        <td><strong>Publisher</strong></td>
+                        <td><span class="badge badge-site">Site Name (auto)</span></td>
+                        <td>—</td>
+                        <td><code>Source</code></td>
+                        <td><code>Publisher</code></td>
+                    </tr>
+                    <tr class="row-site">
+                        <td><strong>Website</strong></td>
+                        <td><span class="badge badge-site">Site URL (auto)</span></td>
+                        <td>—</td>
+                        <td><code>Source</code></td>
+                        <td><code>WebStatement</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="table-note">
+            <span class="badge badge-individual">Per-image</span> fields are <strong>never touched by bulk actions</strong>.
+            Only <span class="badge badge-site">Site auto</span> fields (Publisher + Website) can be injected in bulk — neutral provenance, not an ownership claim.
+        </p>
+    </div>
+</section>
+
+<!-- ============================================================ INSTALL -->
+<section class="section section-dark" id="install">
+    <div class="container">
+        <h2 class="section-title light">Install in One Command</h2>
+        <p class="section-subtitle light">Works on Ubuntu 22.04+, Debian 12+, RHEL/Rocky 9+. Requires systemd and root access.</p>
+
+        <div class="install-box">
+            <div class="install-label">One-command installer (auto-detects WordPress path)</div>
+            <div class="code-block">
+                <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash</code>
+                <button class="copy-btn" data-copy="wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash">Copy</button>
+            </div>
+        </div>
+
+        <div class="install-box">
+            <div class="install-label">With explicit WordPress path</div>
+            <div class="code-block">
+                <code>sudo bash install.sh --wp-path /var/www/html</code>
+                <button class="copy-btn" data-copy="sudo bash install.sh --wp-path /var/www/html">Copy</button>
+            </div>
+        </div>
+
+        <div class="install-steps">
+            <h3>What the installer does</h3>
+            <ol>
+                <li>Detects your WordPress installation path</li>
+                <li>Installs <code>jpegtran</code>, <code>optipng</code>, <code>exiftool</code>, <code>inotify-tools</code>, and <code>jq</code> via apt or dnf</li>
+                <li>Copies the plugin into <code>wp-content/plugins/metamanager/</code></li>
+                <li>Patches daemon scripts with your actual <code>WP_CONTENT_DIR</code> — no hardcoded paths</li>
+                <li>Installs and starts both systemd daemons as <code>www-data</code></li>
+                <li>Activates the plugin via WP-CLI if available</li>
+            </ol>
+        </div>
+
+        <div class="requirements-grid">
+            <div class="req-item">
+                <div class="req-name">WordPress</div>
+                <div class="req-ver">6.0+</div>
+            </div>
+            <div class="req-item">
+                <div class="req-name">PHP</div>
+                <div class="req-ver">8.0+</div>
+            </div>
+            <div class="req-item">
+                <div class="req-name">ExifTool</div>
+                <div class="req-ver">any</div>
+            </div>
+            <div class="req-item">
+                <div class="req-name">jpegtran</div>
+                <div class="req-ver">any</div>
+            </div>
+            <div class="req-item">
+                <div class="req-name">optipng</div>
+                <div class="req-ver">any</div>
+            </div>
+            <div class="req-item">
+                <div class="req-name">systemd</div>
+                <div class="req-ver">v232+</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ FOOTER -->
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <div class="footer-left">
+            <span class="logo-icon">⚙</span>
+            <strong>Metamanager</strong>
+            &nbsp;·&nbsp; Released under <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">GPLv3</a>
+            &nbsp;·&nbsp; By <a href="https://github.com/richardkentgates" target="_blank" rel="noopener">Richard Kent Gates</a>
+        </div>
+        <div class="footer-right">
+            <a href="https://github.com/richardkentgates/metamanager" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://github.com/richardkentgates/metamanager/issues" target="_blank" rel="noopener">Issues</a>
+            <a href="https://github.com/richardkentgates/metamanager/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+            <a href="https://github.com/richardkentgates/metamanager/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+document.querySelectorAll('.copy-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var text = btn.getAttribute('data-copy');
+        navigator.clipboard.writeText(text).then(function() {
+            btn.textContent = 'Copied!';
+            setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+        });
+    });
+});
+</script>
+</body>
+</html>
