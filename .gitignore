@@ -1,0 +1,26 @@
+# WordPress and OS artifacts
+*.log
+*.pid
+*.lock
+.DS_Store
+Thumbs.db
+
+# Job queue contents (never commit real job files)
+/wp-content/
+
+# PHP editor and IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Composer (if ever used)
+/vendor/
+composer.lock
+
+# Node (if ever used for build tooling)
+node_modules/
+package-lock.json
+
+# Backup files created by install.sh
+*.bak.*

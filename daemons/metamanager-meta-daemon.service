@@ -1,0 +1,26 @@
+[Unit]
+Description=Metamanager Metadata Embedding Daemon
+Documentation=https://github.com/richardkentgates/metamanager
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/metamanager-meta-daemon.sh
+User=www-data
+Group=www-data
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=strict
+ReadWritePaths=__WP_CONTENT_DIR__/metamanager-jobs /tmp /var/log
+
+# Logging to journald (also appended to log file by the script itself)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=metamanager-meta
+
+[Install]
+WantedBy=multi-user.target

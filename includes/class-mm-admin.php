@@ -1,0 +1,700 @@
+<?php
+/**
+ * Metamanager Admin Class
+ *
+ * All WordPress admin integration:
+ * - System status banner
+ * - Media Library compression column
+ * - Embedded metadata pane on single image view
+ * - Bulk actions (compress, inject site provenance info, re-queue failed)
+ * - Admin submenu: live job queue + searchable/paginated history
+ * - REST endpoint and JS enqueue for real-time column updates
+ * - AJAX handler for live dashboard refresh
+ *
+ * @package Metamanager
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Class MM_Admin
+ */
+class MM_Admin {
+
+	/**
+	 * Register all admin hooks.
+	 * Called from metamanager.php only if is_admin() is true.
+	 */
+	public static function init(): void {
+		// Menu.
+		add_action( 'admin_menu', [ __CLASS__, 'add_menu' ] );
+
+		// Status banner on Media Library and our own pages.
+		add_action( 'admin_notices', [ __CLASS__, 'status_banner' ] );
+
+		// Media Library column.
+		add_filter( 'manage_upload_columns', [ __CLASS__, 'add_media_column' ] );
+		add_action( 'manage_media_custom_column', [ __CLASS__, 'render_media_column' ], 10, 2 );
+
+		// Per-image metadata pane (single image edit screen).
+		add_action( 'edit_form_after_title', [ __CLASS__, 'render_attachment_meta_pane' ] );
+
+		// Bulk actions.
+		add_filter( 'bulk_actions-upload', [ __CLASS__, 'register_bulk_actions' ] );
+		add_filter( 'handle_bulk_actions-upload', [ __CLASS__, 'handle_bulk_actions' ], 10, 3 );
+		add_action( 'admin_notices', [ __CLASS__, 'bulk_action_notices' ] );
+
+		// Scripts and styles.
+		add_action( 'admin_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
+
+		// AJAX: live job dashboard.
+		add_action( 'wp_ajax_mm_jobs_refresh', [ __CLASS__, 'ajax_jobs_refresh' ] );
+
+		// REST: real-time compression status for Media Library column.
+		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_routes' ] );
+
+		// AJAX: re-queue a failed job.
+		add_action( 'wp_ajax_mm_requeue_job', [ __CLASS__, 'ajax_requeue_job' ] );
+
+		// AJAX: clear job history.
+		add_action( 'wp_ajax_mm_clear_history', [ __CLASS__, 'ajax_clear_history' ] );
+
+		// Bulk spinner (lightweight UX touch on the Media Library).
+		add_action( 'admin_footer-upload.php', [ __CLASS__, 'bulk_spinner_markup' ] );
+	}
+
+	// -----------------------------------------------------------------------
+	// Menu
+	// -----------------------------------------------------------------------
+
+	public static function add_menu(): void {
+		add_submenu_page(
+			'upload.php',
+			esc_html__( 'Metamanager Jobs', 'metamanager' ),
+			esc_html__( 'Metamanager', 'metamanager' ),
+			'upload_files',
+			'metamanager-jobs',
+			[ __CLASS__, 'render_jobs_page' ]
+		);
+	}
+
+	// -----------------------------------------------------------------------
+	// System status banner
+	// -----------------------------------------------------------------------
+
+	public static function status_banner(): void {
+		global $pagenow;
+		$is_mm_page   = isset( $_GET['page'] ) && 'metamanager-jobs' === sanitize_key( $_GET['page'] ); // phpcs:ignore WordPress.Security.NonceVerification
+		$is_media_lib = ( 'upload.php' === $pagenow );
+
+		if ( ! $is_mm_page && ! $is_media_lib ) {
+			return;
+		}
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return;
+		}
+
+		$status = MM_Status::system_status();
+
+		$icon = fn( bool $ok, string $ok_title, string $fail_title ) =>
+			$ok
+				? '<span style="color:#13bb2c;font-size:18px;" title="' . esc_attr( $ok_title ) . '">&#10004;</span>'
+				: '<span style="color:#e54c3c;font-size:18px;" title="' . esc_attr( $fail_title ) . '">&#10006;</span>';
+
+		echo '<div class="notice notice-info mm-banner" style="padding:12px 18px;border-radius:6px;font-size:14px;">';
+		echo '<strong>' . esc_html__( 'Metamanager', 'metamanager' ) . ':</strong> &nbsp;';
+		echo 'ExifTool '  . $icon( $status['exiftool'],        'ExifTool found',   'ExifTool missing — metadata embedding disabled' );
+		echo ' &nbsp;jpegtran ' . $icon( $status['jpegtran'],  'jpegtran found',   'jpegtran missing — JPEG lossless compression disabled' );
+		echo ' &nbsp;optipng '  . $icon( $status['optipng'],   'optipng found',    'optipng missing — PNG lossless compression disabled' );
+		echo ' &nbsp;Compress daemon ' . $icon( $status['compress_daemon'], 'Compression daemon running', 'Compression daemon not running' );
+		echo ' &nbsp;Metadata daemon ' . $icon( $status['meta_daemon'],     'Metadata daemon running',    'Metadata daemon not running' );
+		echo '</div>';
+	}
+
+	// -----------------------------------------------------------------------
+	// Media Library compression column
+	// -----------------------------------------------------------------------
+
+	/**
+	 * @param array $columns Existing columns.
+	 * @return array
+	 */
+	public static function add_media_column( array $columns ): array {
+		$columns['mm_compression'] = esc_html__( 'Compression', 'metamanager' );
+		return $columns;
+	}
+
+	/**
+	 * @param string $column_name Column slug.
+	 * @param int    $attachment_id Attachment ID.
+	 */
+	public static function render_media_column( string $column_name, int $attachment_id ): void {
+		if ( 'mm_compression' !== $column_name ) {
+			return;
+		}
+		$status = MM_Status::compression_status( $attachment_id );
+		echo '<span class="mm-compress-status" '
+			. 'id="mm-status-' . esc_attr( (string) $attachment_id ) . '" '
+			. 'data-id="' . esc_attr( (string) $attachment_id ) . '" '
+			. 'style="color:' . esc_attr( $status['color'] ) . ';font-weight:bold;">'
+			. esc_html( $status['label'] )
+			. '</span>';
+	}
+
+	// -----------------------------------------------------------------------
+	// Embedded metadata pane — single image edit screen
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Render a read-only table of all embedded metadata for the current image,
+	 * pulled live from ExifTool. Shown just below the title on the edit screen.
+	 *
+	 * @param \WP_Post $post Current post.
+	 */
+	public static function render_attachment_meta_pane( \WP_Post $post ): void {
+		if ( 'attachment' !== $post->post_type || ! wp_attachment_is_image( $post->ID ) ) {
+			return;
+		}
+
+		$file = get_attached_file( $post->ID );
+		if ( ! $file || ! file_exists( $file ) ) {
+			return;
+		}
+
+		$metadata = MM_Metadata::read_embedded( $file );
+
+		echo '<div class="mm-meta-pane">';
+		echo '<h2 style="margin:0 0 .75em;font-size:1.15em;color:#2d8cf0;">'
+			. esc_html__( 'Embedded File Metadata', 'metamanager' )
+			. '</h2>';
+
+		if ( ! MM_Status::exiftool_available() ) {
+			echo '<p style="color:#a00;">' . esc_html__( 'ExifTool is not installed. Metadata display unavailable.', 'metamanager' ) . '</p>';
+		} elseif ( empty( $metadata ) ) {
+			echo '<p style="color:#888;">' . esc_html__( 'No embedded metadata found in this file.', 'metamanager' ) . '</p>';
+		} else {
+			echo '<div style="max-height:420px;overflow:auto;">';
+			echo '<table class="widefat striped" style="font-size:13px;">';
+			echo '<thead><tr>'
+				. '<th style="width:35%;">' . esc_html__( 'Tag', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Value', 'metamanager' ) . '</th>'
+				. '</tr></thead><tbody>';
+			foreach ( $metadata as $tag => $value ) {
+				if ( is_array( $value ) ) {
+					$value = wp_json_encode( $value );
+				}
+				echo '<tr>'
+					. '<td><code>' . esc_html( (string) $tag ) . '</code></td>'
+					. '<td style="white-space:pre-wrap;">' . esc_html( (string) $value ) . '</td>'
+					. '</tr>';
+			}
+			echo '</tbody></table></div>';
+		}
+		echo '</div>';
+	}
+
+	// -----------------------------------------------------------------------
+	// Bulk actions
+	//
+	// IMPORTANT: Only two bulk actions touch metadata:
+	//   1. "Inject Site Info" — sets Publisher (site name) + Website (site URL) only.
+	//      This is neutral provenance, not an ownership or copyright claim.
+	//   2. "Compress (Lossless)" — queues compression jobs.
+	//
+	// We intentionally do NOT provide bulk set-copyright or bulk set-creator
+	// because doing so would falsely claim authorship or rights over images that
+	// may belong to clients, photographers, or third parties.
+	// -----------------------------------------------------------------------
+
+	/**
+	 * @param array $actions Existing bulk actions.
+	 * @return array
+	 */
+	public static function register_bulk_actions( array $actions ): array {
+		$actions['mm_bulk_compress']   = esc_html__( 'Compress Lossless (Metamanager)', 'metamanager' );
+		$actions['mm_bulk_site_info']  = esc_html__( 'Inject Site Info into Metadata (Metamanager)', 'metamanager' );
+		return $actions;
+	}
+
+	/**
+	 * @param string $redirect_to Redirect URL.
+	 * @param string $doaction    Bulk action slug.
+	 * @param int[]  $post_ids    Selected attachment IDs.
+	 * @return string
+	 */
+	public static function handle_bulk_actions( string $redirect_to, string $doaction, array $post_ids ): string {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return $redirect_to;
+		}
+
+		switch ( $doaction ) {
+			case 'mm_bulk_compress':
+				$count = self::do_bulk_compress( $post_ids );
+				return add_query_arg( 'mm_bulk_compress', $count, $redirect_to );
+
+			case 'mm_bulk_site_info':
+				$count = self::do_bulk_inject_site_info( $post_ids );
+				return add_query_arg( 'mm_bulk_site_info', $count, $redirect_to );
+		}
+
+		return $redirect_to;
+	}
+
+	/**
+	 * Display notices after bulk actions redirect back.
+	 */
+	public static function bulk_action_notices(): void {
+		// phpcs:disable WordPress.Security.NonceVerification
+		if ( ! empty( $_REQUEST['mm_bulk_compress'] ) ) {
+			$n = absint( $_REQUEST['mm_bulk_compress'] );
+			echo '<div class="notice notice-success is-dismissible"><p>'
+				. sprintf(
+					/* translators: %d: number of images */
+					esc_html__( 'Metamanager: Compression queued for %d image(s).', 'metamanager' ),
+					$n
+				)
+				. '</p></div>';
+		}
+		if ( ! empty( $_REQUEST['mm_bulk_site_info'] ) ) {
+			$n = absint( $_REQUEST['mm_bulk_site_info'] );
+			echo '<div class="notice notice-success is-dismissible"><p>'
+				. sprintf(
+					/* translators: %d: number of images */
+					esc_html__( 'Metamanager: Site provenance info (Publisher + Website) injected for %d image(s).', 'metamanager' ),
+					$n
+				)
+				. '</p></div>';
+		}
+		// phpcs:enable
+	}
+
+	// -----------------------------------------------------------------------
+	// Bulk helpers
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Enqueue lossless compression jobs for all selected images.
+	 * Only enqueues if the size has not already been compressed.
+	 *
+	 * @param int[] $post_ids Attachment IDs.
+	 * @return int Number of attachments with at least one job enqueued.
+	 */
+	private static function do_bulk_compress( array $post_ids ): int {
+		$count = 0;
+		foreach ( $post_ids as $id ) {
+			$id = (int) $id;
+			if ( ! wp_attachment_is_image( $id ) ) {
+				continue;
+			}
+			$meta    = wp_get_attachment_metadata( $id ) ?: [];
+			$file    = get_attached_file( $id );
+			$queued  = false;
+
+			if ( $file && file_exists( $file ) && ! MM_Status::is_compressed( $id, 'full' ) ) {
+				MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'bulk' ] );
+				$queued = true;
+			}
+
+			if ( ! empty( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
+				$dir = trailingslashit( pathinfo( $file, PATHINFO_DIRNAME ) );
+				foreach ( $meta['sizes'] as $size => $info ) {
+					if ( empty( $info['file'] ) ) {
+						continue;
+					}
+					$img_path = $dir . $info['file'];
+					if ( file_exists( $img_path ) && ! MM_Status::is_compressed( $id, $size ) ) {
+						MM_Job_Queue::write_job( 'compression', $id, $img_path, $size, [ 'trigger' => 'bulk' ] );
+						$queued = true;
+					}
+				}
+			}
+
+			if ( $queued ) {
+				++$count;
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Inject site provenance into image metadata for selected images.
+	 *
+	 * Sets Publisher = site name and Website = site URL.
+	 * Does NOT touch Creator, Copyright, or Owner.
+	 *
+	 * @param int[] $post_ids Attachment IDs.
+	 * @return int Number of attachments processed.
+	 */
+	private static function do_bulk_inject_site_info( array $post_ids ): int {
+		$count = 0;
+		foreach ( $post_ids as $id ) {
+			$id = (int) $id;
+			if ( ! wp_attachment_is_image( $id ) ) {
+				continue;
+			}
+			// No post meta to update — Publisher/Website always come from get_bloginfo()
+			// and home_url() in MM_Metadata::get_fields_for_job(). We just queue the jobs.
+			MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'bulk_site_info' ] );
+			++$count;
+		}
+		return $count;
+	}
+
+	// -----------------------------------------------------------------------
+	// Scripts & styles
+	// -----------------------------------------------------------------------
+
+	/**
+	 * @param string $hook Current admin page hook.
+	 */
+	public static function enqueue_assets( string $hook ): void {
+		if ( 'upload.php' !== $hook ) {
+			return;
+		}
+		wp_enqueue_script(
+			'mm-status',
+			MM_PLUGIN_URL . 'assets/js/mm-status.js',
+			[ 'jquery' ],
+			MM_VERSION,
+			true
+		);
+		wp_localize_script(
+			'mm-status',
+			'MMStatus',
+			[
+				'restUrl' => rest_url( 'metamanager/v1/compression-status' ),
+				'nonce'   => wp_create_nonce( 'wp_rest' ),
+			]
+		);
+	}
+
+	// -----------------------------------------------------------------------
+	// REST endpoint: real-time compression status for Media Library column
+	// -----------------------------------------------------------------------
+
+	public static function register_rest_routes(): void {
+		register_rest_route(
+			'metamanager/v1',
+			'/compression-status',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ __CLASS__, 'rest_compression_status' ],
+				'permission_callback' => function () {
+					return current_user_can( 'upload_files' );
+				},
+				'args' => [
+					'ids' => [
+						'required'          => true,
+						'validate_callback' => fn( $v ) => is_array( $v ),
+						'sanitize_callback' => fn( $v ) => array_map( 'absint', (array) $v ),
+					],
+				],
+			]
+		);
+	}
+
+	/**
+	 * REST callback: return compression status for each requested attachment ID.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_compression_status( \WP_REST_Request $request ) {
+		$ids    = (array) $request->get_param( 'ids' );
+		$result = [];
+		foreach ( $ids as $id ) {
+			$result[ $id ] = MM_Status::compression_status( (int) $id );
+		}
+		return rest_ensure_response( $result );
+	}
+
+	// -----------------------------------------------------------------------
+	// Admin page — job dashboard
+	// -----------------------------------------------------------------------
+
+	public static function render_jobs_page(): void {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'metamanager' ) );
+		}
+
+		?>
+		<div class="wrap mm-admin-wrap">
+			<h1 class="mm-title"><?php esc_html_e( 'Metamanager — Job Dashboard', 'metamanager' ); ?></h1>
+			<div id="mm-jobs-dashboard">
+				<?php self::render_jobs_content(); ?>
+			</div>
+		</div>
+
+		<style>
+		.mm-admin-wrap { max-width: 1200px; font-family: system-ui, sans-serif; font-size: 14px; }
+		.mm-title      { color: #2d8cf0; font-weight: 700; letter-spacing: .3px; }
+		.mm-section    { background: #f9fafc; border-radius: 8px; box-shadow: 0 2px 10px #0001; padding: 20px 24px 14px; margin-bottom: 2em; }
+		.mm-section h2 { margin: 0 0 .8em; font-size: 1.2em; color: #1a2233; border-left: 4px solid #2d8cf0; padding-left: 12px; }
+		.mm-section table { width: 100%; font-size: 13px; border-collapse: collapse; }
+		.mm-section th { background: #eaf3fb; color: #334; padding: 9px 8px; text-align: left; }
+		.mm-section td { padding: 8px; border-top: 1px solid #edf2f8; }
+		.mm-section tr:hover td { background: #f0f7ff; }
+		.mm-tag-completed { color: #13bb2c; font-weight: bold; }
+		.mm-tag-failed    { color: #e54c3c; font-weight: bold; }
+		.mm-tag-pending   { color: #e6b800; font-weight: bold; }
+		.mm-meta-pane { background: #f9fafc; border-radius: 8px; padding: 16px 20px; margin: 1.5em 0 2em; max-width: 900px; }
+		</style>
+
+		<script>
+		jQuery(function($){
+			function refreshDashboard() {
+				$.post(ajaxurl, {
+					action: 'mm_jobs_refresh',
+					nonce: '<?php echo esc_js( wp_create_nonce( 'mm_jobs_refresh' ) ); ?>',
+					s:     $('input[name="s"]').val() || '',
+					paged: $('input.mm-paged').val() || 1
+				}, function(html){
+					if (html) $('#mm-jobs-dashboard').html(html);
+				});
+			}
+			var refreshTimer = setInterval(refreshDashboard, 5000);
+
+			$(document).on('submit', '.mm-search-form', function(e){
+				e.preventDefault();
+				clearInterval(refreshTimer);
+				refreshDashboard();
+				refreshTimer = setInterval(refreshDashboard, 5000);
+			});
+
+			$(document).on('click', '.mm-page-link', function(e){
+				e.preventDefault();
+				$('input.mm-paged').val($(this).data('paged'));
+				refreshDashboard();
+			});
+
+			$(document).on('click', '.mm-requeue-btn', function(e){
+				e.preventDefault();
+				var btn = $(this);
+				$.post(ajaxurl, {
+					action: 'mm_requeue_job',
+					nonce:  '<?php echo esc_js( wp_create_nonce( 'mm_requeue_job' ) ); ?>',
+					job_id: btn.data('job-id')
+				}, function(resp){
+					if (resp.success) {
+						btn.replaceWith('<span style="color:#13bb2c;">&#10004; Re-queued</span>');
+					} else {
+						btn.replaceWith('<span style="color:#e54c3c;">Failed: ' + resp.data + '</span>');
+					}
+				}, 'json');
+			});
+
+			$(document).on('click', '#mm-clear-history-btn', function(e){
+				e.preventDefault();
+				if (!confirm('<?php echo esc_js( __( 'Clear entire job history? This cannot be undone.', 'metamanager' ) ); ?>')) return;
+				$.post(ajaxurl, {
+					action: 'mm_clear_history',
+					nonce:  '<?php echo esc_js( wp_create_nonce( 'mm_clear_history' ) ); ?>'
+				}, function(){ refreshDashboard(); }, 'json');
+			});
+		});
+		</script>
+		<?php
+	}
+
+	// -----------------------------------------------------------------------
+	// AJAX handlers
+	// -----------------------------------------------------------------------
+
+	public static function ajax_jobs_refresh(): void {
+		check_ajax_referer( 'mm_jobs_refresh', 'nonce' );
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_die( '-1' );
+		}
+		self::render_jobs_content();
+		wp_die();
+	}
+
+	public static function ajax_requeue_job(): void {
+		check_ajax_referer( 'mm_requeue_job', 'nonce' );
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error( 'Permission denied.' );
+		}
+		$job_id = absint( $_POST['job_id'] ?? 0 );
+		if ( MM_Job_Queue::requeue( $job_id ) ) {
+			wp_send_json_success();
+		} else {
+			wp_send_json_error( 'Job not found or file missing.' );
+		}
+	}
+
+	public static function ajax_clear_history(): void {
+		check_ajax_referer( 'mm_clear_history', 'nonce' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Permission denied.' );
+		}
+		MM_DB::clear_history();
+		wp_send_json_success();
+	}
+
+	// -----------------------------------------------------------------------
+	// Dashboard content (shared by page render + AJAX refresh)
+	// -----------------------------------------------------------------------
+
+	public static function render_jobs_content(): void {
+		echo '<input type="hidden" class="mm-paged" value="' . esc_attr( (string) max( 1, (int) ( $_REQUEST['paged'] ?? 1 ) ) ) . '">'; // phpcs:ignore WordPress.Security.NonceVerification
+		self::render_queue_section();
+		self::render_history_section();
+	}
+
+	/**
+	 * Render the live queue section (reads from filesystem).
+	 */
+	private static function render_queue_section(): void {
+		$all_jobs = MM_Job_Queue::get_pending_jobs();
+		$total    = count( $all_jobs['compression'] ) + count( $all_jobs['metadata'] );
+
+		echo '<div class="mm-section">';
+		echo '<h2>' . esc_html__( 'Job Queue', 'metamanager' )
+			. ' <span style="font-size:.8em;font-weight:400;color:#82cfff;">'
+			. esc_html__( '(live)', 'metamanager' ) . '</span>'
+			. ' <span style="font-size:.8em;color:#888;margin-left:.5em;">'
+			. sprintf(
+				/* translators: %d: job count */
+				esc_html__( '%d waiting', 'metamanager' ),
+				$total
+			) . '</span></h2>';
+
+		foreach ( [ 'compression' => __( 'Compression Jobs', 'metamanager' ), 'metadata' => __( 'Metadata Jobs', 'metamanager' ) ] as $type => $label ) {
+			$jobs = $all_jobs[ $type ];
+			echo '<h4 style="margin:.5em 0 .3em;color:#334;">' . esc_html( $label ) . ': <strong>' . count( $jobs ) . '</strong></h4>';
+			if ( empty( $jobs ) ) {
+				echo '<p style="color:#aaa;font-size:12px;">' . esc_html__( 'Queue is empty.', 'metamanager' ) . '</p>';
+				continue;
+			}
+			echo '<table><thead><tr>'
+				. '<th>' . esc_html__( 'File', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Size', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Dimensions', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Trigger', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Queued', 'metamanager' ) . '</th>'
+				. '</tr></thead><tbody>';
+			foreach ( $jobs as $job ) {
+				$age = human_time_diff( (int) ( $job['_queued_at'] ?? 0 ), time() );
+				echo '<tr>'
+					. '<td><code>' . esc_html( basename( $job['file_path'] ?? '' ) ) . '</code></td>'
+					. '<td>' . esc_html( $job['size'] ?? '' ) . '</td>'
+					. '<td>' . esc_html( $job['dimensions'] ?? '' ) . '</td>'
+					. '<td>' . esc_html( $job['trigger'] ?? '' ) . '</td>'
+					. '<td><span style="color:#888;font-size:11px;">' . esc_html( $age ) . ' ago</span></td>'
+					. '</tr>';
+			}
+			echo '</tbody></table>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Render the history section (reads from database, paginated).
+	 */
+	private static function render_history_section(): void {
+		// phpcs:disable WordPress.Security.NonceVerification
+		$search   = sanitize_text_field( $_REQUEST['s'] ?? '' );
+		$paged    = max( 1, (int) ( $_REQUEST['paged'] ?? 1 ) );
+		// phpcs:enable
+
+		$result     = MM_DB::get_jobs( [ 'search' => $search, 'paged' => $paged ] );
+		$jobs       = $result['jobs'];
+		$total      = $result['total'];
+		$per_page   = 20;
+		$total_pages = (int) ceil( $total / $per_page );
+
+		echo '<div class="mm-section">';
+		echo '<h2 style="display:flex;align-items:center;justify-content:space-between;">'
+			. '<span>' . esc_html__( 'Job History', 'metamanager' )
+			. ' <span style="font-size:.8em;font-weight:400;color:#82cfff;">' . esc_html__( '(live)', 'metamanager' ) . '</span></span>'
+			. '<button id="mm-clear-history-btn" class="button button-secondary" style="font-size:12px;">'
+			. esc_html__( 'Clear History', 'metamanager' ) . '</button>'
+			. '</h2>';
+
+		// Search form.
+		echo '<form class="mm-search-form" style="margin-bottom:1em;display:flex;gap:8px;">'
+			. wp_nonce_field( 'mm_jobs_refresh', '_wpnonce', true, false )
+			. '<input type="search" name="s" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr__( 'Search jobs…', 'metamanager' ) . '" class="regular-text">'
+			. '<button class="button">' . esc_html__( 'Search', 'metamanager' ) . '</button>'
+			. '</form>';
+
+		if ( empty( $jobs ) ) {
+			echo '<p style="color:#aaa;">' . esc_html__( 'No jobs recorded yet.', 'metamanager' ) . '</p>';
+		} else {
+			echo '<table><thead><tr>'
+				. '<th>#</th>'
+				. '<th>' . esc_html__( 'Image', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Type', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Size', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Dimensions', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Status', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Submitted', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Completed', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Actions', 'metamanager' ) . '</th>'
+				. '</tr></thead><tbody>';
+
+			foreach ( $jobs as $job ) {
+				$status_class = match ( $job->status ) {
+					'completed' => 'mm-tag-completed',
+					'failed'    => 'mm-tag-failed',
+					default     => 'mm-tag-pending',
+				};
+				$att_link = '';
+				if ( ! empty( $job->attachment_id ) ) {
+					$edit_url = get_edit_post_link( (int) $job->attachment_id );
+					$att_link = $edit_url
+						? '<a href="' . esc_url( $edit_url ) . '">' . esc_html( $job->image_name ) . '</a>'
+						: esc_html( $job->image_name );
+				}
+				$requeue_btn = ( 'failed' === $job->status )
+					? '<button class="button button-small mm-requeue-btn" data-job-id="' . esc_attr( (string) $job->id ) . '">'
+						. esc_html__( 'Re-queue', 'metamanager' ) . '</button>'
+					: '';
+
+				echo '<tr>'
+					. '<td>' . esc_html( (string) $job->id ) . '</td>'
+					. '<td>' . $att_link . '</td>' // Escaped above.
+					. '<td>' . esc_html( ucfirst( $job->job_type ) ) . '</td>'
+					. '<td>' . esc_html( $job->size ) . '</td>'
+					. '<td>' . esc_html( $job->dimensions ) . '</td>'
+					. '<td><span class="' . esc_attr( $status_class ) . '">' . esc_html( ucfirst( $job->status ) ) . '</span></td>'
+					. '<td>' . esc_html( $job->submitted_at ) . '</td>'
+					. '<td>' . esc_html( $job->completed_at ?? '' ) . '</td>'
+					. '<td>' . $requeue_btn . '</td>' // Contains a nonce'd button, escaped above.
+					. '</tr>';
+			}
+			echo '</tbody></table>';
+
+			// Pagination.
+			if ( $total_pages > 1 ) {
+				echo '<div style="margin-top:.8em;">' . esc_html__( 'Page:', 'metamanager' ) . ' ';
+				for ( $i = 1; $i <= $total_pages; $i++ ) {
+					if ( $i === $paged ) {
+						echo '<strong>' . esc_html( (string) $i ) . '</strong> ';
+					} else {
+						echo '<a href="#" class="mm-page-link" data-paged="' . esc_attr( (string) $i ) . '">' . esc_html( (string) $i ) . '</a> ';
+					}
+				}
+				echo '</div>';
+			}
+		}
+
+		echo '</div>';
+	}
+
+	// -----------------------------------------------------------------------
+	// Bulk spinner markup
+	// -----------------------------------------------------------------------
+
+	public static function bulk_spinner_markup(): void {
+		echo '<style>.mm-spinner{display:none;position:fixed;top:50%;left:50%;z-index:9999;transform:translate(-50%,-50%);background:#fff;padding:20px 28px;border-radius:7px;box-shadow:0 2px 14px #0003;font-size:16px;font-weight:600;}.mm-spinner.active{display:block;}</style>';
+		echo '<div class="mm-spinner" id="mmBulkSpinner">' . esc_html__( 'Processing…', 'metamanager' ) . '</div>';
+		echo '<script>jQuery(function($){
+			$(document).on("submit","form#bulk-action-form",function(){
+				var action = $("#bulk-action-selector-top").val();
+				if(action && action.indexOf("mm_") === 0) $("#mmBulkSpinner").addClass("active");
+			});
+			$(document).ajaxStop(function(){ $("#mmBulkSpinner").removeClass("active"); });
+		});</script>';
+	}
+}
