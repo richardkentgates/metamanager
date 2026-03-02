@@ -5,6 +5,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-blue)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-purple)](https://php.net)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)
 
 ---
 
@@ -367,6 +368,14 @@ Metamanager is a WordPress plugin and relies entirely on the WordPress API — h
 **JetBrains Mono** — designed by JetBrains. [SIL Open Font License 1.1](https://github.com/JetBrains/JetBrainsMono/blob/main/OFL.txt). <https://www.jetbrains.com/lp/mono/>
 
 Both fonts are served via [Google Fonts](https://fonts.google.com) on the documentation website only — they are not bundled with the plugin.
+
+---
+
+## Sponsorship
+
+Metamanager is free and open source. If it saves you time or adds value to your work, consider supporting its continued development:
+
+**[❤ Sponsor on GitHub →](https://github.com/sponsors/richardkentgates)**
 
 ---
 
