@@ -7,6 +7,11 @@
 # OR after cloning:
 #   sudo bash install.sh [--wp-path /path/to/wordpress]
 #
+# To update only the plugin files (skip daemons and dependencies):
+#   sudo bash install.sh --update [--wp-path /path/to/wordpress]
+# OR:
+#   wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash -s -- --update
+#
 # What this script does:
 #   1. Detects or accepts the WordPress installation path
 #   2. Installs system dependencies (jpegtran, optipng, exiftool, inotify-tools, jq)
@@ -16,6 +21,8 @@
 #   6. Patches and installs systemd service files
 #   7. Enables and starts both daemons
 #   8. Optionally activates the plugin via WP-CLI if available
+#
+# With --update, only steps 1, 3, and 8 run. Daemons are left untouched.
 #
 # Requires: systemd, bash 5+, apt or dnf (for dependency install)
 # Tested on: Ubuntu 22.04+, Debian 12+, RHEL/Rocky 9+
@@ -41,14 +48,22 @@ fi
 # =============================================================================
 
 WP_PATH=""
+UPDATE_ONLY=false
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --wp-path)
             WP_PATH="$2"
             shift 2
             ;;
+        --update)
+            UPDATE_ONLY=true
+            shift
+            ;;
         --help|-h)
-            echo "Usage: sudo bash install.sh [--wp-path /path/to/wordpress]"
+            echo "Usage: sudo bash install.sh [--update] [--wp-path /path/to/wordpress]"
+            echo ""
+            echo "  --update    Update plugin files only; skip daemons and dependencies."
             exit 0
             ;;
         *)
@@ -57,6 +72,10 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [[ "${UPDATE_ONLY}" == true ]]; then
+    info "Running in UPDATE mode — daemons and dependencies will not be touched."
+fi
 
 # =============================================================================
 # Detect WordPress path
@@ -129,41 +148,73 @@ install_deps() {
     fi
 }
 
-install_deps
+if [[ "${UPDATE_ONLY}" == false ]]; then
+    install_deps
 
-# Verify critical tools
-for tool in jq inotifywait exiftool jpegtran optipng; do
-    if command -v "${tool}" &>/dev/null; then
-        success "${tool}: $(command -v "${tool}")"
-    else
-        warn "${tool} not found after install. Some features may be limited."
-    fi
-done
+    # Verify critical tools
+    for tool in jq inotifywait exiftool jpegtran optipng; do
+        if command -v "${tool}" &>/dev/null; then
+            success "${tool}: $(command -v "${tool}")"
+        else
+            warn "${tool} not found after install. Some features may be limited."
+        fi
+    done
+fi
 
 # =============================================================================
 # Install the WordPress plugin
 # =============================================================================
 
-info "Installing Metamanager plugin to ${PLUGIN_DEST}..."
+if [[ "${UPDATE_ONLY}" == true ]]; then
+    info "Updating Metamanager plugin files in ${PLUGIN_DEST}..."
 
-if [[ -d "${PLUGIN_DEST}" ]]; then
-    warn "Existing plugin directory found — backing up to ${PLUGIN_DEST}.bak"
-    mv "${PLUGIN_DEST}" "${PLUGIN_DEST}.bak.$(date +%s)"
-fi
-
-mkdir -p "${PLUGIN_DEST}"
-
-# If running from a cloned repo, copy from there; otherwise clone.
-if [[ "${SCRIPT_DIR}" != "." && -f "${SCRIPT_DIR}/metamanager.php" ]]; then
-    cp -r "${SCRIPT_DIR}/." "${PLUGIN_DEST}/"
-    success "Plugin files copied from ${SCRIPT_DIR}"
-else
-    if ! command -v git &>/dev/null; then
-        error "git not found. Install git or clone the repository manually first."
+    if [[ ! -d "${PLUGIN_DEST}" ]]; then
+        error "Plugin not installed at ${PLUGIN_DEST}. Run without --update to do a full install."
     fi
-    info "Cloning from GitHub..."
-    git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${PLUGIN_DEST}"
-    success "Plugin cloned."
+
+    # Pull fresh copy to a temp dir then overlay only PHP/JS/asset files.
+    TMP_UPDATE=$(mktemp -d)
+    trap 'rm -rf "${TMP_UPDATE}"' EXIT
+
+    if [[ "${SCRIPT_DIR}" != "." && -f "${SCRIPT_DIR}/metamanager.php" ]]; then
+        cp -r "${SCRIPT_DIR}/." "${TMP_UPDATE}/"
+        success "Update source: ${SCRIPT_DIR}"
+    else
+        if ! command -v git &>/dev/null; then
+            error "git not found. Install git or run from a cloned directory."
+        fi
+        info "Fetching latest from GitHub..."
+        git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${TMP_UPDATE}"
+        success "Latest code fetched."
+    fi
+
+    # Sync plugin files only — leave daemons/ untouched in the plugin dir.
+    rsync -a --exclude='daemons/' --exclude='.git/' --exclude='install.sh' \
+        --exclude='docs/' --exclude='*.md' --exclude='*.gitignore' \
+        "${TMP_UPDATE}/" "${PLUGIN_DEST}/"
+    success "Plugin files updated."
+else
+    info "Installing Metamanager plugin to ${PLUGIN_DEST}..."
+
+    if [[ -d "${PLUGIN_DEST}" ]]; then
+        warn "Existing plugin directory found — backing up to ${PLUGIN_DEST}.bak.$(date +%s)"
+        mv "${PLUGIN_DEST}" "${PLUGIN_DEST}.bak.$(date +%s)"
+    fi
+
+    mkdir -p "${PLUGIN_DEST}"
+
+    # If running from a cloned repo, copy from there; otherwise clone.
+    if [[ "${SCRIPT_DIR}" != "." && -f "${SCRIPT_DIR}/metamanager.php" ]]; then
+        cp -r "${SCRIPT_DIR}/." "${PLUGIN_DEST}/"
+        success "Plugin files copied from ${SCRIPT_DIR}"
+    else
+        if ! command -v git &>/dev/null; then
+            error "git not found. Install git or clone the repository manually first."
+        fi
+        info "Cloning from GitHub..."
+        git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${PLUGIN_DEST}"
+        success "Plugin cloned."
+    fi
 fi
 
 # Fix permissions.
@@ -171,19 +222,23 @@ chown -R www-data:www-data "${PLUGIN_DEST}"
 find "${PLUGIN_DEST}" -type f -name "*.php" -exec chmod 644 {} \;
 find "${PLUGIN_DEST}" -type f -name "*.sh"  -exec chmod 755 {} \;
 
-# =============================================================================
-# Create job queue directories
-# =============================================================================
+if [[ "${UPDATE_ONLY}" == false ]]; then
+    # =============================================================================
+    # Create job queue directories
+    # =============================================================================
 
-for subdir in compress meta completed failed; do
-    dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
-    mkdir -p "${dir}"
-    chown www-data:www-data "${dir}"
-    chmod 750 "${dir}"
-    # Prevent direct HTTP access.
-    echo "Deny from all" > "${dir}/.htaccess"
-done
-success "Job queue directories created."
+    for subdir in compress meta completed failed; do
+        dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
+        mkdir -p "${dir}"
+        chown www-data:www-data "${dir}"
+        chmod 750 "${dir}"
+        # Prevent direct HTTP access.
+        echo "Deny from all" > "${dir}/.htaccess"
+    done
+    success "Job queue directories created."
+fi
+
+if [[ "${UPDATE_ONLY}" == false ]]; then
 
 # =============================================================================
 # Patch and install daemon scripts
@@ -243,18 +298,27 @@ for svc in metamanager-compress-daemon metamanager-meta-daemon; do
     fi
 done
 
+fi # end UPDATE_ONLY == false
+
 # =============================================================================
 # Activate plugin via WP-CLI (optional)
 # =============================================================================
 
 if command -v wp &>/dev/null; then
-    info "WP-CLI found. Activating plugin..."
-    # Run as www-data to respect WP file permissions.
-    sudo -u www-data wp plugin activate metamanager --path="${WP_PATH}" 2>&1 && \
-        success "Plugin activated via WP-CLI." || \
-        warn "WP-CLI activation failed. Activate the plugin manually in WordPress Admin → Plugins."
+    if [[ "${UPDATE_ONLY}" == true ]]; then
+        info "WP-CLI found. Flushing cache..."
+        sudo -u www-data wp cache flush --path="${WP_PATH}" 2>/dev/null && \
+            success "WordPress object cache flushed." || true
+    else
+        info "WP-CLI found. Activating plugin..."
+        sudo -u www-data wp plugin activate metamanager --path="${WP_PATH}" 2>&1 && \
+            success "Plugin activated via WP-CLI." || \
+            warn "WP-CLI activation failed. Activate the plugin manually in WordPress Admin → Plugins."
+    fi
 else
-    warn "WP-CLI not found. Activate the plugin manually in WordPress Admin → Plugins."
+    if [[ "${UPDATE_ONLY}" == false ]]; then
+        warn "WP-CLI not found. Activate the plugin manually in WordPress Admin → Plugins."
+    fi
 fi
 
 # =============================================================================
@@ -263,17 +327,22 @@ fi
 
 echo ""
 echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN}  Metamanager installation complete!${NC}"
+echo -e "${GREEN}  Metamanager ${UPDATE_ONLY:+update }${UPDATE_ONLY:-installation }complete!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
 echo "  WordPress path:  ${WP_PATH}"
 echo "  Plugin path:     ${PLUGIN_DEST}"
 echo "  Job queue:       ${WP_CONTENT_DIR}/metamanager-jobs/"
 echo ""
-echo "  Compress daemon: $(systemctl is-active metamanager-compress-daemon.service 2>/dev/null || echo 'check manually')"
-echo "  Metadata daemon: $(systemctl is-active metamanager-meta-daemon.service 2>/dev/null || echo 'check manually')"
-echo ""
-echo "  View logs:"
-echo "    journalctl -u metamanager-compress-daemon -f"
-echo "    journalctl -u metamanager-meta-daemon -f"
+
+if [[ "${UPDATE_ONLY}" == false ]]; then
+    echo "  Compress daemon: $(systemctl is-active metamanager-compress-daemon.service 2>/dev/null || echo 'check manually')"
+    echo "  Metadata daemon: $(systemctl is-active metamanager-meta-daemon.service 2>/dev/null || echo 'check manually')"
+    echo ""
+    echo "  View logs:"
+    echo "    journalctl -u metamanager-compress-daemon -f"
+    echo "    journalctl -u metamanager-meta-daemon -f"
+else
+    echo "  Daemons:         unchanged (update mode)"
+fi
 echo ""
