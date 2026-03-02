@@ -428,6 +428,14 @@ body { font-family: var(--sans); color: var(--mid); background: var(--white); li
     transition: border-color .15s;
 }
 .credit-links a:hover { border-color: var(--blue); }
+.credit-ijg-notice {
+    margin-top: .6rem;
+    font-size: .78rem;
+    color: var(--muted);
+    font-style: italic;
+    border-left: 2px solid var(--border);
+    padding-left: .6rem;
+}
 
 /* ================================================================ FLOATING SPONSOR */
 .sponsor-float {

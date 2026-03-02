@@ -310,6 +310,8 @@ The backbone of all metadata work in Metamanager. ExifTool reads and writes EXIF
 
 `jpegtran`, part of the libjpeg-turbo package, performs lossless JPEG optimisation — reordering Huffman tables and enabling progressive scan without decoding or re-encoding a single pixel. The Independent JPEG Group created the original implementation; libjpeg-turbo maintains and significantly accelerates it.
 
+> This software is based in part on the work of the Independent JPEG Group.
+
 ---
 
 ### optipng
