@@ -91,14 +91,19 @@
                 <p>When clients shoot with location services enabled, Metamanager reads GPS latitude, longitude, and altitude directly from the camera's EXIF data. No manual entry — coordinates are imported and stored automatically at upload time.</p>
             </div>
             <div class="feature-card">
+                <div class="feature-icon">�</div>
+                <h3>Expanded Metadata Fields</h3>
+                <p>11 custom fields per image: <strong>Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating (0–5 stars), City, State/Province, Country.</strong> All stored as registered post meta, embedded into the file by the daemon, and fully exposed via the WordPress REST API.</p>
+            </div>
+            <div class="feature-card">
                 <div class="feature-icon">🔍</div>
                 <h3>Schema.org &amp; Open Graph</h3>
-                <p>Every attachment page and post with a featured image automatically receives an <code>ImageObject</code> JSON-LD block and Open Graph tags. When GPS data is present, a full <code>GeoCoordinates</code> object is included — everything Google Images and social platforms need.</p>
+                <p>Every attachment page and post with a featured image automatically receives an <code>ImageObject</code> JSON-LD block and Open Graph tags. When GPS data is present, a full <code>GeoCoordinates</code> object is included. URL-format copyright values emit a <code>&lt;link rel="license"&gt;</code>; plain-text values emit <code>&lt;meta name="copyright"&gt;</code>.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🖥</div>
                 <h3>Native Dashboard Integration</h3>
-                <p>Custom fields on every image edit screen. A live compression-status column in the Media Library. Searchable job history. All inside WordPress — no separate admin interface to learn.</p>
+                <p>Custom fields on every image edit screen, grouped by purpose: <strong>Attribution &amp; Rights, Editorial, Classification, Location.</strong> A live compression-status column in the Media Library. Searchable, paginated job history. All inside WordPress — no separate admin interface to learn.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">⚡</div>
@@ -109,6 +114,11 @@
                 <div class="feature-icon">🔒</div>
                 <h3>Bulk Without False Attribution</h3>
                 <p>Bulk actions are limited to injecting Publisher and Website — neutral site provenance only. Creator, Copyright, and Owner are individual fields, intentionally never overwritten in bulk.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💚</div>
+                <h3>Daemon Health Status</h3>
+                <p>A status banner at the top of every Metamanager screen shows in real time whether the compression and metadata daemons are running. Detection uses a PID file — no <code>systemctl</code> privilege required for the web process.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🔁</div>
