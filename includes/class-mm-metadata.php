@@ -56,7 +56,15 @@ class MM_Metadata {
 	public const META_COUNTRY = 'mm_location_country';
 
 	/** Star rating 0 (unrated) to 5 — XMP:Rating convention. */
-	public const META_RATING  = 'mm_rating';
+	public const META_RATING   = 'mm_rating';
+
+	// GPS — read-only, imported from EXIF, never written back or shown in edit UI.
+	/** Signed decimal latitude  (e.g. 40.7128). */
+	public const META_GPS_LAT  = 'mm_gps_lat';
+	/** Signed decimal longitude (e.g. -74.0060). */
+	public const META_GPS_LON  = 'mm_gps_lon';
+	/** Altitude in metres above sea level (may be negative). */
+	public const META_GPS_ALT  = 'mm_gps_alt';
 
 	// -----------------------------------------------------------------------
 	// Field definitions — logical key → ExifTool write tags
@@ -152,6 +160,20 @@ class MM_Metadata {
 			'auth_callback'     => fn() => current_user_can( 'upload_files' ),
 			'show_in_rest'      => true,
 		] );
+
+		// GPS fields — read-only, imported from EXIF Composite group, never user-edited.
+		$gps_fields = [
+			self::META_GPS_LAT => __( 'GPS latitude (signed decimal degrees).', 'metamanager' ),
+			self::META_GPS_LON => __( 'GPS longitude (signed decimal degrees).', 'metamanager' ),
+			self::META_GPS_ALT => __( 'GPS altitude in metres above sea level.', 'metamanager' ),
+		];
+		foreach ( $gps_fields as $key => $description ) {
+			register_post_meta( 'attachment', $key, array_merge( $base, [
+				'description'       => $description,
+				// GPS values look like "-74.0060" — restrict write to editors+ only.
+				'auth_callback'     => fn() => current_user_can( 'edit_posts' ),
+			] ) );
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -220,6 +242,10 @@ class MM_Metadata {
 			self::META_STATE     => [ 'IPTC:Province-State', 'XMP:State' ],
 			self::META_COUNTRY   => [ 'IPTC:Country-PrimaryLocationName', 'XMP:Country' ],
 			self::META_RATING    => [ 'XMP:Rating' ],
+			// GPS — ExifTool Composite group provides pre-computed signed decimal values.
+			self::META_GPS_LAT   => [ 'Composite:GPSLatitude', 'GPS:GPSLatitude' ],
+			self::META_GPS_LON   => [ 'Composite:GPSLongitude', 'GPS:GPSLongitude' ],
+			self::META_GPS_ALT   => [ 'Composite:GPSAltitude', 'GPS:GPSAltitude' ],
 		];
 
 		foreach ( $meta_import as $meta_key => $candidates ) {
@@ -237,6 +263,20 @@ class MM_Metadata {
 				update_post_meta( $attachment_id, $meta_key, min( 5, max( 0, (int) $value ) ) );
 			} elseif ( self::META_DATE === $meta_key ) {
 				update_post_meta( $attachment_id, $meta_key, self::normalise_date( $value ) );
+			} elseif ( in_array( $meta_key, [ self::META_GPS_LAT, self::META_GPS_LON, self::META_GPS_ALT ], true ) ) {
+				// Composite:GPS* from ExifTool returns signed decimal in JSON output.
+				// Extract the leading numeric part and validate plausible coordinate ranges.
+				if ( preg_match( '/^(-?\d+(?:\.\d+)?)/', $value, $coord_m ) ) {
+					$coord = (float) $coord_m[1];
+					$valid = match ( $meta_key ) {
+						self::META_GPS_LAT => $coord >= -90.0  && $coord <= 90.0  && 0.0 !== $coord,
+						self::META_GPS_LON => $coord >= -180.0 && $coord <= 180.0 && 0.0 !== $coord,
+						default            => $coord >= -9000.0 && $coord <= 9000.0,
+					};
+					if ( $valid ) {
+						update_post_meta( $attachment_id, $meta_key, (string) $coord );
+					}
+				}
 			} else {
 				update_post_meta( $attachment_id, $meta_key, sanitize_text_field( $value ) );
 			}

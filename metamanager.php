@@ -61,6 +61,12 @@ require_once MM_PLUGIN_DIR . 'includes/class-mm-metadata.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-status.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-admin.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-updater.php';
+require_once MM_PLUGIN_DIR . 'includes/class-mm-frontend.php';
+
+// Front-end schema / Open Graph output (not needed in admin context).
+if ( ! is_admin() ) {
+	MM_Frontend::init();
+}
 
 // ---------------------------------------------------------------------------
 // Activation / deactivation
