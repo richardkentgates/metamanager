@@ -679,6 +679,16 @@ updates history table</code></pre>
     </div>
 </footer>
 
+<!-- Floating sponsor button -->
+<a href="https://github.com/sponsors/richardkentgates"
+   target="_blank"
+   rel="noopener"
+   class="sponsor-float"
+   aria-label="Sponsor Metamanager on GitHub">
+    <span class="sponsor-float__heart" aria-hidden="true">❤</span>
+    <span class="sponsor-float__label">Sponsor</span>
+</a>
+
 <script>
 document.querySelectorAll('.copy-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -689,6 +699,23 @@ document.querySelectorAll('.copy-btn').forEach(function(btn) {
         });
     });
 });
+
+// Floating sponsor button: fade in after 2s, collapse on scroll
+(function() {
+    var btn = document.querySelector('.sponsor-float');
+    if (!btn) return;
+    setTimeout(function() { btn.classList.add('sponsor-float--visible'); }, 2000);
+    var lastY = 0;
+    window.addEventListener('scroll', function() {
+        var y = window.scrollY;
+        if (y > lastY && y > 300) {
+            btn.classList.add('sponsor-float--collapsed');
+        } else {
+            btn.classList.remove('sponsor-float--collapsed');
+        }
+        lastY = y;
+    }, { passive: true });
+}());
 </script>
 </body>
 </html>
