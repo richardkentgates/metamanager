@@ -60,6 +60,7 @@ require_once MM_PLUGIN_DIR . 'includes/class-mm-job-queue.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-metadata.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-status.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-settings.php';
+require_once MM_PLUGIN_DIR . 'includes/class-mm-upload-notify.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-admin.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-updater.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-frontend.php';
@@ -287,6 +288,9 @@ add_action( 'init', [ 'MM_Metadata', 'register_meta' ] );
 
 // After WordPress generates image sizes on upload, enqueue both job types.
 add_filter( 'wp_generate_attachment_metadata', [ 'MM_Job_Queue', 'on_upload' ], 20, 2 );
+
+// Upload receipt notifications (runs on front-end and admin; cron fires outside is_admin()).
+MM_Upload_Notify::init();
 
 // When attachment fields are saved in admin, enqueue metadata jobs only.
 add_filter( 'attachment_fields_to_save', [ 'MM_Metadata', 'on_fields_save' ], 10, 2 );

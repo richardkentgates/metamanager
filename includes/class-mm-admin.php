@@ -780,10 +780,25 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	public static function register_rest_routes(): void {
+		// Shared API gate: checks disabled flag and IP allowlist before any capability check.
+		$api_check = function (): bool {
+			if ( MM_Settings::get_api_disabled() ) {
+				return false;
+			}
+			$allowed = MM_Settings::get_api_allowed_ips();
+			if ( ! empty( $allowed ) ) {
+				$remote = MM_Settings::get_current_ip();
+				if ( ! in_array( $remote, $allowed, true ) ) {
+					return false;
+				}
+			}
+			return true;
+		};
+
 		// Read-only status checks: any user who can access the Media Library.
-		$auth_uploader = fn() => current_user_can( 'upload_files' );
+		$auth_uploader = fn() => $api_check() && current_user_can( 'upload_files' );
 		// Dashboard / write operations: must be able to manage others' media.
-		$auth_editor   = fn() => current_user_can( 'edit_others_posts' );
+		$auth_editor   = fn() => $api_check() && current_user_can( 'edit_others_posts' );
 
 		// --- Compression status (POST: batch, for Media Library column polling) ---
 		register_rest_route(
