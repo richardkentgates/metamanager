@@ -9,6 +9,8 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)
 ![Status](https://img.shields.io/badge/status-beta%20%2F%20untested-orange)
 
+📖 **[Full documentation → GitHub Wiki](https://github.com/richardkentgates/metamanager/wiki)**
+
 > [!WARNING]
 > **Beta software — working status unknown.**
 > This plugin has not been tested in a production environment. Functionality may be incomplete, unstable, or subject to breaking change without notice. Use at your own risk. [Bug reports and feedback](https://github.com/richardkentgates/metamanager/issues) are welcome.

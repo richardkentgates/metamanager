@@ -93,6 +93,5 @@ jobs:
 
       - name: PHPStan static analysis
         run: |
-          vendor/bin/phpstan analyse --no-progress 2>&1 || true
+          vendor/bin/phpstan analyse --no-progress
         # Uses phpstan.neon for paths, level, and stubs config.
-        # '|| true' prevents hard failure until a clean baseline is established; remove when ready.
