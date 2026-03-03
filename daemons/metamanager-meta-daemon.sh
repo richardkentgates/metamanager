@@ -21,6 +21,12 @@
 
 set -euo pipefail
 
+# --- Require bash 5+ ---
+if (( BASH_VERSINFO[0] < 5 )); then
+    echo "ERROR: bash 5.0 or higher is required (found ${BASH_VERSION})." >&2
+    exit 1
+fi
+
 # --- Configuration (patched by metamanager-install.sh) ---
 JOB_ROOT="__WP_CONTENT_DIR__/metamanager-jobs"
 JOB_DIR="${JOB_ROOT}/meta"

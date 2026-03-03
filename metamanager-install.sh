@@ -31,6 +31,12 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# --- Require bash 5+ ---
+if (( BASH_VERSINFO[0] < 5 )); then
+    echo "ERROR: bash 5.0 or higher is required (found ${BASH_VERSION})." >&2
+    exit 1
+fi
+
 # --- Colours ---
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC}  $*"; }
