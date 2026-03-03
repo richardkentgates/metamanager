@@ -47,6 +47,7 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 
 | Component | Minimum | Notes |
 |-----------|---------|-------|
+| OS | Linux | systemd required for the compression and metadata daemons |
 | WordPress | 6.0 | |
 | PHP | 8.0 | |
 | ExifTool | any | `perl-Image-ExifTool` or `libimage-exiftool-perl` |
