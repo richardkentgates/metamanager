@@ -1,0 +1,15 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - metamanager.php
+        - uninstall.php
+        - includes/
+    excludePaths:
+        - vendor/
+        - node_modules/
+    # Suppress false positives from WordPress magic functions that linters cannot trace.
+    ignoreErrors:
+        - '#Function (apply_filters|do_action|__)#'

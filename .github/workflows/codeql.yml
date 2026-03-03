@@ -1,0 +1,98 @@
+# CodeQL + PHP Static Analysis
+#
+# CodeQL supports: C/C++, C#, Go, Java/Kotlin, JavaScript/TypeScript, Python, Ruby, Swift.
+# PHP and bash are NOT CodeQL languages. PHP is covered by the separate php-lint job below.
+#
+# Runs on:
+#   - Every push to main
+#   - Every pull request targeting main
+#   - Weekly on Sunday at 03:00 UTC
+
+name: Code Scanning
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 3 * * 0"
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # CodeQL — JavaScript (assets/js/)
+  # ---------------------------------------------------------------------------
+  codeql-javascript:
+    name: CodeQL — JavaScript
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # Only scan the plugin's own JS — exclude docs assets if any are added later
+          paths:
+            assets/js
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  # ---------------------------------------------------------------------------
+  # PHP — syntax check (all versions) + static analysis via PHPStan
+  # ---------------------------------------------------------------------------
+  php-lint:
+    name: PHP Static Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        php-version: ["8.0", "8.1", "8.2", "8.3"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: phpstan
+          coverage: none
+
+      - name: Install dev dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: PHP syntax check
+        run: |
+          echo "Checking syntax on PHP ${{ matrix.php-version }}..."
+          find . -name "*.php" \
+            ! -path "./vendor/*" \
+            ! -path "./node_modules/*" \
+            -print0 | xargs -0 -P4 php -l | grep -v "No syntax errors" | tee /tmp/syntax-errors.txt
+          if [ -s /tmp/syntax-errors.txt ]; then
+            echo "Syntax errors found." && exit 1
+          fi
+          echo "All PHP files clean."
+
+      - name: PHPStan static analysis
+        run: |
+          vendor/bin/phpstan analyse --no-progress 2>&1 || true
+        # Uses phpstan.neon for paths, level, and stubs config.
+        # '|| true' prevents hard failure until a clean baseline is established; remove when ready.
