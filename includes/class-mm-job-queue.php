@@ -78,14 +78,15 @@ class MM_Job_Queue {
 		}
 
 		$job = array_merge( [
-			'attachment_id' => $attachment_id,
-			'image_name'    => $post ? $post->post_title : '',
-			'job_type'      => $type,
-			'file_path'     => $file_path,
-			'size'          => $size,
-			'dimensions'    => $dimensions,
-			'submitted_at'  => current_time( 'mysql' ),
-			'metadata'      => MM_Metadata::get_fields_for_job( $attachment_id ),
+			'attachment_id'  => $attachment_id,
+			'image_name'     => $post ? $post->post_title : '',
+			'job_type'       => $type,
+			'file_path'      => $file_path,
+			'size'           => $size,
+			'dimensions'     => $dimensions,
+			'submitted_at'   => current_time( 'mysql' ),
+			'optimize_level' => (int) get_option( 'mm_compress_level', 2 ),
+			'metadata'       => MM_Metadata::get_fields_for_job( $attachment_id ),
 		], $extra );
 
 		$dir      = ( 'compression' === $type ) ? MM_JOB_COMPRESS : MM_JOB_META;
@@ -160,17 +161,40 @@ class MM_Job_Queue {
 	/**
 	 * wp_generate_attachment_metadata hook: enqueue both job types on upload.
 	 *
+	 * On a fresh upload (mm_meta_synced not yet set) both metadata import and
+	 * compression are queued. On thumbnail regeneration (mm_meta_synced already
+	 * set) only compression is re-queued for sizes that have changed; metadata
+	 * import is skipped to avoid overwriting user edits.
+	 *
 	 * @param array $metadata      WordPress-generated metadata.
 	 * @param int   $attachment_id Attachment ID.
 	 * @return array Unmodified metadata (we are a passthrough filter).
 	 */
 	public static function on_upload( array $metadata, int $attachment_id ): array {
-		if ( wp_attachment_is_image( $attachment_id ) ) {
-			// Import any embedded metadata from file into WP fields before
-			// queuing jobs so the job payload can include already-imported values.
+		if ( ! wp_attachment_is_image( $attachment_id ) ) {
+			return $metadata;
+		}
+
+		$is_regeneration = '1' === get_post_meta( $attachment_id, MM_Metadata::META_SYNCED, true );
+
+		if ( $is_regeneration ) {
+			// Thumbnail regeneration: thumbnails have been rebuilt, so compression
+			// meta flags are stale. Clear them all so the new thumbnails get compressed.
+			delete_post_meta( $attachment_id, '_mm_compressed_full' );
+			if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
+				foreach ( array_keys( $metadata['sizes'] ) as $size ) {
+					delete_post_meta( $attachment_id, '_mm_compressed_' . $size );
+				}
+			}
+			self::enqueue_all_sizes( $attachment_id, $metadata, 'compression', [ 'trigger' => 'thumbnail_regen' ] );
+		} else {
+			// Fresh upload: import embedded metadata first so the job payload
+			// already contains any pre-existing EXIF/IPTC/XMP values, then
+			// queue both compression and metadata embedding jobs.
 			MM_Metadata::import_from_file( $attachment_id );
 			self::enqueue_all_sizes( $attachment_id, $metadata, 'both', [ 'trigger' => 'upload' ] );
 		}
+
 		return $metadata;
 	}
 

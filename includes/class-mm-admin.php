@@ -62,6 +62,12 @@ class MM_Admin {
 		// AJAX: scan existing library (import metadata for all un-synced images).
 		add_action( 'wp_ajax_mm_scan_library', [ __CLASS__, 'ajax_scan_library' ] );
 
+		// AJAX: re-compress a single attachment from its edit screen.
+		add_action( 'wp_ajax_mm_recompress', [ __CLASS__, 'ajax_recompress' ] );
+
+		// AJAX: save a single row on the bulk metadata edit page.
+		add_action( 'wp_ajax_mm_save_bulk_meta_row', [ __CLASS__, 'ajax_save_bulk_meta_row' ] );
+
 		// Bulk spinner (lightweight UX touch on the Media Library).
 		add_action( 'admin_footer-upload.php', [ __CLASS__, 'bulk_spinner_markup' ] );
 
@@ -206,6 +212,14 @@ class MM_Admin {
 			'metamanager-jobs',
 			[ __CLASS__, 'render_jobs_page' ]
 		);
+		add_submenu_page(
+			'upload.php',
+			esc_html__( 'Bulk Edit Metadata', 'metamanager' ),
+			esc_html__( 'Bulk Edit Metadata', 'metamanager' ),
+			'upload_files',
+			'metamanager-bulk-meta',
+			[ __CLASS__, 'render_bulk_meta_page' ]
+		);
 	}
 
 	// -----------------------------------------------------------------------
@@ -236,6 +250,7 @@ class MM_Admin {
 		echo 'ExifTool '  . $icon( $status['exiftool'],        'ExifTool found',   'ExifTool missing — metadata embedding disabled' );
 		echo ' &nbsp;jpegtran ' . $icon( $status['jpegtran'],  'jpegtran found',   'jpegtran missing — JPEG lossless compression disabled' );
 		echo ' &nbsp;optipng '  . $icon( $status['optipng'],   'optipng found',    'optipng missing — PNG lossless compression disabled' );
+		echo ' &nbsp;cwebp '    . $icon( $status['cwebp'],     'cwebp found',      'cwebp missing — WebP lossless compression disabled' );
 		echo ' &nbsp;Compress daemon ' . $icon( $status['compress_daemon'], 'Compression daemon running', 'Compression daemon not running' );
 		echo ' &nbsp;Metadata daemon ' . $icon( $status['meta_daemon'],     'Metadata daemon running',    'Metadata daemon not running' );
 		echo '</div>';
@@ -312,6 +327,17 @@ class MM_Admin {
 			. '<h2 class="hndle">' . esc_html__( 'Embedded File Metadata', 'metamanager' ) . '</h2>'
 			. '</div><div class="inside">';
 
+		// Re-compress action button.
+		$compress_status = MM_Status::compression_status( $post->ID );
+		echo '<div style="margin-bottom:12px;display:flex;align-items:center;gap:16px;">';
+		echo '<span>' . esc_html__( 'Compression:', 'metamanager' ) . ' '
+			. '<strong style="color:' . esc_attr( $compress_status['color'] ) . ';">'
+			. esc_html( $compress_status['label'] ) . '</strong></span>';
+		echo '<button type="button" class="button mm-recompress-btn" data-id="' . esc_attr( (string) $post->ID ) . '">'
+			. esc_html__( 'Re-compress This Image', 'metamanager' ) . '</button>';
+		echo '<span class="mm-recompress-result" style="font-size:13px;"></span>';
+		echo '</div>';
+
 		if ( ! MM_Status::exiftool_available() ) {
 			echo '<p style="color:#d63638;">' . esc_html__( 'ExifTool is not installed. Metadata display unavailable.', 'metamanager' ) . '</p>';
 		} elseif ( empty( $metadata ) ) {
@@ -335,6 +361,29 @@ class MM_Admin {
 			echo '</tbody></table></div>';
 		}
 		echo '</div></div>'; // .inside .postbox
+
+		// Inline script for the re-compress button on this edit screen.
+		echo "<script>
+		jQuery(function(\$){
+			\$('.mm-recompress-btn').on('click', function(){
+				var btn    = \$(this);
+				var result = btn.siblings('.mm-recompress-result');
+				btn.prop('disabled', true).text('" . esc_js( __( 'Queuing…', 'metamanager' ) ) . "');
+				\$.post(ajaxurl, {
+					action: 'mm_recompress',
+					nonce:  '" . esc_js( wp_create_nonce( 'mm_recompress' ) ) . "',
+					id:     btn.data('id')
+				}, function(resp){
+					btn.prop('disabled', false).text('" . esc_js( __( 'Re-compress This Image', 'metamanager' ) ) . "');
+					if (resp.success) {
+						result.css('color','#00a32a').text('" . esc_js( __( 'Queued — daemon will process shortly.', 'metamanager' ) ) . "');
+					} else {
+						result.css('color','#d63638').text(resp.data || '" . esc_js( __( 'Error.', 'metamanager' ) ) . "');
+					}
+				}, 'json');
+			});
+		});
+		</script>";
 	}
 
 	// -----------------------------------------------------------------------
@@ -553,15 +602,16 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	public static function register_rest_routes(): void {
+		$auth = fn() => current_user_can( 'upload_files' );
+
+		// --- Compression status (POST: batch, for Media Library column polling) ---
 		register_rest_route(
 			'metamanager/v1',
 			'/compression-status',
 			[
 				'methods'             => 'POST',
 				'callback'            => [ __CLASS__, 'rest_compression_status' ],
-				'permission_callback' => function () {
-					return current_user_can( 'upload_files' );
-				},
+				'permission_callback' => $auth,
 				'args' => [
 					'ids' => [
 						'required'          => true,
@@ -569,6 +619,78 @@ class MM_Admin {
 						'sanitize_callback' => fn( $v ) => array_map( 'absint', (array) $v ),
 					],
 				],
+			]
+		);
+
+		// --- Job history (paginated, filterable) ---
+		register_rest_route(
+			'metamanager/v1',
+			'/jobs',
+			[
+				'methods'             => 'GET',
+				'callback'            => [ __CLASS__, 'rest_get_jobs' ],
+				'permission_callback' => $auth,
+				'args' => [
+					'search'   => [ 'type' => 'string',  'default' => '' ],
+					'orderby'  => [ 'type' => 'string',  'default' => 'id' ],
+					'order'    => [ 'type' => 'string',  'default' => 'DESC' ],
+					'per_page' => [ 'type' => 'integer', 'default' => 20, 'minimum' => 1, 'maximum' => 100 ],
+					'page'     => [ 'type' => 'integer', 'default' => 1,  'minimum' => 1 ],
+				],
+			]
+		);
+
+		// --- Single job by DB ID ---
+		register_rest_route(
+			'metamanager/v1',
+			'/jobs/(?P<id>[0-9]+)',
+			[
+				'methods'             => 'GET',
+				'callback'            => [ __CLASS__, 'rest_get_job' ],
+				'permission_callback' => $auth,
+				'args' => [
+					'id' => [ 'type' => 'integer', 'required' => true ],
+				],
+			]
+		);
+
+		// --- Attachment compression + sync status ---
+		register_rest_route(
+			'metamanager/v1',
+			'/attachment/(?P<id>[0-9]+)/status',
+			[
+				'methods'             => 'GET',
+				'callback'            => [ __CLASS__, 'rest_attachment_status' ],
+				'permission_callback' => $auth,
+				'args' => [
+					'id' => [ 'type' => 'integer', 'required' => true ],
+				],
+			]
+		);
+
+		// --- Queue compression for one attachment ---
+		register_rest_route(
+			'metamanager/v1',
+			'/attachment/(?P<id>[0-9]+)/compress',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ __CLASS__, 'rest_compress_attachment' ],
+				'permission_callback' => $auth,
+				'args' => [
+					'id'    => [ 'type' => 'integer', 'required' => true ],
+					'force' => [ 'type' => 'boolean', 'default' => false ],
+				],
+			]
+		);
+
+		// --- Aggregate stats ---
+		register_rest_route(
+			'metamanager/v1',
+			'/stats',
+			[
+				'methods'             => 'GET',
+				'callback'            => [ __CLASS__, 'rest_get_stats' ],
+				'permission_callback' => $auth,
 			]
 		);
 	}
@@ -586,6 +708,87 @@ class MM_Admin {
 			$result[ $id ] = MM_Status::compression_status( (int) $id );
 		}
 		return rest_ensure_response( $result );
+	}
+
+	/**
+	 * REST: paginated job history.
+	 */
+	public static function rest_get_jobs( \WP_REST_Request $request ) {
+		$result = MM_DB::get_jobs( [
+			'search'   => (string) $request->get_param( 'search' ),
+			'orderby'  => (string) $request->get_param( 'orderby' ),
+			'order'    => (string) $request->get_param( 'order' ),
+			'per_page' => (int) $request->get_param( 'per_page' ),
+			'paged'    => (int) $request->get_param( 'page' ),
+		] );
+		$response = rest_ensure_response( $result['jobs'] );
+		$response->header( 'X-WP-Total',      (string) $result['total'] );
+		$response->header( 'X-WP-TotalPages', (string) (int) ceil( $result['total'] / max( 1, (int) $request->get_param( 'per_page' ) ) ) );
+		return $response;
+	}
+
+	/**
+	 * REST: single job by DB ID.
+	 */
+	public static function rest_get_job( \WP_REST_Request $request ) {
+		$job = MM_DB::get_job( (int) $request->get_param( 'id' ) );
+		if ( ! $job ) {
+			return new \WP_Error( 'not_found', __( 'Job not found.', 'metamanager' ), [ 'status' => 404 ] );
+		}
+		return rest_ensure_response( $job );
+	}
+
+	/**
+	 * REST: compression + sync status for a single attachment.
+	 */
+	public static function rest_attachment_status( \WP_REST_Request $request ) {
+		$id = (int) $request->get_param( 'id' );
+		if ( ! get_post( $id ) ) {
+			return new \WP_Error( 'not_found', __( 'Attachment not found.', 'metamanager' ), [ 'status' => 404 ] );
+		}
+		return rest_ensure_response( [
+			'id'          => $id,
+			'compression' => MM_Status::compression_status( $id ),
+			'meta_synced' => '1' === get_post_meta( $id, MM_Metadata::META_SYNCED, true ),
+		] );
+	}
+
+	/**
+	 * REST: queue lossless compression for one attachment.
+	 */
+	public static function rest_compress_attachment( \WP_REST_Request $request ) {
+		$id    = (int) $request->get_param( 'id' );
+		$force = (bool) $request->get_param( 'force' );
+
+		if ( ! wp_attachment_is_image( $id ) ) {
+			return new \WP_Error( 'not_image', __( 'Attachment is not an image.', 'metamanager' ), [ 'status' => 400 ] );
+		}
+
+		if ( ! $force ) {
+			// Clear compression meta so all sizes get re-queued.
+			delete_post_meta( $id, '_mm_compressed_full' );
+			$meta = wp_get_attachment_metadata( $id ) ?: [];
+			if ( ! empty( $meta['sizes'] ) ) {
+				foreach ( array_keys( $meta['sizes'] ) as $size ) {
+					delete_post_meta( $id, '_mm_compressed_' . $size );
+				}
+			}
+		}
+
+		MM_Job_Queue::enqueue_all_sizes( $id, [], 'compression', [ 'trigger' => 'rest_api' ] );
+
+		return rest_ensure_response( [
+			'id'      => $id,
+			'queued'  => true,
+			'message' => __( 'Compression jobs queued.', 'metamanager' ),
+		] );
+	}
+
+	/**
+	 * REST: aggregate stats.
+	 */
+	public static function rest_get_stats( \WP_REST_Request $request ) {
+		return rest_ensure_response( MM_DB::get_stats() );
 	}
 
 	// -----------------------------------------------------------------------
@@ -626,14 +829,19 @@ class MM_Admin {
 			<!-- Library Sync tool -->
 			<div class="postbox mm-section" id="mm-sync-box">
 				<div class="postbox-header"><h2 class="hndle"><?php esc_html_e( 'Library Sync', 'metamanager' ); ?></h2></div>
-				<div class="inside" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-					<p style="margin:0;">
-						<?php esc_html_e( 'Scans every image in the library that has never been processed by Metamanager and imports any embedded metadata into WordPress fields. Safe to run at any time — existing user-set values are never overwritten.', 'metamanager' ); ?>
-					</p>
-					<button id="mm-scan-library-btn" class="button button-primary" style="white-space:nowrap;">
-						<?php esc_html_e( 'Scan Existing Library', 'metamanager' ); ?>
-					</button>
-					<span id="mm-scan-result" style="font-size:13px;"></span>
+				<div class="inside" style="display:flex;flex-direction:column;gap:10px;">
+					<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+						<p style="margin:0;">
+							<?php esc_html_e( 'Scans every image in the library that has never been processed by Metamanager and imports any embedded metadata into WordPress fields. Safe to run at any time — existing user-set values are never overwritten.', 'metamanager' ); ?>
+						</p>
+						<button id="mm-scan-library-btn" class="button button-primary" style="white-space:nowrap;">
+							<?php esc_html_e( 'Scan Existing Library', 'metamanager' ); ?>
+						</button>
+						<span id="mm-scan-result" style="font-size:13px;"></span>
+					</div>
+					<div style="background:#e5e5e5;border-radius:3px;height:8px;display:none;" id="mm-scan-progress-wrap">
+						<div id="mm-scan-progress" style="background:#00a32a;height:100%;border-radius:3px;width:0%;transition:width .3s;"></div>
+					</div>
 				</div>
 			</div>
 
@@ -705,25 +913,50 @@ class MM_Admin {
 
 			$(document).on('click', '#mm-scan-library-btn', function(e){
 				e.preventDefault();
-				var btn = $(this);
-				var result = $('#mm-scan-result');
+				var btn        = $(this);
+				var result     = $('#mm-scan-result');
+				var progressEl = $('#mm-scan-progress');
 				btn.prop('disabled', true).text('<?php echo esc_js( __( 'Scanning…', 'metamanager' ) ); ?>');
 				result.text('');
-				$.post(ajaxurl, {
-					action: 'mm_scan_library',
-					nonce:  '<?php echo esc_js( wp_create_nonce( 'mm_scan_library' ) ); ?>'
-				}, function(resp){
-					btn.prop('disabled', false).text('<?php echo esc_js( __( 'Scan Existing Library', 'metamanager' ) ); ?>');
-					if (resp.success) {
-						result.css('color','#00a32a').text(
-							'<?php echo esc_js( __( 'Done — scanned', 'metamanager' ) ); ?> ' +
-							resp.data.count +
-							' <?php echo esc_js( __( 'image(s).', 'metamanager' ) ); ?>'
+				$('#mm-scan-progress-wrap').show();
+				progressEl.css('width', '0%');
+
+				var totalScanned = 0;
+				var nonce = '<?php echo esc_js( wp_create_nonce( 'mm_scan_library' ) ); ?>';
+
+				function runBatch(offset) {
+					$.post(ajaxurl, {
+						action:     'mm_scan_library',
+						nonce:      nonce,
+						offset:     offset,
+						batch_size: 50,
+					}, function(resp){
+						if (!resp.success) {
+							btn.prop('disabled', false).text('<?php echo esc_js( __( 'Scan Existing Library', 'metamanager' ) ); ?>');
+							result.css('color','#d63638').text('<?php echo esc_js( __( 'Scan failed.', 'metamanager' ) ); ?>');
+							$('#mm-scan-progress-wrap').hide();
+							return;
+						}
+						totalScanned += resp.data.count;
+						var pct = resp.data.total > 0 ? Math.min(100, Math.round(resp.data.offset / resp.data.total * 100)) : 100;
+						progressEl.css('width', pct + '%');
+						result.css('color','#50575e').text(
+							'<?php echo esc_js( __( 'Scanned', 'metamanager' ) ); ?> ' + totalScanned +
+							' / ' + resp.data.total + ' <?php echo esc_js( __( 'image(s)…', 'metamanager' ) ); ?>'
 						);
-					} else {
-						result.css('color','#d63638').text('<?php echo esc_js( __( 'Scan failed.', 'metamanager' ) ); ?>');
-					}
-				}, 'json');
+						if (!resp.data.done) {
+							runBatch(resp.data.offset);
+						} else {
+							btn.prop('disabled', false).text('<?php echo esc_js( __( 'Scan Existing Library', 'metamanager' ) ); ?>');
+							result.css('color','#00a32a').text(
+								'<?php echo esc_js( __( 'Done — scanned', 'metamanager' ) ); ?> ' +
+								totalScanned + ' <?php echo esc_js( __( 'image(s).', 'metamanager' ) ); ?>'
+							);
+							$('#mm-scan-progress-wrap').hide();
+						}
+					}, 'json');
+				}
+				runBatch(0);
 			});
 
 			$(document).on('click', '#mm-clear-history-btn', function(e){
@@ -775,8 +1008,13 @@ class MM_Admin {
 	}
 
 	/**
-	 * AJAX: Import metadata for every image attachment that has not yet been
-	 * scanned by Metamanager (mm_meta_synced not set).
+	 * AJAX: Import metadata in batches for un-synced library images.
+	 *
+	 * Supports incremental calls: pass `offset` to pick up where the last
+	 * batch finished. JS calls this in a loop until `done` is true.
+	 *
+	 * @param int offset      From which index to start (default 0).
+	 * @param int batch_size  How many images to process per call (default 50).
 	 */
 	public static function ajax_scan_library(): void {
 		check_ajax_referer( 'mm_scan_library', 'nonce' );
@@ -784,7 +1022,11 @@ class MM_Admin {
 			wp_send_json_error( 'Permission denied.' );
 		}
 
-		$unsynced = get_posts( [
+		$offset     = max( 0, (int) ( $_POST['offset']     ?? 0 ) );
+		$batch_size = max( 1, min( 200, (int) ( $_POST['batch_size'] ?? 50 ) ) );
+
+		// Total un-synced count (only queried on first call to set the progress bar max).
+		$total_query = get_posts( [
 			'post_type'      => 'attachment',
 			'post_mime_type' => 'image',
 			'post_status'    => 'inherit',
@@ -797,14 +1039,105 @@ class MM_Admin {
 				],
 			],
 		] );
+		$total = count( $total_query );
+
+		// Fetch this batch (re-query with offset/limit).
+		$batch = get_posts( [
+			'post_type'      => 'attachment',
+			'post_mime_type' => 'image',
+			'post_status'    => 'inherit',
+			'numberposts'    => $batch_size,
+			'offset'         => $offset,
+			'fields'         => 'ids',
+			'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery
+				[
+					'key'     => MM_Metadata::META_SYNCED,
+					'compare' => 'NOT EXISTS',
+				],
+			],
+		] );
 
 		$count = 0;
-		foreach ( $unsynced as $id ) {
+		foreach ( $batch as $id ) {
 			MM_Metadata::import_from_file( (int) $id );
 			++$count;
 		}
 
-		wp_send_json_success( [ 'count' => $count ] );
+		$new_offset = $offset + $count;
+		$done       = empty( $batch ) || $new_offset >= $total;
+
+		wp_send_json_success( [
+			'count'  => $count,
+			'offset' => $new_offset,
+			'total'  => $total,
+			'done'   => $done,
+		] );
+	}
+
+	/**
+	 * AJAX: Re-compress a single image from its edit screen.
+	 */
+	public static function ajax_recompress(): void {
+		check_ajax_referer( 'mm_recompress', 'nonce' );
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error( 'Permission denied.' );
+		}
+
+		$id = absint( $_POST['id'] ?? 0 );
+		if ( ! $id || ! wp_attachment_is_image( $id ) ) {
+			wp_send_json_error( __( 'Invalid attachment.', 'metamanager' ) );
+		}
+
+		// Clear existing compression flags so every size gets re-processed.
+		delete_post_meta( $id, '_mm_compressed_full' );
+		$meta = wp_get_attachment_metadata( $id ) ?: [];
+		if ( ! empty( $meta['sizes'] ) ) {
+			foreach ( array_keys( $meta['sizes'] ) as $size ) {
+				delete_post_meta( $id, '_mm_compressed_' . $size );
+			}
+		}
+
+		MM_Job_Queue::enqueue_all_sizes( $id, $meta, 'compression', [ 'trigger' => 'manual' ] );
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Save a single row's metadata fields from the bulk edit page.
+	 */
+	public static function ajax_save_bulk_meta_row(): void {
+		check_ajax_referer( 'mm_bulk_meta_save', 'nonce' );
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error( 'Permission denied.' );
+		}
+
+		$id     = absint( $_POST['id'] ?? 0 );
+		$fields = $_POST['fields'] ?? []; // phpcs:ignore WordPress.Security.NonceVerification
+
+		if ( ! $id || ! get_post( $id ) ) {
+			wp_send_json_error( __( 'Attachment not found.', 'metamanager' ) );
+		}
+
+		// Allowed bulk-editable fields (no rights/attribution fields).
+		$allowed = [
+			MM_Metadata::META_HEADLINE,
+			MM_Metadata::META_CREDIT,
+			MM_Metadata::META_KEYWORDS,
+			MM_Metadata::META_DATE,
+			MM_Metadata::META_CITY,
+			MM_Metadata::META_STATE,
+			MM_Metadata::META_COUNTRY,
+		];
+
+		foreach ( $allowed as $key ) {
+			if ( isset( $fields[ $key ] ) ) {
+				update_post_meta( $id, $key, sanitize_text_field( (string) $fields[ $key ] ) );
+			}
+		}
+
+		// Queue a metadata embedding job for the changed image.
+		MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'bulk_meta_edit' ] );
+
+		wp_send_json_success();
 	}
 
 	// -----------------------------------------------------------------------
@@ -903,6 +1236,7 @@ class MM_Admin {
 				. '<th>' . esc_html__( 'Type', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Size', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Dimensions', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'Savings', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Status', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Submitted', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Completed', 'metamanager' ) . '</th>'
@@ -927,12 +1261,27 @@ class MM_Admin {
 						. esc_html__( 'Re-queue', 'metamanager' ) . '</button>'
 					: '';
 
+				// Compression savings column.
+				$savings_html = '—';
+				$bytes_before = (int) ( $job->bytes_before ?? 0 );
+				$bytes_after  = (int) ( $job->bytes_after  ?? 0 );
+				if ( $bytes_before > 0 && $bytes_after > 0 && 'compression' === $job->job_type ) {
+					if ( $bytes_after < $bytes_before ) {
+						$saved = $bytes_before - $bytes_after;
+						$pct   = round( $saved / $bytes_before * 100, 1 );
+						$savings_html = '<span style="color:#00a32a;">−' . esc_html( size_format( $saved ) ) . ' (' . esc_html( (string) $pct ) . '%)</span>';
+					} else {
+						$savings_html = '<span style="color:#888;">' . esc_html__( 'already optimal', 'metamanager' ) . '</span>';
+					}
+				}
+
 				echo '<tr>'
 					. '<td>' . esc_html( (string) $job->id ) . '</td>'
 					. '<td>' . $att_link . '</td>' // Escaped above.
 					. '<td>' . esc_html( ucfirst( $job->job_type ) ) . '</td>'
 					. '<td>' . esc_html( $job->size ) . '</td>'
 					. '<td>' . esc_html( $job->dimensions ) . '</td>'
+					. '<td>' . $savings_html . '</td>' // Escaped above.
 					. '<td><span class="' . esc_attr( $status_class ) . '">' . esc_html( ucfirst( $job->status ) ) . '</span></td>'
 					. '<td>' . esc_html( $job->submitted_at ) . '</td>'
 					. '<td>' . esc_html( $job->completed_at ?? '' ) . '</td>'
@@ -977,5 +1326,243 @@ class MM_Admin {
 			});
 			$(document).ajaxStop(function(){ $("#mmBulkSpinner").removeClass("active"); });
 		});</script>';
+	}
+
+	// -----------------------------------------------------------------------
+	// Bulk Metadata Edit page
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Render the dedicated Bulk Edit Metadata page.
+	 *
+	 * Shows a paginated table of images with inline-editable fields for the
+	 * "safe" bulk-edit fields.  Creator/Copyright/Owner are intentionally
+	 * excluded — those carry authorship and rights meaning and must be set
+	 * per-image only.
+	 */
+	public static function render_bulk_meta_page(): void {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'metamanager' ) );
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification
+		$paged    = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
+		$search   = sanitize_text_field( $_GET['s'] ?? '' );
+		// phpcs:enable
+		$per_page = 25;
+
+		$query_args = [
+			'post_type'      => 'attachment',
+			'post_mime_type' => 'image',
+			'post_status'    => 'inherit',
+			'numberposts'    => $per_page,
+			'offset'         => ( $paged - 1 ) * $per_page,
+			'fields'         => 'ids',
+		];
+		if ( $search ) {
+			$query_args['s'] = $search;
+		}
+		$ids = get_posts( $query_args );
+
+		// Total count.
+		$count_args          = $query_args;
+		$count_args['fields']      = 'ids';
+		$count_args['numberposts'] = -1;
+		unset( $count_args['offset'] );
+		$all_ids     = get_posts( $count_args );
+		$total       = count( $all_ids );
+		$total_pages = (int) ceil( $total / $per_page );
+
+		$nonce = wp_create_nonce( 'mm_bulk_meta_save' );
+
+		$safe_fields = [
+			MM_Metadata::META_HEADLINE => __( 'Headline', 'metamanager' ),
+			MM_Metadata::META_CREDIT   => __( 'Credit', 'metamanager' ),
+			MM_Metadata::META_KEYWORDS => __( 'Keywords', 'metamanager' ),
+			MM_Metadata::META_DATE     => __( 'Date Created', 'metamanager' ),
+			MM_Metadata::META_CITY     => __( 'City', 'metamanager' ),
+			MM_Metadata::META_STATE    => __( 'State', 'metamanager' ),
+			MM_Metadata::META_COUNTRY  => __( 'Country', 'metamanager' ),
+		];
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Bulk Edit Metadata', 'metamanager' ); ?></h1>
+			<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-jobs' ) ); ?>" class="page-title-action">
+				<?php esc_html_e( '← Job Dashboard', 'metamanager' ); ?>
+			</a>
+			<hr class="wp-header-end">
+
+			<p class="description">
+				<?php esc_html_e(
+					'Edit shared metadata fields for multiple images at once. ' .
+					'Save individual rows with the row button, or use Save All to write all visible changes at once. ' .
+					'Creator, Copyright, and Owner are intentionally excluded — they must be set per image.',
+					'metamanager'
+				); ?>
+			</p>
+
+			<!-- Search form -->
+			<form method="get" action="<?php echo esc_url( admin_url( 'upload.php' ) ); ?>" style="margin:1em 0;">
+				<input type="hidden" name="page" value="metamanager-bulk-meta">
+				<input type="search" name="s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Search images…', 'metamanager' ); ?>" class="regular-text">
+				<button class="button"><?php esc_html_e( 'Search', 'metamanager' ); ?></button>
+				<?php if ( $search ) : ?>
+					<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-bulk-meta' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'metamanager' ); ?></a>
+				<?php endif; ?>
+			</form>
+
+			<?php if ( empty( $ids ) ) : ?>
+				<p><?php esc_html_e( 'No images found.', 'metamanager' ); ?></p>
+			<?php else : ?>
+				<div id="mm-bulk-meta-status" style="min-height:1.5em;font-size:13px;margin-bottom:.5em;"></div>
+
+				<table class="widefat striped mm-bulk-meta-table" style="font-size:13px;">
+					<thead>
+						<tr>
+							<th style="width:80px;"><?php esc_html_e( 'Image', 'metamanager' ); ?></th>
+							<th><?php esc_html_e( 'Title', 'metamanager' ); ?></th>
+							<?php foreach ( $safe_fields as $key => $label ) : ?>
+								<th><?php echo esc_html( $label ); ?></th>
+							<?php endforeach; ?>
+							<th><?php esc_html_e( 'Action', 'metamanager' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+					<?php foreach ( $ids as $id ) :
+						$id      = (int) $id;
+						$src     = wp_get_attachment_image_url( $id, 'thumbnail' ) ?: '';
+						$title   = get_the_title( $id );
+						$edit_url = get_edit_post_link( $id );
+						?>
+						<tr data-id="<?php echo esc_attr( (string) $id ); ?>">
+							<td>
+								<?php if ( $src ) : ?>
+									<img src="<?php echo esc_url( $src ); ?>" style="width:60px;height:60px;object-fit:cover;border-radius:3px;">
+								<?php endif; ?>
+							</td>
+							<td>
+								<?php if ( $edit_url ) : ?>
+									<a href="<?php echo esc_url( $edit_url ); ?>" target="_blank"><?php echo esc_html( $title ); ?></a>
+								<?php else : ?>
+									<?php echo esc_html( $title ); ?>
+								<?php endif; ?>
+								<br><small style="color:#888;">#<?php echo esc_html( (string) $id ); ?></small>
+							</td>
+							<?php foreach ( $safe_fields as $key => $label ) :
+								$val = (string) get_post_meta( $id, $key, true );
+								?>
+								<td>
+									<input type="text"
+										   class="mm-bm-field"
+										   data-key="<?php echo esc_attr( $key ); ?>"
+										   value="<?php echo esc_attr( $val ); ?>"
+										   placeholder="<?php echo esc_attr( $label ); ?>"
+										   style="width:100%;min-width:80px;">
+								</td>
+							<?php endforeach; ?>
+							<td>
+								<button class="button button-small mm-bm-save-row" data-id="<?php echo esc_attr( (string) $id ); ?>">
+									<?php esc_html_e( 'Save', 'metamanager' ); ?>
+								</button>
+								<span class="mm-bm-row-status" style="font-size:11px;margin-left:4px;"></span>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+
+				<div style="margin-top:10px;display:flex;align-items:center;gap:12px;">
+					<button id="mm-bm-save-all" class="button button-primary">
+						<?php esc_html_e( 'Save All on This Page', 'metamanager' ); ?>
+					</button>
+					<span id="mm-bm-save-all-status" style="font-size:13px;"></span>
+				</div>
+
+				<!-- Pagination -->
+				<?php if ( $total_pages > 1 ) : ?>
+				<div class="tablenav bottom" style="margin-top:1em;">
+					<div class="tablenav-pages">
+						<span class="displaying-num"><?php
+							printf(
+								/* translators: %d: total */
+								esc_html__( '%d images', 'metamanager' ),
+								$total
+							);
+						?></span>
+						<span class="pagination-links">
+							<?php for ( $i = 1; $i <= $total_pages; $i++ ) :
+								$url = add_query_arg( [ 'paged' => $i, 's' => $search, 'page' => 'metamanager-bulk-meta' ], admin_url( 'upload.php' ) );
+								?>
+								<?php if ( $i === $paged ) : ?>
+									<span class="tablenav-pages-navspan button disabled" aria-current="page"><?php echo esc_html( (string) $i ); ?></span>
+								<?php else : ?>
+									<a class="button" href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( (string) $i ); ?></a>
+								<?php endif; ?>
+							<?php endfor; ?>
+						</span>
+					</div>
+				</div>
+				<?php endif; ?>
+			<?php endif; ?>
+		</div>
+
+		<script>
+		jQuery(function($){
+			var nonce = '<?php echo esc_js( $nonce ); ?>';
+
+			function saveRow(row, btn, statusEl) {
+				var id     = row.data('id');
+				var fields = {};
+				row.find('.mm-bm-field').each(function(){
+					fields[$(this).data('key')] = $(this).val();
+				});
+				btn.prop('disabled', true);
+				$.post(ajaxurl, {
+					action: 'mm_save_bulk_meta_row',
+					nonce:  nonce,
+					id:     id,
+					fields: fields,
+				}, function(resp){
+					btn.prop('disabled', false);
+					if (resp.success) {
+						statusEl.css('color','#00a32a').text('✔');
+						setTimeout(function(){ statusEl.text(''); }, 3000);
+					} else {
+						statusEl.css('color','#d63638').text('✘ ' + (resp.data || '<?php echo esc_js( __( 'Error', 'metamanager' ) ); ?>'));
+					}
+				}, 'json');
+			}
+
+			$(document).on('click', '.mm-bm-save-row', function(){
+				var btn  = $(this);
+				var row  = btn.closest('tr');
+				saveRow(row, btn, btn.siblings('.mm-bm-row-status'));
+			});
+
+			$('#mm-bm-save-all').on('click', function(){
+				var btn    = $(this);
+				var status = $('#mm-bm-save-all-status');
+				var rows   = $('.mm-bulk-meta-table tbody tr');
+				var total  = rows.length;
+				var done   = 0;
+				btn.prop('disabled', true);
+				status.css('color','#50575e').text('0 / ' + total);
+
+				rows.each(function(){
+					var row = $(this);
+					var rowBtn = row.find('.mm-bm-save-row');
+					saveRow(row, rowBtn, row.find('.mm-bm-row-status'));
+					// Track completion via row count (simple approach).
+					done++;
+					if (done === total) {
+						status.css('color','#00a32a').text('<?php echo esc_js( __( 'All saved.', 'metamanager' ) ); ?>');
+						btn.prop('disabled', false);
+						setTimeout(function(){ status.text(''); }, 4000);
+					}
+				});
+			});
+		});
+		</script>
+		<?php
 	}
 }

@@ -43,6 +43,8 @@ class MM_DB {
 			file_path     TEXT                NOT NULL,
 			size          VARCHAR(64)         NOT NULL DEFAULT '',
 			dimensions    VARCHAR(32)         NOT NULL DEFAULT '',
+			bytes_before  BIGINT(20) UNSIGNED          DEFAULT NULL,
+			bytes_after   BIGINT(20) UNSIGNED          DEFAULT NULL,
 			status        VARCHAR(32)         NOT NULL DEFAULT 'pending',
 			submitted_at  DATETIME            NOT NULL,
 			completed_at  DATETIME                     DEFAULT NULL,
@@ -70,24 +72,33 @@ class MM_DB {
 
 		$table = self::table_name();
 
-		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$table,
-			[
-				'attachment_id' => absint( $job['attachment_id'] ?? 0 ),
-				'image_name'    => sanitize_text_field( $job['image_name'] ?? '' ),
-				'job_type'      => sanitize_key( $job['job_type'] ?? 'unknown' ),
-				'file_path'     => sanitize_text_field( $job['file_path'] ?? '' ),
-				'size'          => sanitize_key( $job['size'] ?? '' ),
-				'dimensions'    => sanitize_text_field( $job['dimensions'] ?? '' ),
-				'status'        => sanitize_key( $job['status'] ?? 'completed' ),
-				'submitted_at'  => sanitize_text_field( $job['submitted_at'] ?? current_time( 'mysql' ) ),
-				'completed_at'  => sanitize_text_field( $job['completed_at'] ?? current_time( 'mysql' ) ),
-				'details'       => wp_json_encode( $job['details'] ?? [] ),
-			],
-			[
-				'%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
-			]
-		);
+		$bytes_before = isset( $job['bytes_before'] ) && (int) $job['bytes_before'] > 0 ? (int) $job['bytes_before'] : null;
+		$bytes_after  = isset( $job['bytes_after'] )  && (int) $job['bytes_after']  > 0 ? (int) $job['bytes_after']  : null;
+
+		$data    = [
+			'attachment_id' => absint( $job['attachment_id'] ?? 0 ),
+			'image_name'    => sanitize_text_field( $job['image_name'] ?? '' ),
+			'job_type'      => sanitize_key( $job['job_type'] ?? 'unknown' ),
+			'file_path'     => sanitize_text_field( $job['file_path'] ?? '' ),
+			'size'          => sanitize_key( $job['size'] ?? '' ),
+			'dimensions'    => sanitize_text_field( $job['dimensions'] ?? '' ),
+			'status'        => sanitize_key( $job['status'] ?? 'completed' ),
+			'submitted_at'  => sanitize_text_field( $job['submitted_at'] ?? current_time( 'mysql' ) ),
+			'completed_at'  => sanitize_text_field( $job['completed_at'] ?? current_time( 'mysql' ) ),
+			'details'       => wp_json_encode( $job['details'] ?? [] ),
+		];
+		$formats = [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
+
+		if ( null !== $bytes_before ) {
+			$data['bytes_before'] = $bytes_before;
+			$formats[]            = '%d';
+		}
+		if ( null !== $bytes_after ) {
+			$data['bytes_after'] = $bytes_after;
+			$formats[]           = '%d';
+		}
+
+		$wpdb->insert( $table, $data, $formats ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
 
 	/**
@@ -116,7 +127,7 @@ class MM_DB {
 		];
 		$args = wp_parse_args( $args, $defaults );
 
-		$allowed_orderby = [ 'id', 'image_name', 'job_type', 'status', 'submitted_at', 'completed_at' ];
+		$allowed_orderby = [ 'id', 'image_name', 'job_type', 'status', 'submitted_at', 'completed_at', 'bytes_before', 'bytes_after' ];
 		$orderby         = in_array( $args['orderby'], $allowed_orderby, true ) ? $args['orderby'] : 'id';
 		$order           = 'ASC' === strtoupper( $args['order'] ) ? 'ASC' : 'DESC';
 		$per_page        = max( 1, (int) $args['per_page'] );
@@ -158,6 +169,37 @@ class MM_DB {
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $job_id ) );
+	}
+
+	/**
+	 * Return aggregate statistics: total bytes saved, job counts by type and status.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function get_stats(): array {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$row = $wpdb->get_row(
+			"SELECT
+				COUNT(*)                                          AS total_jobs,
+				SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS completed,
+				SUM(CASE WHEN status='failed'    THEN 1 ELSE 0 END) AS failed,
+				SUM(CASE WHEN job_type='compression' AND status='completed' AND bytes_before > 0 AND bytes_after > 0 AND bytes_after < bytes_before
+				         THEN (bytes_before - bytes_after) ELSE 0 END) AS bytes_saved,
+				SUM(CASE WHEN job_type='compression' AND status='completed' AND bytes_before > 0 AND bytes_after > 0 AND bytes_after < bytes_before
+				         THEN bytes_before ELSE 0 END)             AS bytes_original,
+				COUNT(DISTINCT attachment_id)                     AS unique_attachments
+			FROM {$table}" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+		return $row ? (array) $row : [
+			'total_jobs'         => 0,
+			'completed'          => 0,
+			'failed'             => 0,
+			'bytes_saved'        => 0,
+			'bytes_original'     => 0,
+			'unique_attachments' => 0,
+		];
 	}
 
 	/**

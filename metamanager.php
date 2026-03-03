@@ -3,7 +3,7 @@
  * Plugin Name:  Metamanager
  * Plugin URI:   https://github.com/richardkentgates/metamanager
  * Description:  Lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) via OS-level daemons. Expands the WordPress Media Library with native metadata editing, bulk operations, and a real-time job dashboard.
- * Version:      1.1.0
+ * Version:      1.2.0
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:       Richard Kent Gates
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 // Plugin constants
 // ---------------------------------------------------------------------------
 
-define( 'MM_VERSION',     '1.1.0' );
+define( 'MM_VERSION',     '1.2.0' );
 define( 'MM_PLUGIN_FILE', __FILE__ );
 define( 'MM_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'MM_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -59,9 +59,11 @@ require_once MM_PLUGIN_DIR . 'includes/class-mm-db.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-job-queue.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-metadata.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-status.php';
+require_once MM_PLUGIN_DIR . 'includes/class-mm-settings.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-admin.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-updater.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-frontend.php';
+require_once MM_PLUGIN_DIR . 'includes/class-mm-cli.php';
 
 // Front-end schema / Open Graph output (not needed in admin context).
 if ( ! is_admin() ) {
@@ -122,12 +124,15 @@ add_action( 'mm_import_completed_jobs', 'mm_import_completed_jobs' );
 
 /**
  * Scan completed/failed result directories and persist to DB.
+ * Sends a failure notification email if notifications are enabled.
  */
 function mm_import_completed_jobs(): void {
 	$result_dirs = [
 		MM_JOB_DONE   => 'completed',
 		MM_JOB_FAILED => 'failed',
 	];
+
+	$failed_jobs = [];
 
 	foreach ( $result_dirs as $dir => $status ) {
 		$files = glob( $dir . '*.json' );
@@ -142,11 +147,37 @@ function mm_import_completed_jobs(): void {
 			if ( is_array( $job ) ) {
 				$job['status'] = $status;
 				MM_DB::log_job( $job );
+
+				if ( 'failed' === $status ) {
+					$failed_jobs[] = $job;
+				}
 			}
 			// Silenced: file may be gone if two requests race; that is acceptable.
 			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			@unlink( $filepath );
 		}
+	}
+
+	// Send one combined failure notification email if any jobs failed this run.
+	if ( ! empty( $failed_jobs ) && MM_Settings::get_notify_enabled() ) {
+		$to      = MM_Settings::get_notify_email();
+		$subject = sprintf(
+			/* translators: %d: failed job count */
+			__( '[Metamanager] %d job(s) failed on %s', 'metamanager' ),
+			count( $failed_jobs ),
+			wp_specialchars_decode( get_option( 'blogname', '' ), ENT_QUOTES )
+		);
+		$lines = [ 'The following Metamanager jobs failed:', '' ];
+		foreach ( $failed_jobs as $job ) {
+			$detail  = is_array( $job['details'] ?? null ) ? ( $job['details']['message'] ?? '' ) : '';
+			$lines[] = '• ' . ( $job['image_name'] ?? '(unknown)' )
+				. ' [' . ( $job['size'] ?? '' ) . ']'
+				. ( $detail ? ' — ' . $detail : '' );
+		}
+		$lines[] = '';
+		$lines[] = 'View the Job Dashboard: ' . admin_url( 'upload.php?page=metamanager-jobs' );
+
+		wp_mail( $to, $subject, implode( "\n", $lines ) );
 	}
 }
 
@@ -175,6 +206,7 @@ add_action( 'delete_attachment', [ 'MM_Job_Queue', 'on_delete_attachment' ] );
 
 if ( is_admin() ) {
 	MM_Admin::init();
+	MM_Settings::init();
 	MM_Updater::init();
 
 	// Display the one-shot notice produced by the manual "Check for Updates" redirect.

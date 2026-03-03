@@ -24,6 +24,11 @@ PID_FILE="/tmp/metamanager-compress-daemon.pid"
 
 JPEGTRAN="/usr/bin/jpegtran"
 OPTIPNG="/usr/bin/optipng"
+CWEBP="/usr/bin/cwebp"
+
+# Optional: set this env var to receive an email on job failure.
+# e.g. export MM_NOTIFY_EMAIL="admin@example.com" in the service file.
+NOTIFY_EMAIL="${MM_NOTIFY_EMAIL:-}"
 
 # --- Write PID file so WordPress can check daemon health without systemctl ---
 echo $$ > "${PID_FILE}"
@@ -44,13 +49,14 @@ process_job() {
     # Atomically claim the job file to prevent double-processing.
     mv "${jobfile}" "${tmpfile}" 2>/dev/null || return 0
 
-    local file_path attachment_id size dimensions submitted_at image_name
-    file_path=$(jq -r '.file_path'     "${tmpfile}")
+    local file_path attachment_id size dimensions submitted_at image_name optimize_level
+    file_path=$(jq -r '.file_path'         "${tmpfile}")
     attachment_id=$(jq -r '.attachment_id' "${tmpfile}")
-    size=$(jq -r '.size'               "${tmpfile}")
-    dimensions=$(jq -r '.dimensions'   "${tmpfile}")
-    submitted_at=$(jq -r '.submitted_at' "${tmpfile}")
-    image_name=$(jq -r '.image_name'   "${tmpfile}")
+    size=$(jq -r '.size'                   "${tmpfile}")
+    dimensions=$(jq -r '.dimensions'       "${tmpfile}")
+    submitted_at=$(jq -r '.submitted_at'   "${tmpfile}")
+    image_name=$(jq -r '.image_name'       "${tmpfile}")
+    optimize_level=$(jq -r '.optimize_level // 2' "${tmpfile}")
 
     if [[ ! -f "${file_path}" ]]; then
         log "ERROR: file not found: ${file_path}"
@@ -72,6 +78,7 @@ process_job() {
     ext="${ext,,}"  # lowercase
     local success=false
     local message=""
+    local orig_size=0 new_size=0
 
     case "${ext}" in
         jpg|jpeg)
@@ -82,13 +89,13 @@ process_job() {
                 # -progressive: progressive encoding (lossless reorder)
                 if "${JPEGTRAN}" -copy all -optimize -progressive -outfile "${outfile}" "${file_path}" 2>>"${LOG_FILE}"; then
                     # Only replace if the result is smaller (never make files larger).
-                    local orig_size new_size
                     orig_size=$(stat -c%s "${file_path}")
                     new_size=$(stat -c%s "${outfile}")
                     if (( new_size < orig_size )); then
                         mv "${outfile}" "${file_path}"
                         message="JPEG lossless compressed: ${orig_size} → ${new_size} bytes"
                     else
+                        new_size=${orig_size}
                         rm -f "${outfile}"
                         message="JPEG already optimal (${orig_size} bytes)"
                     fi
@@ -105,17 +112,52 @@ process_job() {
             ;;
         png)
             if [[ -x "${OPTIPNG}" ]]; then
-                # -o2         : optimisation level (fast but effective)
+                orig_size=$(stat -c%s "${file_path}")
+                # -o(n)       : optimisation level (1–7; default 2 — fast but effective)
                 # -preserve   : preserve file timestamps
                 # -quiet      : suppress stdout
-                if "${OPTIPNG}" -o2 -preserve -quiet "${file_path}" 2>>"${LOG_FILE}"; then
-                    message="PNG lossless compressed: ${file_path}"
+                if "${OPTIPNG}" -o"${optimize_level}" -preserve -quiet "${file_path}" 2>>"${LOG_FILE}"; then
+                    new_size=$(stat -c%s "${file_path}")
+                    if (( new_size < orig_size )); then
+                        message="PNG lossless compressed: ${orig_size} → ${new_size} bytes"
+                    else
+                        new_size=${orig_size}
+                        message="PNG already optimal (${orig_size} bytes)"
+                    fi
                     success=true
                 else
                     message="optipng failed for: ${file_path}"
                 fi
             else
                 message="optipng not found at ${OPTIPNG}"
+                log "WARNING: ${message}"
+                success=false
+            fi
+            ;;
+        webp)
+            if [[ -x "${CWEBP}" ]]; then
+                local outfile="${file_path}.mm_tmp"
+                orig_size=$(stat -c%s "${file_path}")
+                # -lossless  : lossless WebP (no quality degradation)
+                # -mt        : multi-threading
+                # -quiet     : suppress progress output
+                if "${CWEBP}" -lossless -mt -quiet -o "${outfile}" -- "${file_path}" 2>>"${LOG_FILE}"; then
+                    new_size=$(stat -c%s "${outfile}")
+                    if (( new_size < orig_size )); then
+                        mv "${outfile}" "${file_path}"
+                        message="WebP lossless compressed: ${orig_size} → ${new_size} bytes"
+                    else
+                        new_size=${orig_size}
+                        rm -f "${outfile}"
+                        message="WebP already optimal (${orig_size} bytes)"
+                    fi
+                    success=true
+                else
+                    rm -f "${outfile}"
+                    message="cwebp failed for: ${file_path}"
+                fi
+            else
+                message="cwebp not found at ${CWEBP}"
                 log "WARNING: ${message}"
                 success=false
             fi
@@ -133,10 +175,20 @@ process_job() {
 
     if "${success}"; then
         log "OK: ${message}"
-        write_result "${tmpfile}" "completed" "${message}"
+        write_result "${tmpfile}" "completed" "${message}" "${orig_size}" "${new_size}"
     else
         log "FAIL: ${message}"
-        write_result "${tmpfile}" "failed" "${message}"
+        write_result "${tmpfile}" "failed" "${message}" "0" "0"
+        # Send failure notification email if configured.
+        if [[ -n "${NOTIFY_EMAIL}" ]] && command -v mail &>/dev/null; then
+            echo "Metamanager job failed on $(hostname)
+
+File:    ${file_path}
+Size:    ${size}
+Reason:  ${message}
+Time:    $(date '+%Y-%m-%d %H:%M:%S')" \
+            | mail -s "[Metamanager] Job failed: ${image_name}" "${NOTIFY_EMAIL}" 2>/dev/null || true
+        fi
     fi
 }
 
@@ -145,6 +197,8 @@ write_result() {
     local tmpfile="$1"
     local status="$2"
     local message="$3"
+    local bytes_before="${4:-0}"
+    local bytes_after="${5:-0}"
     local out_dir
 
     if [[ "${status}" == "completed" ]]; then
@@ -155,11 +209,13 @@ write_result() {
 
     local result_file="${out_dir}/$(basename "${tmpfile}" .processing)-result.json"
 
-    # Merge the original job JSON with result fields.
-    jq --arg status "${status}" \
-       --arg msg    "${message}" \
-       --arg ts     "$(date '+%Y-%m-%d %H:%M:%S')" \
-       '. + {status: $status, completed_at: $ts, details: {message: $msg}}' \
+    # Merge the original job JSON with result fields including compression savings.
+    jq --arg  status        "${status}" \
+       --arg  msg           "${message}" \
+       --arg  ts            "$(date '+%Y-%m-%d %H:%M:%S')" \
+       --argjson bytes_before "${bytes_before}" \
+       --argjson bytes_after  "${bytes_after}" \
+       '. + {status: $status, completed_at: $ts, bytes_before: $bytes_before, bytes_after: $bytes_after, details: {message: $msg}}' \
        "${tmpfile}" > "${result_file}" 2>/dev/null || true
 
     rm -f "${tmpfile}"

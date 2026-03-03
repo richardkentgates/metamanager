@@ -124,7 +124,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-install.sh}")" 2>/dev/null && pwd
 # =============================================================================
 
 install_deps() {
-    local pkgs=("jq" "inotify-tools" "libimage-exiftool-perl" "libjpeg-turbo-progs" "optipng")
+    local pkgs=("jq" "inotify-tools" "libimage-exiftool-perl" "libjpeg-turbo-progs" "optipng" "webp")
 
     if command -v apt-get &>/dev/null; then
         info "Detected apt. Installing dependencies..."
@@ -135,12 +135,12 @@ install_deps() {
         info "Detected dnf. Installing dependencies..."
         # EPEL for exiftool and optipng on RHEL-based systems
         dnf install -y epel-release 2>/dev/null || true
-        dnf install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng || true
+        dnf install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools || true
 
     elif command -v yum &>/dev/null; then
         info "Detected yum. Installing dependencies..."
         yum install -y epel-release 2>/dev/null || true
-        yum install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng || true
+        yum install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools || true
 
     else
         warn "No known package manager found. Install these manually:"
@@ -152,7 +152,7 @@ if [[ "${UPDATE_ONLY}" == false ]]; then
     install_deps
 
     # Verify critical tools
-    for tool in jq inotifywait exiftool jpegtran optipng; do
+    for tool in jq inotifywait exiftool jpegtran optipng cwebp; do
         if command -v "${tool}" &>/dev/null; then
             success "${tool}: $(command -v "${tool}")"
         else

@@ -7,6 +7,44 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0] — 2026-03-09
+
+### Added
+- **WebP lossless compression** via `cwebp -lossless -mt`: if an uploaded file is already a `.webp`, it is re-encoded losslessly; files are only replaced when the result is smaller than the original
+- **cwebp tool detection** in `MM_Status::cwebp_available()` and `cwebp_path()`; cwebp status shown in the system health banner alongside jpegtran and optipng
+- **Compression savings stats**: the compression daemon now records `bytes_before` and `bytes_after` for every JPEG, PNG, and WebP job; values are stored in two new DB columns and displayed in a "Savings" column on the Job History table (e.g. `−42.3 KB (18%)`)
+- **`MM_DB::get_stats()`**: aggregate query returning total jobs, completed/failed counts, bytes saved, bytes original, and unique attachment count
+- **Thumbnail regeneration detection** (`MM_Job_Queue::on_upload()`): the `wp_generate_attachment_metadata` hook now distinguishes between a fresh upload (no `mm_meta_synced` flag) and a thumbnail regeneration (flag already set). On regen, stale compression meta is cleared and only compression jobs are re-queued; metadata import is never re-run to protect user edits
+- **Configurable compression optimisation level** (`mm_compress_level`, default 2): applied to optipng and cwebp; written into every job JSON as `optimize_level` for the daemon to consume
+- **Settings page** (`Media → MM Settings`): configure compression level (1–7), enable/disable failure email notifications, and set the notification recipient email
+- **Failure email notification** (`MM_Settings::get_notify_enabled()`): when any job fails, `mm_import_completed_jobs()` sends a single batched summary email (via `wp_mail`) listing all failures with image name, size slug, and daemon error reason; uses the configured recipient or falls back to the WordPress admin email
+- **Individual re-compress button** on every image edit screen: "Re-compress This Image" clears existing compression flags for all sizes and queues fresh compression jobs; uses AJAX with inline status feedback
+- **WP-CLI commands** (`class-mm-cli.php`):
+  - `wp metamanager compress [<id>|all] [--force]` — queue lossless compression with a progress bar
+  - `wp metamanager import [<id>|all]` — import embedded EXIF/IPTC/XMP metadata
+  - `wp metamanager queue status` — show pending job counts and daemon liveness
+  - `wp metamanager scan` — import metadata for every un-synced library image
+  - `wp metamanager stats` — print compression savings summary table
+- **Bulk Metadata Edit page** (`Media → Bulk Edit Metadata`): paginated table of all images with inline-editable fields for Headline, Credit, Keywords, Date Created, City, State, and Country; individual row Save buttons and a "Save All on This Page" button; each save queues a metadata embedding job
+- **REST API** — five new authenticated endpoints under `metamanager/v1`:
+  - `GET /jobs` — paginated, searchable, orderable job history (returns `X-WP-Total` / `X-WP-TotalPages` headers)
+  - `GET /jobs/{id}` — single job row by DB ID
+  - `GET /attachment/{id}/status` — compression + meta-sync status for one attachment
+  - `POST /attachment/{id}/compress` — queue compression for one attachment (`force` param)
+  - `GET /stats` — aggregate compression statistics
+- **Batched Library Scan**: `ajax_scan_library()` now processes 50 images per HTTP request (`batch_size` param); JS chains calls automatically and renders a live progress bar; replaces the previous single unbounded `get_posts(-1)` call
+- `install.sh` now installs the `webp` (apt) / `libwebp-tools` (dnf/yum) package and verifies `cwebp` availability after install
+
+### Changed
+- DB schema: `bytes_before BIGINT UNSIGNED` and `bytes_after BIGINT UNSIGNED` columns added via `dbDelta` (safe zero-downtime migration)
+- `MM_DB::log_job()` now accepts and stores `bytes_before` / `bytes_after` from the result JSON
+- `MM_Status::system_status()` now includes `cwebp` in the returned array
+- PNG compression: optimisation level now reads `optimize_level` from the job JSON (was hardcoded `-o2`); bytes before/after are now captured for PNG jobs as they already were for JPEG
+- JPEG compression: bytes_before/bytes_after now always written to the result JSON (was only logged in the message string); `new_size` equals `orig_size` when the file was already optimal
+- `write_result()` in the compress daemon now accepts `bytes_before` and `bytes_after` positional arguments and embeds them as top-level JSON fields using `jq --argjson`
+
+---
+
 ## [1.1.0] — 2026-03-02
 
 ### Added
@@ -76,11 +114,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## Upcoming
 
-### Planned for 1.2.0
-- WebP lossless compression support via `cwebp -lossless`
-- WP-CLI commands: `wp metamanager compress <id>`, `wp metamanager queue status`
-- Settings page: configurable compression optimisation level
-- Individual image re-compress button on the edit screen
-- Notification email on daemon failure
-- Bulk metadata editing via a dedicated media grid view
-- Export job history as CSV
+### Possible future improvements
+- Lossy compression option with configurable quality target (separate from lossless jobs)
+- AVIF output support (`avifenc`)
+- Per-attachment compression stats widget in the Media Library list view
+- WP-CLI `wp metamanager export` command to download job history as CSV

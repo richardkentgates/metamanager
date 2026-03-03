@@ -38,6 +38,11 @@ class MM_Status {
 	private const OPTIPNG_PATHS = [ '/usr/bin/optipng', '/usr/local/bin/optipng' ];
 
 	/**
+	 * Candidate paths for cwebp (WebP lossless compression).
+	 */
+	private const CWEBP_PATHS = [ '/usr/bin/cwebp', '/usr/local/bin/cwebp' ];
+
+	/**
 	 * Check whether ExifTool is installed and executable.
 	 */
 	public static function exiftool_available(): bool {
@@ -87,6 +92,25 @@ class MM_Status {
 	 */
 	public static function optipng_path(): string {
 		foreach ( self::OPTIPNG_PATHS as $path ) {
+			if ( file_exists( $path ) && is_executable( $path ) ) {
+				return $path;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Check whether cwebp is available.
+	 */
+	public static function cwebp_available(): bool {
+		return (bool) self::cwebp_path();
+	}
+
+	/**
+	 * Return the first found cwebp executable path.
+	 */
+	public static function cwebp_path(): string {
+		foreach ( self::CWEBP_PATHS as $path ) {
 			if ( file_exists( $path ) && is_executable( $path ) ) {
 				return $path;
 			}
@@ -224,6 +248,7 @@ class MM_Status {
 			'exiftool'         => self::exiftool_available(),
 			'jpegtran'         => self::jpegtran_available(),
 			'optipng'          => self::optipng_available(),
+			'cwebp'            => self::cwebp_available(),
 			'compress_daemon'  => self::compress_daemon_running(),
 			'meta_daemon'      => self::meta_daemon_running(),
 		];
