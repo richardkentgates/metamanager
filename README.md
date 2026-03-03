@@ -49,17 +49,18 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 
 | Component | Minimum | Notes |
 |-----------|---------|-------|
-| OS | Linux | systemd required for the compression and metadata daemons |
-| WordPress | 6.0 | |
-| PHP | 8.0 | |
+| OS | Linux | systemd required; tested on **Ubuntu 22.04+**, **Debian 12+**, **RHEL / Rocky 9+**. The install script supports `apt`, `dnf`, and `yum`. Other distros require manual dependency installation. |
+| bash | 5.0+ | Required by the daemon scripts. Ubuntu 18.04 ships bash 4.4 and is **not supported**. Ubuntu 20.04 (bash 5.0) works but is untested. |
+| WordPress | 6.0+ | |
+| PHP | 8.0+ | |
 | ExifTool | any | `perl-Image-ExifTool` or `libimage-exiftool-perl` |
 | jpegtran | any | `libjpeg-turbo-progs` (apt) or `libjpeg-turbo-utils` (dnf) |
 | optipng | any | `optipng` |
 | cwebp | any | `webp` package — for lossless WebP compression |
 | ffmpeg | any | `ffmpeg` — for video container remux |
-| inotify-tools | any | For daemon file watching |
+| inotify-tools | any | For daemon file watching (Linux kernel inotify subsystem, present since 2.6.13) |
 | jq | any | JSON parsing in daemon scripts |
-| systemd | v232+ | Service management |
+| systemd | v232+ | Minimum for `ProtectSystem=strict` and `ReadWritePaths=` used in service units |
 
 ---
 

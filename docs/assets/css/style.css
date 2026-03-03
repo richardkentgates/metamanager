@@ -452,6 +452,7 @@ body { font-family: var(--sans); color: var(--mid); background: var(--white); li
 }
 .req-name { font-size: .85rem; color: #8fa4c8; margin-bottom: 4px; }
 .req-ver  { font-size: 1.05rem; color: var(--white); font-weight: 600; }
+.req-note { font-size: .78rem; color: #8fa4c8; margin-top: 6px; line-height: 1.4; }
 
 /* ================================================================ FOOTER */
 .site-footer {
