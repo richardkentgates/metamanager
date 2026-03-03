@@ -105,34 +105,34 @@ body { font-family: var(--sans); color: var(--mid); background: var(--white); li
     font-size: 1.1rem;
     color: #8fa4c8;
     max-width: 640px;
-    margin: 0 auto 20px;
+    margin: 0 auto 28px;
     line-height: 1.7;
 }
-.hero-list {
-    list-style: none;
-    padding: 0;
-    margin: 0 auto 36px;
-    max-width: 580px;
-    text-align: left;
+.hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    max-width: 780px;
+    margin: 0 auto 40px;
+}
+.hero-pill {
     display: inline-block;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #b8cce8;
+    border-radius: 999px;
+    padding: 7px 18px;
+    font-size: .875rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    transition: background .15s, border-color .15s, color .15s;
 }
-.hero-list li {
-    font-size: .975rem;
-    color: #8fa4c8;
-    line-height: 1.65;
-    padding: 5px 0 5px 1.4em;
-    position: relative;
-    border-bottom: 1px solid rgba(255,255,255,.06);
+.hero-pill:hover {
+    background: rgba(45,140,240,.18);
+    border-color: rgba(45,140,240,.5);
+    color: #ddeeff;
 }
-.hero-list li:last-child { border-bottom: none; }
-.hero-list li::before {
-    content: "→";
-    position: absolute;
-    left: 0;
-    color: #4f8ef7;
-    font-weight: 600;
-}
-.hero-list strong { color: #c9d8f0; }
 .hero-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-bottom: 32px; }
 .btn {
     display: inline-block;
