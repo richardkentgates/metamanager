@@ -1,6 +1,6 @@
 # Metamanager
 
-**Metamanager** is a WordPress plugin that provides lossless image compression, bidirectional metadata sync between WordPress fields and embedded EXIF/IPTC/XMP tags, and automatic front-end Schema.org and Open Graph output — all powered by OS-level daemons and native WordPress APIs.
+**Metamanager** is a WordPress plugin that provides lossless compression for images, video, and audio; bidirectional metadata sync between WordPress fields and embedded file tags (EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP); PDF metadata import; and automatic front-end Schema.org JSON-LD and Open Graph output for all media types — all powered by OS-level daemons and native WordPress APIs.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-blue)](https://wordpress.org)
@@ -11,7 +11,7 @@
 
 ## Why Metamanager
 
-WordPress's built-in image handling is PHP-only. PHP cannot do lossless JPEG or PNG compression, and its metadata tools are limited to basic EXIF with no IPTC or XMP support. Metamanager offloads all image work to the OS where purpose-built tools — `jpegtran`, `optipng`, and `ExifTool` — do the job properly.
+WordPress's built-in media handling is PHP-only. PHP cannot do lossless JPEG, PNG, or WebP compression, has no native video remux, and its metadata tools are limited to basic EXIF with no IPTC or XMP support. Metamanager offloads all media work to the OS where purpose-built tools — `jpegtran`, `optipng`, `cwebp`, `ffmpeg`, and `ExifTool` — do the job properly.
 
 PHP's role is coordinator only: write the instruction, let the daemon execute it.
 
@@ -19,13 +19,16 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 
 ## Features
 
-- **Lossless compression**: JPEG via `jpegtran` (no re-encoding), PNG via `optipng`
-- **Standards-compliant metadata**: EXIF, IPTC, and XMP written simultaneously via ExifTool
-- **Bidirectional metadata sync**: on upload, embedded EXIF/IPTC/XMP is read from the file and populates WordPress fields automatically — existing user values are never overwritten
+- **Lossless image compression**: JPEG via `jpegtran` (no re-encoding), PNG via `optipng`, WebP via `cwebp -lossless`
+- **Video support**: metadata (title, description, creator, copyright, keywords, date) written as QuickTime atoms for MP4/MOV/M4A, XMP-only for AVI/WMV/WMA; video container remux via `ffmpeg`; read-only for MKV/WebM/OGV
+- **Audio support**: ID3 tags for MP3, QuickTime atoms for M4A, Vorbis comments for OGG/FLAC, XMP-only for WAV/WMA
+- **PDF support**: title, author, keywords, and creation date imported on upload; XMP fields written back by daemon; Schema.org `DigitalDocument` output
+- **Standards-compliant metadata**: EXIF, IPTC, and XMP written simultaneously via ExifTool for images; native tag formats used per file type
+- **Bidirectional metadata sync**: on upload, embedded tags are read from the file and populate WordPress fields automatically — existing user values are never overwritten
 - **Expanded metadata fields**: Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating (0–5 stars), City, State/Province, Country — stored as registered post meta, REST-exposed, and embedded by the daemon
 - **GPS coordinates**: latitude, longitude, and altitude read from camera-embedded GPS tags and stored automatically — no manual entry required
-- **Schema.org JSON-LD**: `ImageObject` block emitted on attachment pages and posts with a featured image — includes all fields plus `GeoCoordinates` when GPS data is present
-- **Open Graph tags**: `og:image`, `og:image:alt`, `og:image:width`, `og:image:height`, `og:image:type`, `og:image:secure_url`
+- **Schema.org JSON-LD**: `ImageObject` for images (with `GeoCoordinates` when GPS data is present), `VideoObject` for video, `AudioObject` for audio, `DigitalDocument` for PDF — emitted on attachment pages and posts with a featured image
+- **Open Graph tags**: `og:image` / `og:video` / `og:audio` per media type; width, height, type, and alt where applicable
 - **License link**: `<link rel="license">` for URL-format copyright values, `<meta name="copyright">` for plain-text notices
 - **Native WordPress integration**: metadata fields on every image edit screen; compression status column in Media Library
 - **Grouped edit UI**: Attribution & Rights, Editorial, Classification, Location — clearly separated in the attachment editor
@@ -47,6 +50,8 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 | ExifTool | any | `perl-Image-ExifTool` or `libimage-exiftool-perl` |
 | jpegtran | any | `libjpeg-turbo-progs` (apt) or `libjpeg-turbo-utils` (dnf) |
 | optipng | any | `optipng` |
+| cwebp | any | `webp` package — for lossless WebP compression |
+| ffmpeg | any | `ffmpeg` — for video container remux |
 | inotify-tools | any | For daemon file watching |
 | jq | any | JSON parsing in daemon scripts |
 | systemd | v232+ | Service management |
@@ -72,6 +77,8 @@ The install script:
 4. Patches daemon scripts with your actual `WP_CONTENT_DIR`
 5. Installs, enables, and starts both systemd daemons
 6. Activates the plugin via WP-CLI if available
+
+> **Note:** `cwebp` (`webp` package) and `ffmpeg` are installed automatically by the installer when available. If your distribution does not include them in the default repositories, install them manually before running the installer.
 
 ---
 
@@ -119,7 +126,8 @@ sudo bash /path/to/wordpress/wp-content/plugins/metamanager/install.sh \
 ```
 WordPress (PHP)                     OS (Bash daemons)
 ─────────────────                   ──────────────────────────────────────
-Upload / edit image
+Upload / edit media file
+(image, video, audio, PDF)
        │
        ▼
 Write job JSON to                   inotifywait detects new file
@@ -127,9 +135,10 @@ Write job JSON to                   inotifywait detects new file
   compress/  or  meta/             ◄───────┘
                                           │
                                           ▼
-                                   Process image:
-                                     jpegtran / optipng  (compression)
-                                     ExifTool            (metadata)
+                                   Process file:
+                                     jpegtran / optipng / cwebp  (image compression)
+                                     ffmpeg                       (video remux)
+                                     ExifTool                     (metadata — all types)
                                           │
                                           ▼
                                    Write result JSON to
@@ -148,6 +157,8 @@ History table updated
 ---
 
 ## Metadata Fields
+
+> **Format-aware tag writing:** Images write EXIF, IPTC, and XMP simultaneously. MP3 uses ID3 tags; MP4/MOV/M4A use QuickTime atoms; OGG/FLAC use Vorbis comments; AVI/WAV/WMV/WMA and PDF use XMP-only. MKV/WebM/OGV are read-only at this time. All fields below apply to images; video, audio, and PDF share the same WordPress field names but write to the appropriate native tag system.
 
 ### Attribution & Rights *(per-image only — never bulk)*
 
@@ -210,9 +221,16 @@ History table updated
 
 ## Front-End Schema & Open Graph
 
-On every attachment page and single post/page with a featured image, Metamanager emits:
+On every attachment page and single post/page with a featured image, Metamanager emits structured data and Open Graph tags appropriate for the file type:
 
-**Schema.org `ImageObject` JSON-LD** — all stored fields map to standard properties:
+| File type | Schema.org type | Open Graph |
+|-----------|-----------------|------------|
+| Image (JPEG/PNG/WebP/GIF/TIFF) | `ImageObject` | `og:image` + width/height/alt/type |
+| Video (MP4/MOV/AVI/MKV/WebM/WMV/OGV/3GP) | `VideoObject` | `og:video` + type |
+| Audio (MP3/M4A/OGG/WAV/FLAC/WMA/AIFF) | `AudioObject` | `og:audio` + type |
+| PDF (`application/pdf`) | `DigitalDocument` | `og:type=article` + title/description/url |
+
+**Schema.org `ImageObject` JSON-LD example** (images — includes GPS when present):
 
 ```json
 {
@@ -237,7 +255,7 @@ On every attachment page and single post/page with a featured image, Metamanager
 }
 ```
 
-**Open Graph tags** — `og:image`, `og:image:alt`, `og:image:width`, `og:image:height`, `og:image:type`, `og:image:secure_url`
+**Open Graph tags** — type-appropriate properties per media family; `og:image`, `og:video`, or `og:audio` with dimensions, MIME type, and alt text where applicable
 
 **License tag** — `<link rel="license">` when the copyright field is a URL; `<meta name="copyright">` for plain-text notices
 
@@ -320,6 +338,26 @@ The backbone of all metadata work in Metamanager. ExifTool reads and writes EXIF
 **Website:** <https://optipng.sourceforge.net>
 
 `optipng` performs lossless PNG compression by trying multiple DEFLATE parameters and filter combinations to find the smallest lossless representation. No pixels are changed. We use it with `-o2 -preserve` to balance compression efficiency against processing time while preserving all file metadata.
+
+---
+
+### libwebp / cwebp
+**Author:** Google
+**License:** [BSD 3-Clause](https://chromium.googlesource.com/webm/libwebp/+/refs/heads/main/COPYING)
+**Website:** <https://developers.google.com/speed/webp>
+**Repository:** <https://chromium.googlesource.com/webm/libwebp>
+
+`cwebp`, part of the libwebp package, compresses WebP images losslessly with `cwebp -lossless`. Files are only replaced if the result is smaller. libwebp is Google's reference implementation of the WebP format.
+
+---
+
+### FFmpeg
+**Maintainers:** FFmpeg contributors
+**License:** [LGPL v2.1+ / GPL v2+ depending on build configuration](https://ffmpeg.org/legal.html)
+**Website:** <https://ffmpeg.org>
+**Repository:** <https://git.ffmpeg.org/ffmpeg.git>
+
+`ffmpeg` is used by the compression daemon to remux video containers, stripping padding and redundant data without re-encoding. The output is bitstream-identical to the input — no quality change, no transcoding. We invoke it with `-c copy` to ensure a strict copy-only remux.
 
 ---
 

@@ -118,10 +118,10 @@ class MM_Admin {
 				'title'   => __( 'Daemons', 'metamanager' ),
 				'content' =>
 					'<h2>' . esc_html__( 'OS Daemons', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'Two systemd services handle all image processing:', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Two systemd services handle all media file processing:', 'metamanager' ) . '</p>' .
 					'<ul>' .
-					'<li><strong>metamanager-compress-daemon</strong> — ' . esc_html__( 'lossless JPEG compression via jpegtran; lossless PNG compression via optipng. Files are only replaced if the result is smaller.', 'metamanager' ) . '</li>' .
-					'<li><strong>metamanager-meta-daemon</strong> — ' . esc_html__( 'writes EXIF, IPTC, and XMP metadata simultaneously via ExifTool in a single pass.', 'metamanager' ) . '</li>' .
+					'<li><strong>metamanager-compress-daemon</strong> — ' . esc_html__( 'lossless JPEG compression via jpegtran; lossless PNG compression via optipng; lossless WebP recompression via cwebp; video container remux via ffmpeg. Files are only replaced if the result is smaller.', 'metamanager' ) . '</li>' .
+					'<li><strong>metamanager-meta-daemon</strong> — ' . esc_html__( 'writes metadata via ExifTool in a single pass, using each file\'s native tag system: EXIF/IPTC/XMP for images; ID3 for MP3; QuickTime atoms for MP4/MOV/M4A; Vorbis comments for OGG/FLAC; XMP-only for AVI/WAV/WMV/WMA/PDF; read-only for MKV/WebM/OGV.', 'metamanager' ) . '</li>' .
 					'</ul>' .
 					'<p>' . esc_html__( 'Daemon status is shown in the banner at the top of this page and the Media Library. Status is read from a PID file in /tmp/ — no systemctl privileges are needed.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'To restart a daemon from the server:', 'metamanager' ) . '</p>' .
@@ -134,7 +134,7 @@ class MM_Admin {
 				'title'   => __( 'Metadata Fields', 'metamanager' ),
 				'content' =>
 					'<h2>' . esc_html__( 'Metadata Fields', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'Metamanager maps WordPress fields to EXIF, IPTC, and XMP tags and writes all three simultaneously:', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Metamanager maps WordPress fields to each file\'s native tag system. Images write EXIF, IPTC, and XMP simultaneously; MP3 uses ID3; MP4/MOV/M4A use QuickTime atoms; OGG/FLAC use Vorbis comments; AVI/WAV/WMV/WMA and PDF use XMP-only. All field names below apply across all supported types.', 'metamanager' ) . '</p>' .
 					'<table style="border-collapse:collapse;width:100%;font-size:13px;">' .
 					'<tr style="border-bottom:1px solid #ddd;"><th style="text-align:left;padding:4px 8px;">Field</th><th style="text-align:left;padding:4px 8px;">Source</th><th style="text-align:left;padding:4px 8px;">Bulk?</th></tr>' .
 					'<tr><td style="padding:4px 8px;">Title</td><td style="padding:4px 8px;">WP Post Title</td><td style="padding:4px 8px;">No</td></tr>' .
@@ -156,7 +156,7 @@ class MM_Admin {
 				'<tr><td style="padding:4px 8px;">City</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">No</td></tr>' .
 				'<tr><td style="padding:4px 8px;">State / Province</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">No</td></tr>' .
 				'<tr><td style="padding:4px 8px;">Country</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">No</td></tr>' .					'</table>' .
-					'<p style="margin-top:.75em;">' . esc_html__( 'Creator, Copyright, and Owner carry rights and attribution meaning. They are intentionally unavailable as bulk actions and must be set per image.', 'metamanager' ) . '</p>',
+					'<p style="margin-top:.75em;">' . esc_html__( 'Creator, Copyright, and Owner carry rights and attribution meaning. They are intentionally unavailable as bulk actions and must be set per file.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [
@@ -186,10 +186,10 @@ class MM_Admin {
 				'title'   => __( 'Compression Column', 'metamanager' ),
 				'content' =>
 					'<h2>' . esc_html__( 'Metamanager Compression Column', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'The Compression column shows the lossless compression status of each image. It polls the server every 10 seconds and updates without a page reload.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'The Compression column shows the lossless compression status of each eligible media file. It polls the server every 10 seconds and updates without a page reload.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'Status meanings:', 'metamanager' ) . '</p>' .
 					'<ul>' .
-					'<li><strong style="color:#13bb2c;">' . esc_html__( 'Compressed', 'metamanager' ) . '</strong> — ' . esc_html__( 'All image sizes have been losslessly optimised.', 'metamanager' ) . '</li>' .
+					'<li><strong style="color:#13bb2c;">' . esc_html__( 'Compressed', 'metamanager' ) . '</strong> — ' . esc_html__( 'The file has been losslessly optimised.', 'metamanager' ) . '</li>' .
 					'<li><strong style="color:#e6b800;">' . esc_html__( 'Pending', 'metamanager' ) . '</strong> — ' . esc_html__( 'A compression job is queued and waiting for the daemon.', 'metamanager' ) . '</li>' .
 					'<li><strong style="color:#e54c3c;">' . esc_html__( 'Failed', 'metamanager' ) . '</strong> — ' . esc_html__( 'The last compression attempt failed. Go to Media → Metamanager to re-queue.', 'metamanager' ) . '</li>' .
 					'<li><strong style="color:#888;">' . esc_html__( 'Not compressed', 'metamanager' ) . '</strong> — ' . esc_html__( 'No compression job has run yet. Use Compress Lossless from the Bulk Actions menu.', 'metamanager' ) . '</li>' .

@@ -39,7 +39,7 @@ Metamanager's attack surface to be aware of:
 The `wp-content/metamanager-jobs/` directories contain JSON files with image file paths and metadata. Each directory has an `.htaccess` with `Deny from all` to prevent direct HTTP access. Ensure your web server honours `.htaccess` files.
 
 ### Shell daemon execution
-The daemons run as `www-data` under systemd. They execute `jpegtran`, `optipng`, and `exiftool` with arguments derived from the job JSON. File paths in job files are written by PHP (which sanitises input) and are not user-controllable from the public web. The service files include `NoNewPrivileges=true`.
+The daemons run as `www-data` under systemd. They execute `jpegtran`, `optipng`, `cwebp`, `ffmpeg`, and `exiftool` with arguments derived from the job JSON. File paths in job files are written by PHP (which sanitises input) and are not user-controllable from the public web. The service files include `NoNewPrivileges=true`.
 
 ### REST endpoint
 The `/wp-json/metamanager/v1/compression-status` endpoint requires `upload_files` capability and validates the `X-WP-Nonce` header on every request.

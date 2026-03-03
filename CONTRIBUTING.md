@@ -20,7 +20,7 @@ Thank you for your interest in contributing. This document explains how to get i
 
 - Linux (Ubuntu 22.04+ or equivalent)
 - PHP 8.0+, WordPress 6.0+ (local install)
-- `jpegtran`, `optipng`, `exiftool`, `inotifywait`, `jq`
+- `jpegtran`, `optipng`, `cwebp`, `ffmpeg`, `exiftool`, `inotifywait`, `jq`
 - `bash` 5+
 
 ### Getting Started
@@ -34,7 +34,7 @@ cd metamanager
 ln -s "$(pwd)" /path/to/wordpress/wp-content/plugins/metamanager
 
 # Install daemon dependencies
-sudo apt install libjpeg-turbo-progs optipng libimage-exiftool-perl inotify-tools jq
+sudo apt install libjpeg-turbo-progs optipng webp ffmpeg libimage-exiftool-perl inotify-tools jq
 
 # Run install.sh to set up daemons
 sudo bash install.sh --wp-path /path/to/wordpress
@@ -90,6 +90,7 @@ Please read and respect these before proposing changes:
 3. **No false attribution.** Bulk operations must never set Creator, Copyright, or Owner. These are per-image fields.
 4. **No hardcoded paths.** `install.sh` patches paths at deploy time. The plugin derives paths from WordPress constants only.
 5. **Single hook registrations.** Every WordPress hook must be registered exactly once.
+6. **Format-aware tag writing.** Metadata must use each file format's native tag system. Images use EXIF/IPTC/XMP simultaneously; MP3 uses ID3; MP4/M4A/MOV use QuickTime atoms; OGG/FLAC use Vorbis comments; AVI/WAV/WMV/WMA and PDF use XMP-only. MKV/WebM/OGV are read-only. The `WRITE_CAPABILITY` map in `class-mm-metadata.php` is the single source of truth — consult it before adding any new format.
 
 ---
 

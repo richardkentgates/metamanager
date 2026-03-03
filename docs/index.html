@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Metamanager — Lossless image compression, bidirectional EXIF/IPTC/XMP metadata sync, GPS import, and automatic Schema.org JSON-LD and Open Graph output for WordPress.">
+    <meta name="description" content="Metamanager — Lossless compression for images, video, and audio; bidirectional metadata sync (EXIF/IPTC/XMP, ID3, QuickTime, Vorbis); GPS import; PDF support; and automatic Schema.org JSON-LD and Open Graph output for WordPress.">
     <meta name="author" content="Richard Kent Gates">
     <link rel="canonical" href="https://metamanager.richardkentgates.com">
 
@@ -17,7 +17,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://metamanager.richardkentgates.com">
     <meta property="og:title" content="Metamanager — WordPress Media Metadata &amp; Compression">
-    <meta property="og:description" content="Lossless image compression and full EXIF/IPTC/XMP metadata embedding for WordPress, via OS-level daemons. Bidirectional metadata sync, GPS import, Schema.org JSON-LD, and Open Graph output — all managed natively from the WordPress dashboard.">
+    <meta property="og:description" content="Lossless compression for images (JPEG/PNG/WebP), video, and audio — plus PDF metadata — for WordPress, via OS-level daemons. Bidirectional metadata sync, GPS import, Schema.org JSON-LD and Open Graph output for all media types — natively from the WordPress dashboard.">
     <meta property="og:image" content="https://metamanager.richardkentgates.com/metamanager-logo.png">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1024">
@@ -27,7 +27,7 @@
     <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Metamanager — WordPress Media Metadata &amp; Compression">
-    <meta name="twitter:description" content="Lossless image compression and full EXIF/IPTC/XMP metadata embedding for WordPress, via OS-level daemons.">
+    <meta name="twitter:description" content="Lossless image, video, and audio compression plus PDF support for WordPress — bidirectional metadata sync via OS-level daemons.">
     <meta name="twitter:image" content="https://metamanager.richardkentgates.com/metamanager-logo.png">
     <meta name="twitter:image:alt" content="Metamanager — WordPress Media Metadata &amp; Compression plugin">
     <meta name="twitter:creator" content="@richardkentgates">
@@ -70,8 +70,8 @@
           "downloadUrl": "https://github.com/richardkentgates/metamanager",
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
-          "description": "A WordPress plugin that delivers lossless image compression via jpegtran and optipng, bidirectional EXIF/IPTC/XMP metadata sync via ExifTool, GPS coordinate import, Schema.org JSON-LD output, and Open Graph tags — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "1.1.0",
+          "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); and Open Graph tags — all managed natively from the WordPress dashboard using OS-level daemons.",
+          "softwareVersion": "1.4.0",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -123,13 +123,14 @@
     <div class="container">
         <div class="hero-badge">Open Source · GPL v3 · WordPress 6.0+</div>
         <h1 class="hero-title">
-            Image Compression &amp; Metadata<br>
+            Media Compression &amp; Metadata<br>
             <span class="accent">the way it should work.</span>
         </h1>
         <p class="hero-subtitle">
             Metamanager pairs WordPress's media library with OS-level daemons to deliver
-            truly lossless image compression, bidirectional EXIF/IPTC/XMP metadata sync,
-            GPS coordinate import, and automatic Schema.org and Open Graph output —
+            truly lossless compression for images, video, and audio; bidirectional metadata sync
+            for EXIF/IPTC/XMP, ID3, QuickTime, and Vorbis; GPS import; PDF metadata;
+            and automatic Schema.org and Open Graph output for all media types &mdash;
             all managed natively from your dashboard.
         </p>
         <div class="hero-actions">
@@ -146,13 +147,23 @@
 <section class="section" id="features">
     <div class="container">
         <h2 class="section-title">What Metamanager Does</h2>
-        <p class="section-subtitle">PHP can't do lossless compression or write IPTC and XMP. Metamanager can.</p>
+        <p class="section-subtitle">PHP can't do lossless compression, video remux, or write IPTC/XMP and format-native audio tags. Metamanager can.</p>
 
         <div class="feature-grid">
             <div class="feature-card">
                 <div class="feature-icon">🗜</div>
                 <h3>True Lossless Compression</h3>
-                <p>JPEG files are optimised with <code>jpegtran</code> — no re-encoding, no quality loss, no pixel changes. PNG files are processed by <code>optipng</code>. Files are only replaced if the result is smaller.</p>
+                <p>JPEG files are optimised with <code>jpegtran</code> &mdash; no re-encoding, no quality loss, no pixel changes. PNG files are processed by <code>optipng</code>. WebP files are recompressed with <code>cwebp -lossless</code>. Files are only replaced if the result is smaller.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎥</div>
+                <h3>Video &amp; Audio Support</h3>
+                <p>Upload MP4, MOV, AVI, MKV, WebM, WMV, MP3, M4A, OGG, WAV, FLAC, and more. Metadata (title, description, creator, copyright, keywords, date) writes to each format's native tag system: QuickTime atoms for MP4/M4A, ID3 for MP3, Vorbis comments for OGG/FLAC, XMP-only for AVI/WAV/WMV/WMA. Video containers are remuxed losslessly via <code>ffmpeg</code>.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📌</div>
+                <h3>PDF Metadata</h3>
+                <p>PDF documents are first-class citizens. Title, author, keywords, and creation date are imported from embedded PDF tags on upload. WordPress fields write back as XMP. Attachment pages emit a Schema.org <code>DigitalDocument</code> JSON-LD block.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🏷</div>
@@ -177,12 +188,12 @@
             <div class="feature-card">
                 <div class="feature-icon">🔍</div>
                 <h3>Schema.org &amp; Open Graph</h3>
-                <p>Every attachment page and post with a featured image automatically receives an <code>ImageObject</code> JSON-LD block and Open Graph tags. When GPS data is present, a full <code>GeoCoordinates</code> object is included. URL-format copyright values emit a <code>&lt;link rel="license"&gt;</code>; plain-text values emit <code>&lt;meta name="copyright"&gt;</code>.</p>
+                <p>Every attachment page automatically receives type-appropriate structured data: <code>ImageObject</code> for images (with <code>GeoCoordinates</code> when GPS data is present), <code>VideoObject</code> for video, <code>AudioObject</code> for audio, and <code>DigitalDocument</code> for PDF. Open Graph tags use the correct type per media family. URL-format copyright values emit <code>&lt;link rel="license"&gt;</code>; plain-text values emit <code>&lt;meta name="copyright"&gt;</code>.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🖥</div>
                 <h3>Native Dashboard Integration</h3>
-                <p>Custom fields on every image edit screen, grouped by purpose: <strong>Attribution &amp; Rights, Editorial, Classification, Location.</strong> A live compression-status column in the Media Library. Searchable, paginated job history. All inside WordPress — no separate admin interface to learn.</p>
+                <p>Custom fields on every media file edit screen, grouped by purpose: <strong>Attribution &amp; Rights, Editorial, Classification, Location.</strong> A live compression-status column in the Media Library. Searchable, paginated job history. All inside WordPress &mdash; no separate admin interface to learn.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">⚡</div>
@@ -240,7 +251,7 @@
                 <div class="flow-number">3</div>
                 <div class="flow-content">
                     <h4>Daemon Processes</h4>
-                    <p><code>inotifywait</code> detects the new file. The daemon processes the image with <code>jpegtran</code>, <code>optipng</code>, or ExifTool.</p>
+                    <p><code>inotifywait</code> detects the new file. The daemon processes the file with <code>jpegtran</code>, <code>optipng</code>, <code>cwebp</code>, <code>ffmpeg</code>, or ExifTool depending on file type and job.</p>
                 </div>
             </div>
             <div class="flow-arrow">→</div>
@@ -256,19 +267,21 @@
         <div class="arch-diagram">
 <pre><code>WordPress (PHP)                  OS (Bash Daemons)
 ────────────────                 ──────────────────────────────────
-Upload image
+Upload media file
+(image/video/audio/PDF)
         │
         ▼
 import_from_file()         ◄── ExifTool reads embedded tags
-  populates empty WP fields         (EXIF / IPTC / XMP / GPS)
-        │
+  populates empty WP fields         (EXIF/IPTC/XMP, ID3, QuickTime,
+        │                            Vorbis, GPS)
         ▼
 Write job JSON to          ◄── inotifywait detects new file
   metamanager-jobs/                      │
   compress/ or meta/                     ▼
-                                  Process image:
-                                    jpegtran / optipng  [compression]
-                                    ExifTool            [metadata write]
+                                  Process file:
+                                    jpegtran / optipng / cwebp  [image compression]
+                                    ffmpeg                       [video remux]
+                                    ExifTool                     [metadata write]
                                          │
 WP-Cron (60s) ◄──── result JSON ────────┘
 reads, inserts to DB,
@@ -307,7 +320,7 @@ updates history table</code></pre>
 <section class="section" id="metadata">
     <div class="container">
         <h2 class="section-title">Metadata Field Map</h2>
-        <p class="section-subtitle">Every logical field writes to all three standards simultaneously.</p>
+        <p class="section-subtitle">Every logical field writes to all three standards simultaneously for images. Video, audio, and PDF use their native tag systems.</p>
 
         <div class="table-wrap">
             <table class="meta-table">
@@ -475,8 +488,9 @@ updates history table</code></pre>
             <span class="badge badge-individual">Per-image</span> fields are <strong>never touched by bulk actions</strong>.
             Only <span class="badge badge-site">Site auto</span> fields (Publisher + Website) can be injected in bulk — neutral provenance, not an ownership claim.
             <span class="badge badge-gps">GPS Auto</span> fields are imported from the camera at upload time and are never editable in the UI.
-        </p>
-    </div>
+        </p>        <p class="table-note" style="margin-top:.75rem;">
+            <strong>Video, audio, and PDF</strong> share the same WordPress field names and edit UI. The metadata daemon writes to each format's native tag system: QuickTime atoms (MP4/MOV/M4A), ID3 (MP3), Vorbis comments (OGG/FLAC), XMP-only (AVI/WAV/WMV/WMA/PDF). MKV, WebM, and OGV are read-only at this time.
+        </p>    </div>
 </section>
 
 <!-- ============================================================ SCHEMA & OG -->
@@ -503,7 +517,7 @@ updates history table</code></pre>
             </div>
         </div>
 
-        <h3 style="margin-bottom:.75rem;">Sample <code>ImageObject</code> JSON-LD output</h3>
+        <h3 style="margin-bottom:.75rem;">Sample <code>ImageObject</code> JSON-LD output (images)</h3>
         <div class="arch-diagram">
 <pre><code>{
   "@context": "https://schema.org",
@@ -573,7 +587,7 @@ updates history table</code></pre>
             <h3>What the installer does</h3>
             <ol>
                 <li>Detects your WordPress installation path</li>
-                <li>Installs <code>jpegtran</code>, <code>optipng</code>, <code>exiftool</code>, <code>inotify-tools</code>, and <code>jq</code> via apt or dnf</li>
+                <li>Installs <code>jpegtran</code>, <code>optipng</code>, <code>cwebp</code>, <code>ffmpeg</code>, <code>exiftool</code>, <code>inotify-tools</code>, and <code>jq</code> via apt or dnf</li>
                 <li>Copies the plugin into <code>wp-content/plugins/metamanager/</code></li>
                 <li>Patches daemon scripts with your actual <code>WP_CONTENT_DIR</code> — no hardcoded paths</li>
                 <li>Installs and starts both systemd daemons as <code>www-data</code></li>
@@ -600,6 +614,14 @@ updates history table</code></pre>
             </div>
             <div class="req-item">
                 <div class="req-name">optipng</div>
+                <div class="req-ver">any</div>
+            </div>
+            <div class="req-item">
+                <div class="req-name">cwebp</div>
+                <div class="req-ver">any</div>
+            </div>
+            <div class="req-item">
+                <div class="req-name">ffmpeg</div>
                 <div class="req-ver">any</div>
             </div>
             <div class="req-item">
@@ -665,7 +687,37 @@ updates history table</code></pre>
                     <a href="https://optipng.sourceforge.net" target="_blank" rel="noopener">optipng.sourceforge.net</a>
                 </div>
             </div>
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">🌐</span>
+                    <div>
+                        <h3 class="credit-name">libwebp / cwebp</h3>
+                        <span class="credit-author">Google</span>
+                    </div>
+                    <span class="credit-license">BSD 3-Clause</span>
+                </div>
+                <p><code>cwebp</code>, part of Google's libwebp package, compresses WebP images losslessly with <code>-lossless</code>. Files are only replaced if the result is smaller. libwebp is Google's reference implementation of the WebP image format.</p>
+                <div class="credit-links">
+                    <a href="https://developers.google.com/speed/webp" target="_blank" rel="noopener">developers.google.com/speed/webp</a>
+                    <a href="https://chromium.googlesource.com/webm/libwebp" target="_blank" rel="noopener">Source ↗</a>
+                </div>
+            </div>
 
+            <div class="credit-card">
+                <div class="credit-header">
+                    <span class="credit-icon">🎬</span>
+                    <div>
+                        <h3 class="credit-name">FFmpeg</h3>
+                        <span class="credit-author">FFmpeg contributors</span>
+                    </div>
+                    <span class="credit-license">LGPL v2.1+ / GPL v2+</span>
+                </div>
+                <p><code>ffmpeg</code> remuxes video containers losslessly using <code>-c copy</code> &mdash; stripping padding and redundant data without re-encoding a single frame. The output is bitstream-identical to the input. No transcoding, no quality change.</p>
+                <div class="credit-links">
+                    <a href="https://ffmpeg.org" target="_blank" rel="noopener">ffmpeg.org</a>
+                    <a href="https://git.ffmpeg.org/ffmpeg.git" target="_blank" rel="noopener">Source ↗</a>
+                </div>
+            </div>
             <div class="credit-card">
                 <div class="credit-header">
                     <span class="credit-icon">👁</span>
