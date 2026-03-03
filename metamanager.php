@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  Metamanager
  * Plugin URI:   https://github.com/richardkentgates/metamanager
- * Description:  Lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) via OS-level daemons. Expands the WordPress Media Library with native metadata editing, bulk operations, and a real-time job dashboard.
+ * Description:  [BETA — untested in production] Lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) via OS-level daemons. Expands the WordPress Media Library with native metadata editing, bulk operations, and a real-time job dashboard.
  * Version:      1.5.4
  * Requires at least: 6.0
  * Requires PHP: 8.0

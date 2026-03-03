@@ -28,6 +28,22 @@
 html { font-size: 16px; scroll-behavior: smooth; }
 body { font-family: var(--sans); color: var(--mid); background: var(--white); line-height: 1.65; }
 
+/* ================================================================ STATUS BAR */
+.status-bar {
+    background: #7a4f00;
+    color: #ffd966;
+    text-align: center;
+    padding: 10px 20px;
+    font-size: .85rem;
+    font-weight: 500;
+    letter-spacing: .01em;
+    line-height: 1.5;
+    border-bottom: 2px solid #c47d00;
+}
+.status-bar strong { color: #ffe599; }
+.status-bar a { color: #ffd966; text-underline-offset: 3px; }
+.status-bar a:hover { color: #fff; }
+
 /* ---- Layout ---- */
 .container { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
 
