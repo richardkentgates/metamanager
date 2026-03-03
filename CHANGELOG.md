@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.1] — 2026-03-02
+
+### Fixed
+- **`wp metamanager compress`** — was querying `post_mime_type => 'image'` only; now queries all compressible types (images + video). Video attachments now enqueue a lossless `ffmpeg` remux job. Audio files and PDFs correctly emit a descriptive error (no compression step) rather than silently being skipped.
+- **`wp metamanager import`** — was filtering to images only; now imports metadata for all supported MIME types: video, audio, and PDF in addition to images.
+- **`wp metamanager scan`** — same image-only filter fixed; now scans the full library across all supported types and skips already-synced files of any type.
+- **`REST POST /attachment/{id}/compress`** — was rejecting non-images with `400 not_image`; now accepts video (queues remux job) and returns `422 Unprocessable Entity` with an explanatory message for audio and PDF.
+
+### Added
+- **WP-CLI and REST API documentation** in README.md and docs/index.html — dedicated sections with command reference, options, example output, and a full REST endpoint table.
+
+---
+
 ## [1.4.0] — 2026-03-02
 
 ### Added

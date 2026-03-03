@@ -110,6 +110,8 @@
             <a href="#updating">Updating</a>
             <a href="#metadata">Metadata</a>
             <a href="#schema">Schema &amp; OG</a>
+            <a href="#cli">WP-CLI</a>
+            <a href="#rest-api">REST API</a>
             <a href="#credits">Credits</a>
             <a href="https://github.com/richardkentgates/metamanager" class="nav-github" target="_blank" rel="noopener">
                 GitHub ↗
@@ -552,6 +554,159 @@ updates history table</code></pre>
   "thumbnail": { "@type": "ImageObject", "url": "https://example.com/.../photo-300x225.jpg" },
   "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=42" }
 }</code></pre>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ CLI -->
+<section class="section" id="cli">
+    <div class="container">
+        <h2 class="section-title">WP-CLI</h2>
+        <p class="section-subtitle">Full command-line access to every Metamanager operation. WP-CLI 2.0+ required.</p>
+
+        <div class="cli-grid">
+
+            <div class="cli-card">
+                <div class="cli-cmd">wp metamanager compress</div>
+                <p>Queue lossless compression for one or all compressible attachments. Images are recompressed with <code>jpegtran</code>, <code>optipng</code>, or <code>cwebp</code>. Video is remuxed losslessly with <code>ffmpeg&nbsp;-c&nbsp;copy</code>. Audio and PDF have no compression step.</p>
+                <div class="arch-diagram">
+<pre><code>wp metamanager compress             # all compressible files
+wp metamanager compress all         # explicit
+wp metamanager compress 42          # single attachment ID
+wp metamanager compress all --force # re-queue already-compressed files</code></pre>
+                </div>
+            </div>
+
+            <div class="cli-card">
+                <div class="cli-cmd">wp metamanager import</div>
+                <p>Read embedded tags from the file and populate empty WordPress fields. Existing user-set values are never overwritten. Supports images (EXIF/IPTC/XMP), video (QuickTime atoms/XMP), audio (ID3/Vorbis/XMP), and PDF (XMP).</p>
+                <div class="arch-diagram">
+<pre><code>wp metamanager import               # all supported files
+wp metamanager import all           # explicit
+wp metamanager import 42            # single attachment ID</code></pre>
+                </div>
+            </div>
+
+            <div class="cli-card">
+                <div class="cli-cmd">wp metamanager scan</div>
+                <p>Import metadata for every library file not yet processed by Metamanager. Faster than <code>import all</code> on large existing libraries &mdash; already-synced files are skipped automatically. Good for first run after activation on a site with an existing media library.</p>
+                <div class="arch-diagram">
+<pre><code>wp metamanager scan</code></pre>
+                </div>
+            </div>
+
+            <div class="cli-card">
+                <div class="cli-cmd">wp metamanager queue status</div>
+                <p>Print pending job counts by type and current daemon health status.</p>
+                <div class="arch-diagram">
+<pre><code>+-------------+---------+
+| Type        | Pending |
++-------------+---------+
+| Compression | 4       |
+| Metadata    | 12      |
+| Total       | 16      |
++-------------+---------+
+Compress daemon: running
+Metadata daemon: running</code></pre>
+                </div>
+            </div>
+
+            <div class="cli-card">
+                <div class="cli-cmd">wp metamanager stats</div>
+                <p>Show aggregate compression savings from the full job history.</p>
+                <div class="arch-diagram">
+<pre><code>+----------------------+-------------------+
+| Metric               | Value             |
++----------------------+-------------------+
+| Total jobs           | 1,240             |
+| Completed            | 1,198             |
+| Failed               | 12                |
+| Unique attachments   | 403               |
+| Bytes saved          | 17.69 MB (9.1%)   |
++----------------------+-------------------+</code></pre>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ REST API -->
+<section class="section section-alt" id="rest-api">
+    <div class="container">
+        <h2 class="section-title">REST API</h2>
+        <p class="section-subtitle">Every operation is available via the WordPress REST API. Requires <code>upload_files</code> capability and a valid <code>X-WP-Nonce</code>.</p>
+
+        <p style="text-align:center;margin-bottom:2rem;"><strong>Base URL:</strong> <code>https://yoursite.com/wp-json/metamanager/v1</code></p>
+
+        <div class="table-wrap">
+            <table class="meta-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                        <th>Key parameters</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code class="method-get">GET</code></td>
+                        <td><code>/stats</code></td>
+                        <td>Aggregate compression statistics (total jobs, completed, failed, bytes saved).</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td><code class="method-get">GET</code></td>
+                        <td><code>/jobs</code></td>
+                        <td>Paginated job history. Pagination totals in <code>X-WP-Total</code> and <code>X-WP-TotalPages</code> headers.</td>
+                        <td><code>search</code>, <code>orderby</code>, <code>order</code>, <code>per_page</code>, <code>page</code></td>
+                    </tr>
+                    <tr>
+                        <td><code class="method-get">GET</code></td>
+                        <td><code>/jobs/{id}</code></td>
+                        <td>Single job record by database ID. Returns <code>404</code> if not found.</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td><code class="method-get">GET</code></td>
+                        <td><code>/attachment/{id}/status</code></td>
+                        <td>Compression and metadata sync status for one attachment.</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td><code class="method-post">POST</code></td>
+                        <td><code>/attachment/{id}/compress</code></td>
+                        <td>Queue lossless compression. Images → all sizes recompressed. Video → lossless remux. Audio/PDF → <code>422</code>.</td>
+                        <td><code>force</code> (boolean)</td>
+                    </tr>
+                    <tr>
+                        <td><code class="method-post">POST</code></td>
+                        <td><code>/compression-status</code></td>
+                        <td>Batch status query used by the Media Library column. Returns a map of ID&nbsp;→&nbsp;status string.</td>
+                        <td><code>ids</code> (array)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3 style="margin:2rem 0 .75rem;">Example: attachment status response</h3>
+        <div class="arch-diagram">
+<pre><code>GET /wp-json/metamanager/v1/attachment/42/status
+
+{
+  "id": 42,
+  "compression": "compressed",
+  "meta_synced": true
+}</code></pre>
+        </div>
+
+        <h3 style="margin:2rem 0 .75rem;">Example: queue compression</h3>
+        <div class="arch-diagram">
+<pre><code>POST /wp-json/metamanager/v1/attachment/42/compress
+X-WP-Nonce: &lt;nonce&gt;
+
+{ "id": 42, "queued": true, "message": "Compression jobs queued." }</code></pre>
         </div>
     </div>
 </section>

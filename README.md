@@ -261,6 +261,164 @@ On every attachment page and single post/page with a featured image, Metamanager
 
 ---
 
+## WP-CLI
+
+Metamanager registers a `wp metamanager` command group. WP-CLI 2.0+ required.
+
+### `compress`
+
+Queue lossless compression for one or all compressible attachments. Images are recompressed with `jpegtran`/`optipng`/`cwebp`; video is remuxed losslessly with `ffmpeg`. Audio and PDF have no compression step.
+
+```bash
+wp metamanager compress           # all compressible files
+wp metamanager compress all       # explicit
+wp metamanager compress 42        # single attachment ID
+wp metamanager compress all --force  # re-queue already-compressed files
+```
+
+### `import`
+
+Read embedded tags from the file (EXIF/IPTC/XMP for images; QuickTime atoms for MP4/M4A; ID3 for MP3; Vorbis comments for OGG/FLAC; XMP for AVI/WAV/WMV/WMA/PDF) and populate empty WordPress fields. Existing user-set values are never overwritten.
+
+```bash
+wp metamanager import             # all supported files
+wp metamanager import all         # explicit
+wp metamanager import 42          # single attachment ID
+```
+
+### `scan`
+
+Import metadata for every library file not yet synced by Metamanager. Faster than `import all` on large existing libraries — already-synced files are skipped automatically.
+
+```bash
+wp metamanager scan
+```
+
+### `queue status`
+
+Print pending job counts by type and daemon health.
+
+```bash
+wp metamanager queue status
+```
+
+```
++-------------+---------+
+| Type        | Pending |
++-------------+---------+
+| Compression | 4       |
+| Metadata    | 12      |
+| Total       | 16      |
++-------------+---------+
+Compress daemon: running
+Metadata daemon: running
+```
+
+### `stats`
+
+Show aggregate compression savings from the job history.
+
+```bash
+wp metamanager stats
+```
+
+```
++----------------------+-------------------+
+| Metric               | Value             |
++----------------------+-------------------+
+| Total jobs           | 1,240             |
+| Completed            | 1,198             |
+| Failed               | 12                |
+| Unique attachments   | 403               |
+| Bytes saved          | 17.69 MB (9.1%)   |
++----------------------+-------------------+
+```
+
+---
+
+## REST API
+
+All endpoints are under the `metamanager/v1` namespace. Every request requires an authenticated user with `upload_files` capability — include a `X-WP-Nonce` header or use cookie authentication.
+
+**Base URL:** `https://yoursite.com/wp-json/metamanager/v1`
+
+---
+
+### `GET /stats`
+
+Aggregate job statistics across the full history.
+
+```json
+{
+  "total_jobs": 1240,
+  "completed": 1198,
+  "failed": 12,
+  "unique_attachments": 403,
+  "bytes_saved": 18540621,
+  "bytes_original": 204800000
+}
+```
+
+---
+
+### `GET /jobs`
+
+Paginated, filterable job history. Pagination totals in `X-WP-Total` and `X-WP-TotalPages` response headers.
+
+| Parameter | Type | Default | Notes |
+|-----------|------|---------|-------|
+| `search` | string | `""` | Filter by file name or job type |
+| `orderby` | string | `id` | Sort column |
+| `order` | string | `DESC` | `ASC` or `DESC` |
+| `per_page` | integer | `20` | 1–100 |
+| `page` | integer | `1` | |
+
+---
+
+### `GET /jobs/{id}`
+
+Single job record by database ID. Returns `404` if not found.
+
+---
+
+### `GET /attachment/{id}/status`
+
+Compression and metadata sync status for one attachment.
+
+```json
+{
+  "id": 42,
+  "compression": "compressed",
+  "meta_synced": true
+}
+```
+
+---
+
+### `POST /attachment/{id}/compress`
+
+Queue lossless compression for one attachment.
+
+- **Image** → recompresses all registered sizes via `jpegtran`/`optipng`/`cwebp`
+- **Video** → enqueues a lossless container remux via `ffmpeg`
+- **Audio / PDF** → `422 Unprocessable Entity` (no compression step for these types)
+
+| Parameter | Type | Default | Notes |
+|-----------|------|---------|-------|
+| `force` | boolean | `false` | Re-queue even if already compressed |
+
+```json
+{ "id": 42, "queued": true, "message": "Compression jobs queued." }
+```
+
+---
+
+### `POST /compression-status`
+
+Batch compression status query used by the Media Library column. Request body: `{ "ids": [1, 2, 3] }`. Returns a map of attachment ID → status string.
+
+---
+
 ## Daemon Management
 
 ```bash

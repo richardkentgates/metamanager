@@ -209,6 +209,50 @@ body { font-family: var(--sans); color: var(--mid); background: var(--white); li
 .feature-card p { font-size: .92rem; color: var(--muted); line-height: 1.65; }
 .feature-card code { font-family: var(--mono); font-size: .85em; background: var(--bg); padding: 1px 5px; border-radius: 3px; color: var(--blue-dark); }
 
+/* ================================================================ CLI */
+.cli-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+    gap: 24px;
+}
+.cli-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 26px;
+    box-shadow: var(--shadow);
+}
+.cli-cmd {
+    font-family: var(--mono);
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--blue-dark);
+    background: var(--blue-light);
+    border-radius: 6px;
+    padding: 7px 14px;
+    display: inline-block;
+    margin-bottom: 14px;
+}
+.cli-card p {
+    font-size: .92rem;
+    color: var(--muted);
+    line-height: 1.65;
+    margin-bottom: 14px;
+}
+.cli-card .arch-diagram { margin-top: 0; }
+
+/* REST API method badges */
+.method-get, .method-post {
+    font-family: var(--mono);
+    font-size: .8rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.method-get  { background: #e6f7ee; color: #1a7a3e; }
+.method-post { background: #fff3e0; color: #b45309; }
+
 /* ================================================================ FLOW DIAGRAM */
 .flow-diagram {
     display: flex;
