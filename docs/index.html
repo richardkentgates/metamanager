@@ -157,76 +157,179 @@
         <h2 class="section-title">What Metamanager Does</h2>
         <p class="section-subtitle">PHP can't do lossless compression, video remux, or write IPTC/XMP and format-native audio tags. Metamanager can.</p>
 
+        <!-- ── Images ─────────────────────────────────────────────────────── -->
+        <div class="media-type-header">
+            <span class="media-type-icon">🖼️</span>
+            <div>
+                <h3 class="media-type-title">Images</h3>
+                <span class="media-type-formats">JPEG &nbsp;·&nbsp; PNG &nbsp;·&nbsp; WebP &nbsp;·&nbsp; GIF &nbsp;·&nbsp; TIFF</span>
+            </div>
+        </div>
         <div class="feature-grid">
             <div class="feature-card">
                 <div class="feature-icon">🗜</div>
                 <h3>True Lossless Compression</h3>
-                <p>JPEG files are optimised with <code>jpegtran</code> &mdash; no re-encoding, no quality loss, no pixel changes. PNG files are processed by <code>optipng</code>. WebP files are recompressed with <code>cwebp -lossless</code>. Files are only replaced if the result is smaller.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🎥</div>
-                <h3>Video &amp; Audio Support</h3>
-                <p>Upload MP4, MOV, AVI, MKV, WebM, WMV, MP3, M4A, OGG, WAV, FLAC, and more. Metadata (title, description, creator, copyright, keywords, date) writes to each format's native tag system: QuickTime atoms for MP4/M4A, ID3 for MP3, Vorbis comments for OGG/FLAC, XMP-only for AVI/WAV/WMV/WMA. Video containers are remuxed losslessly via <code>ffmpeg</code>.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">📌</div>
-                <h3>PDF Metadata</h3>
-                <p>PDF documents are first-class citizens. Title, author, keywords, and creation date are imported from embedded PDF tags on upload. WordPress fields write back as XMP. Attachment pages emit a Schema.org <code>DigitalDocument</code> JSON-LD block.</p>
+                <p>JPEG files are recompressed with <code>jpegtran</code> — no re-encoding, no quality loss, no pixel changes. PNG files are processed by <code>optipng</code>. WebP files use <code>cwebp -lossless</code>. A file is only replaced if the result is smaller than the original.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🏷</div>
-                <h3>Full Metadata Standards</h3>
-                <p>Write EXIF, IPTC, and XMP simultaneously via ExifTool — the industry standard. Every tag written in all three formats at once for maximum compatibility across editing software, search engines, and CMS platforms.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔄</div>
-                <h3>Bidirectional Metadata Sync</h3>
-                <p>On upload, embedded EXIF/IPTC/XMP tags are read from the file and used to pre-populate WordPress fields automatically. User-set values are never overwritten. Edit fields in WordPress and the daemon writes them back into the file.</p>
+                <h3>EXIF, IPTC &amp; XMP — Simultaneously</h3>
+                <p>Every metadata write goes to all three standards in a single ExifTool pass. The result is maximum compatibility: editing software (Lightroom, Bridge, Capture One), search engines, and CMS platforms all read what they expect.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">📍</div>
                 <h3>GPS Coordinates</h3>
-                <p>When clients shoot with location services enabled, Metamanager reads GPS latitude, longitude, and altitude directly from the camera's EXIF data. No manual entry — coordinates are imported and stored automatically at upload time.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">�</div>
-                <h3>Expanded Metadata Fields</h3>
-                <p>11 custom fields per image: <strong>Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating (0–5 stars), City, State/Province, Country.</strong> All stored as registered post meta, embedded into the file by the daemon, and fully exposed via the WordPress REST API.</p>
+                <p>Camera-embedded GPS tags (latitude, longitude, altitude) are read from EXIF on upload and stored automatically — no manual entry. Coordinates are included in the <code>ImageObject</code> JSON-LD block as a <code>GeoCoordinates</code> node.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🔍</div>
-                <h3>Schema.org &amp; Open Graph</h3>
-                <p>Every attachment page automatically receives type-appropriate structured data: <code>ImageObject</code> for images (with <code>GeoCoordinates</code> when GPS data is present), <code>VideoObject</code> for video, <code>AudioObject</code> for audio, and <code>DigitalDocument</code> for PDF. Open Graph tags use the correct type per media family. URL-format copyright values emit <code>&lt;link rel="license"&gt;</code>; plain-text values emit <code>&lt;meta name="copyright"&gt;</code>.</p>
+                <h3>Schema.org <code>ImageObject</code> &amp; Open Graph</h3>
+                <p>Attachment pages and posts with a featured image emit a full <code>ImageObject</code> JSON-LD block — name, description, creator, copyright, keywords, date, location, GPS, and thumbnail. Open Graph tags include <code>og:image</code>, <code>og:image:width</code>, <code>og:image:height</code>, <code>og:image:type</code>, and <code>og:image:alt</code>.</p>
+            </div>
+        </div>
+
+        <!-- ── Video ──────────────────────────────────────────────────────── -->
+        <div class="media-type-header">
+            <span class="media-type-icon">🎥</span>
+            <div>
+                <h3 class="media-type-title">Video</h3>
+                <span class="media-type-formats">MP4 &nbsp;·&nbsp; MOV &nbsp;·&nbsp; AVI &nbsp;·&nbsp; MKV &nbsp;·&nbsp; WebM &nbsp;·&nbsp; WMV &nbsp;·&nbsp; OGV &nbsp;·&nbsp; 3GP</span>
+            </div>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🗜</div>
+                <h3>Lossless Container Remux</h3>
+                <p>Video files are remuxed with <code>ffmpeg -c copy</code> — the stream data is never re-encoded. This cleans container structure and removes unnecessary overhead without touching a single frame or audio sample.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">🖥</div>
-                <h3>Native Dashboard Integration</h3>
-                <p>Custom fields on every media file edit screen, grouped by purpose: <strong>Attribution &amp; Rights, Editorial, Classification, Location.</strong> A live compression-status column in the Media Library. Searchable, paginated job history. All inside WordPress &mdash; no separate admin interface to learn.</p>
+                <div class="feature-icon">🏷</div>
+                <h3>Native Tag Writing</h3>
+                <p>ExifTool writes title, description, creator, copyright, keywords, and date directly into each format's native tag system: <strong>QuickTime atoms</strong> for MP4, MOV, and M4A; <strong>XMP sidecar-style tags</strong> for AVI, WMV, and WMA. MKV, WebM, and OGV are read-only at this time.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <h3>Asynchronous by Design</h3>
-                <p>Image uploads never slow down. Jobs are queued as JSON files. Two <code>inotifywait</code>-powered daemons process them immediately in the background. Results feed back into WordPress via WP-Cron.</p>
+                <div class="feature-icon">🔄</div>
+                <h3>Bidirectional Sync</h3>
+                <p>On upload, embedded QuickTime or XMP tags are read from the file and used to pre-populate WordPress fields automatically — existing user values are never overwritten. Save a field in WordPress and the daemon writes it back to the file.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>Schema.org <code>VideoObject</code> &amp; Open Graph</h3>
+                <p>Video attachment pages emit a <code>VideoObject</code> JSON-LD block with name, description, creator, copyright, keywords, upload date, and thumbnail URL. The Open Graph type is set to <code>og:video</code> with the correct MIME type.</p>
+            </div>
+        </div>
+
+        <!-- ── Audio ──────────────────────────────────────────────────────── -->
+        <div class="media-type-header">
+            <span class="media-type-icon">🎵</span>
+            <div>
+                <h3 class="media-type-title">Audio</h3>
+                <span class="media-type-formats">MP3 &nbsp;·&nbsp; M4A &nbsp;·&nbsp; OGG &nbsp;·&nbsp; FLAC &nbsp;·&nbsp; WAV &nbsp;·&nbsp; WMA &nbsp;·&nbsp; AIFF</span>
+            </div>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🏷</div>
+                <h3>Native Tag Writing</h3>
+                <p>Each format gets its own tag system: <strong>ID3v2</strong> for MP3; <strong>QuickTime atoms</strong> for M4A; <strong>Vorbis comments</strong> for OGG and FLAC; <strong>XMP</strong> for WAV and WMA. Title, description, creator, copyright, keywords, and date are all written in a single ExifTool pass.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔄</div>
+                <h3>Bidirectional Sync</h3>
+                <p>On upload, ID3, QuickTime, Vorbis, or XMP tags are read from the file and pre-populate WordPress fields without overwriting anything already set. Changes saved in WordPress are queued for write-back to the file.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>Schema.org <code>AudioObject</code> &amp; Open Graph</h3>
+                <p>Audio attachment pages emit an <code>AudioObject</code> JSON-LD block with name, description, creator, copyright, keywords, and upload date. The Open Graph type is set to <code>og:audio</code> with the correct MIME type.</p>
+            </div>
+        </div>
+
+        <!-- ── PDF ────────────────────────────────────────────────────────── -->
+        <div class="media-type-header">
+            <span class="media-type-icon">📄</span>
+            <div>
+                <h3 class="media-type-title">PDF</h3>
+                <span class="media-type-formats">application/pdf</span>
+            </div>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📥</div>
+                <h3>Metadata Import on Upload</h3>
+                <p>On upload, ExifTool reads the PDF's embedded XMP tags — title, author, keywords, and creation date — and uses them to pre-populate WordPress fields automatically without overwriting anything already set.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏷</div>
+                <h3>XMP Write-Back</h3>
+                <p>WordPress fields are written back to the PDF as XMP tags by the metadata daemon. Title, description, creator, copyright, and keywords stay in sync between the CMS and the file itself.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>Schema.org <code>DigitalDocument</code> &amp; Open Graph</h3>
+                <p>PDF attachment pages emit a <code>DigitalDocument</code> JSON-LD block with name, description, creator, copyright, keywords, and date. Open Graph is set to <code>og:type=article</code> with title, description, and URL.</p>
+            </div>
+        </div>
+
+        <!-- ── All Media Types ────────────────────────────────────────────── -->
+        <div class="media-type-header">
+            <span class="media-type-icon">📂</span>
+            <div>
+                <h3 class="media-type-title">All Media Types</h3>
+                <span class="media-type-formats">Images &nbsp;·&nbsp; Video &nbsp;·&nbsp; Audio &nbsp;·&nbsp; PDF</span>
+            </div>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h3>Expanded Metadata Fields</h3>
+                <p>11 custom fields available for every supported file: <strong>Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating (0–5 stars), City, State/Province, Country.</strong> All stored as registered post meta, embedded by the daemon, and fully exposed via the WordPress REST API.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🔒</div>
                 <h3>Bulk Without False Attribution</h3>
-                <p>Bulk actions are limited to injecting Publisher and Website — neutral site provenance only. Creator, Copyright, and Owner are individual fields, intentionally never overwritten in bulk.</p>
+                <p>Bulk actions are limited to injecting Publisher and Website — neutral site provenance only. Creator, Copyright, and Owner are per-file fields, intentionally never touched in bulk so no incorrect attribution is ever applied.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚖️</div>
+                <h3>License Link</h3>
+                <p>When a copyright value is a URL (e.g. a Creative Commons URI), Metamanager emits <code>&lt;link rel="license"&gt;</code> in the page head. Plain-text copyright values emit <code>&lt;meta name="copyright"&gt;</code>. Both give crawlers and aggregators a machine-readable rights signal.</p>
+            </div>
+        </div>
+
+        <!-- ── WordPress Integration ──────────────────────────────────────── -->
+        <div class="media-type-header">
+            <span class="media-type-icon">🖥</span>
+            <div>
+                <h3 class="media-type-title">WordPress Integration</h3>
+                <span class="media-type-formats">Dashboard &nbsp;·&nbsp; Multisite &nbsp;·&nbsp; WP-CLI &nbsp;·&nbsp; REST API</span>
+            </div>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🖥</div>
+                <h3>Native Dashboard Integration</h3>
+                <p>Custom fields on every attachment edit screen, grouped by purpose: <strong>Attribution &amp; Rights, Editorial, Classification, Location.</strong> A live compression-status column in the Media Library. Searchable, paginated job history under <strong>Media → Metamanager</strong>. No separate admin interface to learn.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Asynchronous by Design</h3>
+                <p>Uploads never slow down. Jobs are queued as small JSON files. Two <code>inotifywait</code>-powered daemons process them immediately in the background without polling. Results feed back into WordPress via WP-Cron.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">💚</div>
                 <h3>Daemon Health Status</h3>
-                <p>A status banner at the top of every Metamanager screen shows in real time whether the compression and metadata daemons are running. Detection uses a PID file — no <code>systemctl</code> privilege required for the web process.</p>
+                <p>A status banner at the top of every Metamanager screen shows in real time whether both daemons are running. Detection reads a PID file — no <code>systemctl</code> privilege is required for the web process.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🔁</div>
                 <h3>Re-queue Failed Jobs</h3>
-                <p>Every failed job appears in the history table with a one-click Re-queue button. No manual file hunting, no WP-CLI commands needed to recover from a temporary failure.</p>
+                <p>Every failed job appears in the history table with a one-click Re-queue button. No manual file hunting or WP-CLI commands needed to recover from a temporary failure.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">📦</div>
                 <h3>Native Auto-Updates</h3>
-                <p>Integrates with the WordPress update pipeline. New releases published to GitHub appear automatically in <strong>Dashboard → Updates</strong> — update with one click, just like any other plugin. A manual “Check for Updates” link is also available on the Plugins page.</p>
+                <p>Integrates with the WordPress update pipeline. New GitHub releases appear automatically in <strong>Dashboard → Updates</strong> within 12 hours — update with one click like any other plugin. A manual "Check for Updates" link is also available on the Plugins page.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🌐</div>
@@ -239,6 +342,7 @@
                 <p>An opt-in setting under <strong>Media → MM Settings → Data &amp; Uninstall</strong> removes all options, attachment metadata, the job-log table, and the queue directory when the plugin is deleted. Nothing is removed by default — data is always preserved unless you explicitly choose otherwise.</p>
             </div>
         </div>
+
     </div>
 </section>
 
