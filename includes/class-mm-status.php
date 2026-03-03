@@ -43,6 +43,11 @@ class MM_Status {
 	private const CWEBP_PATHS = [ '/usr/bin/cwebp', '/usr/local/bin/cwebp' ];
 
 	/**
+	 * Candidate paths for ffmpeg (video container remux).
+	 */
+	private const FFMPEG_PATHS = [ '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg' ];
+
+	/**
 	 * Check whether ExifTool is installed and executable.
 	 */
 	public static function exiftool_available(): bool {
@@ -111,6 +116,25 @@ class MM_Status {
 	 */
 	public static function cwebp_path(): string {
 		foreach ( self::CWEBP_PATHS as $path ) {
+			if ( file_exists( $path ) && is_executable( $path ) ) {
+				return $path;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Check whether ffmpeg is available.
+	 */
+	public static function ffmpeg_available(): bool {
+		return (bool) self::ffmpeg_path();
+	}
+
+	/**
+	 * Return the first found ffmpeg executable path.
+	 */
+	public static function ffmpeg_path(): string {
+		foreach ( self::FFMPEG_PATHS as $path ) {
 			if ( file_exists( $path ) && is_executable( $path ) ) {
 				return $path;
 			}
@@ -249,6 +273,7 @@ class MM_Status {
 			'jpegtran'         => self::jpegtran_available(),
 			'optipng'          => self::optipng_available(),
 			'cwebp'            => self::cwebp_available(),
+			'ffmpeg'           => self::ffmpeg_available(),
 			'compress_daemon'  => self::compress_daemon_running(),
 			'meta_daemon'      => self::meta_daemon_running(),
 		];

@@ -7,6 +7,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.0] — 2026-03-02
+
+### Added
+- **Video metadata import** (MP4, MOV, AVI, MKV, WMV, WebM, OGV, 3GP): ExifTool is now invoked for video attachments on upload; QuickTime, ID3, Vorbis, ASF, and Matroska container-native tags are preferred before falling back to XMP equivalents. All existing post-meta fields (creator, copyright, headline, credit, keywords, date, city, country, GPS) are populated
+- **Audio metadata import** (MP3, M4A, OGG, WAV, FLAC, WMA, AIFF): same pipeline as video using ID3/iTunes/Vorbis/Vorbis comment tag candidates
+- **Write-capability system** (`MM_Metadata::WRITE_CAPABILITY`, `write_capability()`, `can_write_meta()`): each MIME type is classified as `full`, `xmp_only`, `vorbis_only`, or `read_only`. Write-back is skipped for read-only formats (MKV, WebM, OGV). A coloured notice is shown in the attachment edit screen and field registration for limited-write formats
+- **Video container remux** via `ffmpeg -c copy -map_metadata 0 -movflags +faststart`: queued for all video uploads and via the "Re-remux This Video" button; embedded thumbnails are explicitly preserved (`-map_metadata 0`). The daemon skips remux gracefully when ffmpeg is not installed rather than logging a failure
+- **ffmpeg tool detection** (`MM_Status::ffmpeg_available()`, `ffmpeg_path()`): shown in the system health status banner alongside existing tools
+- **`MM_Metadata::is_video_mime()`, `is_audio_mime()`, `is_av_mime()`** MIME type helper methods used throughout all classes
+- **Video/audio support in Library Sync** (batched scan): `ajax_scan_library()` now queries `post_mime_type` including all supported video and audio MIME types alongside images
+- **Video/audio support in bulk actions**: "Import Metadata from Files" and "Inject Site Info" now process video/audio attachments as well as images; "Compress Lossless" bulk action queues video remux jobs for video attachments
+- **Schema.org VideoObject / AudioObject** (`MM_Frontend::output_video_audio_json_ld()`): video and audio attachment pages now emit structured data using the appropriate `@type` with name, description, creator, copyright, keywords, date, location, and GPS fields
+- **Open Graph og:video / og:audio** (`MM_Frontend::output_video_audio_open_graph()`): video and audio attachment pages emit `og:video` or `og:audio` tags (with secure_url and type) instead of `og:image`
+- **`mm_ffmpeg` package** added to `install.sh` for apt, dnf, and yum package managers; `ffmpeg` added to post-install tool verification loop
+
+### Changed
+- `MM_Job_Queue::on_upload()` now handles video and audio MIME types: imports metadata, queues metadata write-back (if format supports it), and queues video remux (video only)
+- `MM_Metadata::register_fields()` and `on_fields_save()` now accept video/audio MIME types; `on_fields_save()` returns early without queueing jobs for `read_only` formats
+- `MM_Admin::render_attachment_meta_pane()` now renders for video and audio attachments with the re-optimise button disabled or labelled appropriately for unsupported formats
+- Plugin version bumped to `1.3.0`
+
+---
+
 ## [1.2.0] — 2026-03-09
 
 ### Added

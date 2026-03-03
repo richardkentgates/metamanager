@@ -60,8 +60,16 @@ class MM_Frontend {
 			return;
 		}
 
-		self::output_json_ld( $attachment_id );
-		self::output_open_graph( $attachment_id );
+		$mime = (string) get_post_mime_type( $attachment_id );
+
+		if ( MM_Metadata::is_video_mime( $mime ) || MM_Metadata::is_audio_mime( $mime ) ) {
+			self::output_video_audio_json_ld( $attachment_id, $mime );
+			self::output_video_audio_open_graph( $attachment_id, $mime );
+		} else {
+			self::output_json_ld( $attachment_id );
+			self::output_open_graph( $attachment_id );
+		}
+
 		self::output_license_link( $attachment_id );
 	}
 
@@ -80,8 +88,13 @@ class MM_Frontend {
 	 */
 	private static function resolve_attachment_id(): int {
 		if ( is_attachment() ) {
-			$id = (int) get_the_ID();
-			return wp_attachment_is_image( $id ) ? $id : 0;
+			$id   = (int) get_the_ID();
+			$mime = (string) get_post_mime_type( $id );
+			// Accept images and supported video/audio types.
+			if ( wp_attachment_is_image( $id ) || MM_Metadata::is_av_mime( $mime ) ) {
+				return $id;
+			}
+			return 0;
 		}
 
 		if ( is_singular() && has_post_thumbnail() ) {
@@ -235,6 +248,125 @@ class MM_Frontend {
 	}
 
 	// -----------------------------------------------------------------------
+	// Video / Audio — Schema.org + Open Graph
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Emit Schema.org JSON-LD for a video or audio attachment.
+	 * Uses VideoObject for video MIME types, AudioObject for audio.
+	 *
+	 * @param int    $id   Attachment post ID.
+	 * @param string $mime MIME type.
+	 */
+	private static function output_video_audio_json_ld( int $id, string $mime ): void {
+		$post = get_post( $id );
+		if ( ! $post ) {
+			return;
+		}
+
+		$url = wp_get_attachment_url( $id );
+		if ( ! $url ) {
+			return;
+		}
+
+		$is_video   = MM_Metadata::is_video_mime( $mime );
+		$schema_type = $is_video ? 'VideoObject' : 'AudioObject';
+
+		$meta = static fn( string $key ): string => (string) get_post_meta( $id, $key, true );
+
+		$schema = [
+			'@context'   => 'https://schema.org',
+			'@type'      => $schema_type,
+			'url'        => $url,
+			'contentUrl' => $url,
+		];
+
+		$title = trim( $post->post_title );
+		if ( '' !== $title )              { $schema['name']        = $title; }
+		if ( '' !== $post->post_content ) { $schema['description'] = wp_strip_all_tags( $post->post_content ); }
+
+		if ( '' !== ( $v = $meta( MM_Metadata::META_HEADLINE ) ) )  { $schema['headline']   = $v; }
+		if ( '' !== ( $v = $meta( MM_Metadata::META_CREDIT ) ) )    { $schema['creditText'] = $v; }
+		if ( '' !== ( $v = $meta( MM_Metadata::META_DATE ) ) )      { $schema['dateCreated'] = $v; }
+
+		if ( '' !== ( $v = $meta( MM_Metadata::META_CREATOR ) ) ) {
+			$schema['creator'] = [ '@type' => 'Person', 'name' => $v ];
+		}
+		if ( '' !== ( $v = $meta( MM_Metadata::META_COPYRIGHT ) ) ) {
+			$schema['copyrightNotice'] = $v;
+		}
+		if ( '' !== ( $v = $meta( MM_Metadata::META_OWNER ) ) ) {
+			$schema['copyrightHolder'] = [ '@type' => 'Organization', 'name' => $v ];
+		}
+
+		if ( '' !== ( $v = $meta( MM_Metadata::META_KEYWORDS ) ) ) {
+			$kw = array_values( array_filter( array_map( 'trim', explode( ';', $v ) ) ) );
+			if ( $kw ) { $schema['keywords'] = $kw; }
+		}
+
+		// Location.
+		$city    = $meta( MM_Metadata::META_CITY );
+		$state   = $meta( MM_Metadata::META_STATE );
+		$country = $meta( MM_Metadata::META_COUNTRY );
+		$loc_parts = array_filter( [ $city, $state, $country ] );
+
+		$lat   = $meta( MM_Metadata::META_GPS_LAT );
+		$lon   = $meta( MM_Metadata::META_GPS_LON );
+		$alt_m = $meta( MM_Metadata::META_GPS_ALT );
+
+		if ( '' !== $lat && '' !== $lon ) {
+			$geo   = [ '@type' => 'GeoCoordinates', 'latitude' => (float) $lat, 'longitude' => (float) $lon ];
+			if ( '' !== $alt_m ) { $geo['elevation'] = (float) $alt_m; }
+			$place = [ '@type' => 'Place', 'geo' => $geo ];
+			if ( $loc_parts ) { $place['name'] = implode( ', ', $loc_parts ); }
+			$schema['locationCreated'] = $place;
+			$schema['contentLocation'] = $place;
+		} elseif ( $loc_parts ) {
+			$place = [ '@type' => 'Place', 'name' => implode( ', ', $loc_parts ) ];
+			$schema['locationCreated'] = $place;
+			$schema['contentLocation'] = $place;
+		}
+
+		$schema['encodingFormat']  = $mime;
+		$schema['mainEntityOfPage'] = [ '@type' => 'WebPage', '@id' => get_attachment_link( $id ) ];
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		printf(
+			"\n<!-- Metamanager: Schema.org JSON-LD -->\n<script type=\"application/ld+json\">\n%s\n</script>\n",
+			wp_json_encode( $schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+		);
+	}
+
+	/**
+	 * Emit Open Graph tags for a video or audio attachment.
+	 *
+	 * Video attachments get og:video; audio gets og:audio.
+	 *
+	 * @param int    $id   Attachment post ID.
+	 * @param string $mime MIME type.
+	 */
+	private static function output_video_audio_open_graph( int $id, string $mime ): void {
+		$url = wp_get_attachment_url( $id );
+		if ( ! $url ) {
+			return;
+		}
+
+		$is_video = MM_Metadata::is_video_mime( $mime );
+		$ns       = $is_video ? 'og:video' : 'og:audio';
+
+		$tag = static fn( string $prop, string $content ) =>
+			printf( "\t<meta property=\"%s\" content=\"%s\">\n", esc_attr( $prop ), esc_attr( $content ) );
+
+		echo "\n<!-- Metamanager: Open Graph -->\n";
+
+		$tag( $ns, $url );
+		if ( str_starts_with( $url, 'https://' ) ) {
+			$tag( $ns . ':secure_url', $url );
+		}
+		$tag( $ns . ':type', $mime );
+	}
+
+	// -----------------------------------------------------------------------
 	// Open Graph
 	// -----------------------------------------------------------------------
 
@@ -257,7 +389,7 @@ class MM_Frontend {
 		}
 		[ $url, $width, $height ] = $src;
 
-		$tag = static fn( string $prop, string $content ): void =>
+		$tag = static fn( string $prop, string $content ) =>
 			printf( "\t<meta property=\"%s\" content=\"%s\">\n", esc_attr( $prop ), esc_attr( $content ) );
 
 		echo "\n<!-- Metamanager: Open Graph -->\n";

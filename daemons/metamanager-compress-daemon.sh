@@ -162,6 +162,39 @@ process_job() {
                 success=false
             fi
             ;;
+        mp4|m4v|mov|avi|mkv|wmv|webm|ogv|3gp|3gpp|3g2|3gpp2|ts|mts|m2ts|flv)
+            # Video remux: repack the container without re-encoding any streams.
+            # -c copy           copy ALL streams (video, audio, subtitles, attachments)
+            # -map_metadata 0   preserve ALL metadata, including embedded thumbnails
+            # -movflags +faststart  move moov atom to front for MP4/MOV (HTTP streaming)
+            # -v quiet          suppress informational output
+            if command -v ffmpeg &>/dev/null; then
+                local outfile="${file_path}.mm_remux_$$.${ext}"
+                orig_size=$(stat -c%s "${file_path}")
+                if ffmpeg -y -v quiet -i "${file_path}" -c copy -map_metadata 0 -movflags +faststart "${outfile}" 2>>"${LOG_FILE}"; then
+                    new_size=$(stat -c%s "${outfile}")
+                    if (( new_size < orig_size )); then
+                        mv "${outfile}" "${file_path}"
+                        message="Video remuxed: ${orig_size} → ${new_size} bytes"
+                    else
+                        new_size=${orig_size}
+                        rm -f "${outfile}"
+                        message="Video already optimal (${orig_size} bytes)"
+                    fi
+                    success=true
+                else
+                    rm -f "${outfile}" 2>/dev/null || true
+                    message="ffmpeg remux failed for: ${file_path}"
+                fi
+            else
+                # No ffmpeg — mark as already optimal so the job doesn't sit as failed.
+                orig_size=$(stat -c%s "${file_path}") || orig_size=0
+                new_size=${orig_size}
+                message="ffmpeg not found — video remux skipped: ${file_path}"
+                log "WARNING: ${message}"
+                success=true
+            fi
+            ;;
         *)
             message="Unsupported file type: .${ext} — skipped"
             log "${message}"

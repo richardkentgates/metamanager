@@ -68,7 +68,7 @@ class MM_Job_Queue {
 
 		$post = get_post( $attachment_id );
 
-		// Dimensions from file — cheap call, avoids double-processing.
+		// Dimensions from file — only valid for images; skip for video/audio.
 		$dimensions = '';
 		if ( file_exists( $file_path ) ) {
 			$info = @getimagesize( $file_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
@@ -171,28 +171,52 @@ class MM_Job_Queue {
 	 * @return array Unmodified metadata (we are a passthrough filter).
 	 */
 	public static function on_upload( array $metadata, int $attachment_id ): array {
-		if ( ! wp_attachment_is_image( $attachment_id ) ) {
+		$mime = (string) get_post_mime_type( $attachment_id );
+		$is_image = wp_attachment_is_image( $attachment_id );
+		$is_video = MM_Metadata::is_video_mime( $mime );
+		$is_audio = MM_Metadata::is_audio_mime( $mime );
+
+		if ( ! $is_image && ! $is_video && ! $is_audio ) {
 			return $metadata;
 		}
 
 		$is_regeneration = '1' === get_post_meta( $attachment_id, MM_Metadata::META_SYNCED, true );
 
-		if ( $is_regeneration ) {
-			// Thumbnail regeneration: thumbnails have been rebuilt, so compression
-			// meta flags are stale. Clear them all so the new thumbnails get compressed.
-			delete_post_meta( $attachment_id, '_mm_compressed_full' );
-			if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
-				foreach ( array_keys( $metadata['sizes'] ) as $size ) {
-					delete_post_meta( $attachment_id, '_mm_compressed_' . $size );
+		if ( $is_image ) {
+			// ---- Images: existing regen-aware logic ----
+			if ( $is_regeneration ) {
+				delete_post_meta( $attachment_id, '_mm_compressed_full' );
+				if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
+					foreach ( array_keys( $metadata['sizes'] ) as $size ) {
+						delete_post_meta( $attachment_id, '_mm_compressed_' . $size );
+					}
 				}
+				self::enqueue_all_sizes( $attachment_id, $metadata, 'compression', [ 'trigger' => 'thumbnail_regen' ] );
+			} else {
+				MM_Metadata::import_from_file( $attachment_id );
+				self::enqueue_all_sizes( $attachment_id, $metadata, 'both', [ 'trigger' => 'upload' ] );
 			}
-			self::enqueue_all_sizes( $attachment_id, $metadata, 'compression', [ 'trigger' => 'thumbnail_regen' ] );
-		} else {
-			// Fresh upload: import embedded metadata first so the job payload
-			// already contains any pre-existing EXIF/IPTC/XMP values, then
-			// queue both compression and metadata embedding jobs.
+			return $metadata;
+		}
+
+		// ---- Video / Audio: single-file handling ----
+		$file = get_attached_file( $attachment_id );
+		if ( ! $file || ! file_exists( $file ) ) {
+			return $metadata;
+		}
+
+		if ( ! $is_regeneration ) {
 			MM_Metadata::import_from_file( $attachment_id );
-			self::enqueue_all_sizes( $attachment_id, $metadata, 'both', [ 'trigger' => 'upload' ] );
+		}
+
+		// Queue metadata write-back (if the format supports it).
+		if ( MM_Metadata::can_write_meta( $mime ) ) {
+			self::write_job( 'metadata', $attachment_id, $file, 'full', [ 'trigger' => 'upload' ] );
+		}
+
+		// Queue video remux (container repack, lossless) — audio has no remux.
+		if ( $is_video ) {
+			self::write_job( 'compression', $attachment_id, $file, 'full', [ 'trigger' => 'upload', 'is_remux' => true ] );
 		}
 
 		return $metadata;

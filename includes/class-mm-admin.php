@@ -251,6 +251,7 @@ class MM_Admin {
 		echo ' &nbsp;jpegtran ' . $icon( $status['jpegtran'],  'jpegtran found',   'jpegtran missing — JPEG lossless compression disabled' );
 		echo ' &nbsp;optipng '  . $icon( $status['optipng'],   'optipng found',    'optipng missing — PNG lossless compression disabled' );
 		echo ' &nbsp;cwebp '    . $icon( $status['cwebp'],     'cwebp found',      'cwebp missing — WebP lossless compression disabled' );
+		echo ' &nbsp;ffmpeg '   . $icon( $status['ffmpeg'],    'ffmpeg found',     'ffmpeg missing — video remux disabled' );
 		echo ' &nbsp;Compress daemon ' . $icon( $status['compress_daemon'], 'Compression daemon running', 'Compression daemon not running' );
 		echo ' &nbsp;Metadata daemon ' . $icon( $status['meta_daemon'],     'Metadata daemon running',    'Metadata daemon not running' );
 		echo '</div>';
@@ -490,10 +491,26 @@ class MM_Admin {
 	private static function do_bulk_compress( array $post_ids ): int {
 		$count = 0;
 		foreach ( $post_ids as $id ) {
-			$id = (int) $id;
-			if ( ! wp_attachment_is_image( $id ) ) {
+			$id   = (int) $id;
+			$mime = (string) get_post_mime_type( $id );
+			$is_image = wp_attachment_is_image( $id );
+			$is_video = MM_Metadata::is_video_mime( $mime );
+
+			if ( ! $is_image && ! $is_video ) {
 				continue;
 			}
+
+			// Videos: queue remux.
+			if ( $is_video ) {
+				$file = get_attached_file( $id );
+				if ( $file && file_exists( $file ) ) {
+					MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'bulk', 'is_remux' => true ] );
+					++$count;
+				}
+				continue;
+			}
+
+			// Images: existing per-size logic.
 			$meta    = wp_get_attachment_metadata( $id ) ?: [];
 			$file    = get_attached_file( $id );
 			$queued  = false;
@@ -544,8 +561,9 @@ class MM_Admin {
 	private static function do_bulk_import_meta( array $post_ids ): int {
 		$count = 0;
 		foreach ( $post_ids as $id ) {
-			$id = (int) $id;
-			if ( ! wp_attachment_is_image( $id ) ) {
+			$id   = (int) $id;
+			$mime = (string) get_post_mime_type( $id );
+			if ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_av_mime( $mime ) ) {
 				continue;
 			}
 			MM_Metadata::import_from_file( $id );
@@ -557,13 +575,19 @@ class MM_Admin {
 	private static function do_bulk_inject_site_info( array $post_ids ): int {
 		$count = 0;
 		foreach ( $post_ids as $id ) {
-			$id = (int) $id;
-			if ( ! wp_attachment_is_image( $id ) ) {
+			$id   = (int) $id;
+			$mime = (string) get_post_mime_type( $id );
+			if ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_av_mime( $mime ) ) {
 				continue;
 			}
-			// No post meta to update — Publisher/Website always come from get_bloginfo()
-			// and home_url() in MM_Metadata::get_fields_for_job(). We just queue the jobs.
-			MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'bulk_site_info' ] );
+			if ( wp_attachment_is_image( $id ) ) {
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'bulk_site_info' ] );
+			} else {
+				$file = get_attached_file( $id );
+				if ( $file && file_exists( $file ) && MM_Metadata::can_write_meta( $mime ) ) {
+					MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'bulk_site_info' ] );
+				}
+			}
 			++$count;
 		}
 		return $count;
@@ -1025,29 +1049,17 @@ class MM_Admin {
 		$offset     = max( 0, (int) ( $_POST['offset']     ?? 0 ) );
 		$batch_size = max( 1, min( 200, (int) ( $_POST['batch_size'] ?? 50 ) ) );
 
-		// Total un-synced count (only queried on first call to set the progress bar max).
-		$total_query = get_posts( [
-			'post_type'      => 'attachment',
-			'post_mime_type' => 'image',
-			'post_status'    => 'inherit',
-			'numberposts'    => -1,
-			'fields'         => 'ids',
-			'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery
-				[
-					'key'     => MM_Metadata::META_SYNCED,
-					'compare' => 'NOT EXISTS',
-				],
-			],
-		] );
-		$total = count( $total_query );
+		// Include images plus all supported video and audio MIME types.
+		$all_mime_types = array_merge(
+			[ 'image' ],
+			MM_Metadata::VIDEO_MIME_TYPES,
+			MM_Metadata::AUDIO_MIME_TYPES
+		);
 
-		// Fetch this batch (re-query with offset/limit).
-		$batch = get_posts( [
+		$base_query = [
 			'post_type'      => 'attachment',
-			'post_mime_type' => 'image',
+			'post_mime_type' => $all_mime_types,
 			'post_status'    => 'inherit',
-			'numberposts'    => $batch_size,
-			'offset'         => $offset,
 			'fields'         => 'ids',
 			'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery
 				[
@@ -1055,7 +1067,17 @@ class MM_Admin {
 					'compare' => 'NOT EXISTS',
 				],
 			],
-		] );
+		];
+
+		// Total un-synced count (only queried on first call to set progress bar max).
+		$total_ids = get_posts( array_merge( $base_query, [ 'numberposts' => -1 ] ) );
+		$total     = count( $total_ids );
+
+		// Fetch this batch.
+		$batch = get_posts( array_merge( $base_query, [
+			'numberposts' => $batch_size,
+			'offset'      => $offset,
+		] ) );
 
 		$count = 0;
 		foreach ( $batch as $id ) {
@@ -1083,9 +1105,10 @@ class MM_Admin {
 			wp_send_json_error( 'Permission denied.' );
 		}
 
-		$id = absint( $_POST['id'] ?? 0 );
-		if ( ! $id || ! wp_attachment_is_image( $id ) ) {
-			wp_send_json_error( __( 'Invalid attachment.', 'metamanager' ) );
+		$id   = absint( $_POST['id'] ?? 0 );
+		$mime = $id ? (string) get_post_mime_type( $id ) : '';
+		if ( ! $id || ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_video_mime( $mime ) ) ) {
+			wp_send_json_error( __( 'Invalid or unsupported attachment.', 'metamanager' ) );
 		}
 
 		// Clear existing compression flags so every size gets re-processed.
@@ -1097,7 +1120,16 @@ class MM_Admin {
 			}
 		}
 
-		MM_Job_Queue::enqueue_all_sizes( $id, $meta, 'compression', [ 'trigger' => 'manual' ] );
+		if ( MM_Metadata::is_video_mime( $mime ) ) {
+			$file = get_attached_file( $id );
+			if ( ! $file || ! file_exists( $file ) ) {
+				wp_send_json_error( __( 'File not found.', 'metamanager' ) );
+			}
+			MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'manual', 'is_remux' => true ] );
+		} else {
+			MM_Job_Queue::enqueue_all_sizes( $id, $meta, 'compression', [ 'trigger' => 'manual' ] );
+		}
+
 		wp_send_json_success();
 	}
 

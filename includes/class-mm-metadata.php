@@ -73,6 +73,105 @@ class MM_Metadata {
 	public const META_SYNCED = 'mm_meta_synced';
 
 	// -----------------------------------------------------------------------
+	// MIME type capability maps
+	// -----------------------------------------------------------------------
+
+	/** Video MIME types Metamanager can import metadata from. */
+	public const VIDEO_MIME_TYPES = [
+		'video/mp4',
+		'video/quicktime',
+		'video/x-msvideo',
+		'video/x-matroska',
+		'video/webm',
+		'video/x-ms-wmv',
+		'video/ogg',
+		'video/3gpp',
+		'video/3gpp2',
+	];
+
+	/** Audio MIME types Metamanager can import metadata from. */
+	public const AUDIO_MIME_TYPES = [
+		'audio/mpeg',
+		'audio/mp4',
+		'audio/ogg',
+		'audio/wav',
+		'audio/flac',
+		'audio/x-ms-wma',
+		'audio/aiff',
+		'audio/x-aiff',
+	];
+
+	/**
+	 * Metadata write-back capability per MIME type.
+	 *
+	 * 'full'        — ExifTool can write all supported tag families natively.
+	 * 'xmp_only'    — ExifTool writes embedded XMP only; native container tags
+	 *                 (IPTC, ID3, QuickTime atoms) are not editable in this format.
+	 * 'vorbis_only' — Vorbis comment tags only (OGG/OGA containers).
+	 * 'read_only'   — ExifTool can read but not write to this format.
+	 */
+	public const WRITE_CAPABILITY = [
+		// Images — full tag support.
+		'image/jpeg'       => 'full',
+		'image/png'        => 'full',
+		'image/webp'       => 'full',
+		'image/gif'        => 'full',
+		'image/tiff'       => 'full',
+		// Video.
+		'video/mp4'        => 'full',
+		'video/quicktime'  => 'full',
+		'video/3gpp'       => 'full',
+		'video/3gpp2'      => 'full',
+		'video/x-msvideo'  => 'xmp_only',
+		'video/x-ms-wmv'   => 'xmp_only',
+		'video/x-matroska' => 'read_only',
+		'video/webm'       => 'read_only',
+		'video/ogg'        => 'read_only',
+		// Audio.
+		'audio/mpeg'       => 'full',       // ID3v2
+		'audio/mp4'        => 'full',       // iTunes QuickTime atoms
+		'audio/flac'       => 'full',       // Vorbis comments + FLAC PICTURE
+		'audio/aiff'       => 'full',
+		'audio/x-aiff'     => 'full',
+		'audio/ogg'        => 'vorbis_only',
+		'audio/wav'        => 'xmp_only',
+		'audio/x-ms-wma'   => 'xmp_only',
+	];
+
+	// -----------------------------------------------------------------------
+	// MIME type helpers
+	// -----------------------------------------------------------------------
+
+	/** Return true if the MIME type is a supported video format. */
+	public static function is_video_mime( string $mime ): bool {
+		return in_array( $mime, self::VIDEO_MIME_TYPES, true );
+	}
+
+	/** Return true if the MIME type is a supported audio format. */
+	public static function is_audio_mime( string $mime ): bool {
+		return in_array( $mime, self::AUDIO_MIME_TYPES, true );
+	}
+
+	/** Return true if the MIME type is a supported video or audio format. */
+	public static function is_av_mime( string $mime ): bool {
+		return self::is_video_mime( $mime ) || self::is_audio_mime( $mime );
+	}
+
+	/**
+	 * Return the metadata write-back capability for a MIME type.
+	 *
+	 * @return 'full'|'xmp_only'|'vorbis_only'|'read_only'
+	 */
+	public static function write_capability( string $mime ): string {
+		return self::WRITE_CAPABILITY[ $mime ] ?? 'full';
+	}
+
+	/** Return true if ExifTool can write metadata back to files of this MIME type. */
+	public static function can_write_meta( string $mime ): bool {
+		return 'read_only' !== self::write_capability( $mime );
+	}
+
+	// -----------------------------------------------------------------------
 	// Field definitions — logical key → ExifTool write tags
 	// -----------------------------------------------------------------------
 
@@ -270,6 +369,30 @@ class MM_Metadata {
 			self::META_GPS_ALT   => [ 'Composite:GPSAltitude', 'GPS:GPSAltitude' ],
 		];
 
+		// For video and audio files, prepend container-native tag candidates so
+		// QuickTime/ID3/Vorbis/ASF tags are preferred over generic XMP equivalents.
+		$mime = (string) get_post_mime_type( $attachment_id );
+		if ( self::is_av_mime( $mime ) ) {
+			$av_candidates = [
+				self::META_CREATOR   => [ 'QuickTime:Author', 'QuickTime:Artist', 'ID3:Artist', 'Vorbis:Artist', 'ASF:Author', 'RIFF:Artist' ],
+				self::META_COPYRIGHT => [ 'QuickTime:Copyright', 'ID3:Copyright', 'Vorbis:Copyright', 'ASF:Copyright' ],
+				self::META_HEADLINE  => [ 'QuickTime:Title', 'ID3:Title', 'Vorbis:Title', 'ASF:Title', 'RIFF:Title', 'Matroska:Title' ],
+				self::META_CREDIT    => [ 'QuickTime:Producer', 'ID3:Band', 'Vorbis:Organization' ],
+				self::META_KEYWORDS  => [ 'QuickTime:Keywords', 'ID3:ContentType', 'Vorbis:Genre', 'ASF:Genre' ],
+				self::META_DATE      => [ 'QuickTime:CreateDate', 'QuickTime:MediaCreateDate', 'ID3:Year', 'Vorbis:Date', 'ASF:CreationDate', 'Matroska:DateTimeOriginal' ],
+				self::META_CITY      => [ 'QuickTime:LocationName', 'Keys:LocationName' ],
+				self::META_COUNTRY   => [ 'QuickTime:LocationCountryCode', 'Keys:LocationCountryCode' ],
+				self::META_GPS_LAT   => [ 'Composite:GPSLatitude', 'QuickTime:GPSCoordinates' ],
+				self::META_GPS_LON   => [ 'Composite:GPSLongitude' ],
+				self::META_GPS_ALT   => [ 'Composite:GPSAltitude', 'Keys:GPSAltitude' ],
+			];
+			foreach ( $av_candidates as $key => $prepend ) {
+				if ( isset( $meta_import[ $key ] ) ) {
+					$meta_import[ $key ] = array_merge( $prepend, $meta_import[ $key ] );
+				}
+			}
+		}
+
 		foreach ( $meta_import as $meta_key => $candidates ) {
 			$existing = get_post_meta( $attachment_id, $meta_key, true );
 			if ( '' !== (string) $existing ) {
@@ -413,11 +536,33 @@ class MM_Metadata {
 	 * @return array
 	 */
 	public static function register_fields( array $form_fields, \WP_Post $post ): array {
-		if ( ! wp_attachment_is_image( $post->ID ) ) {
+		$mime = (string) get_post_mime_type( $post->ID );
+		if ( ! wp_attachment_is_image( $post->ID ) && ! self::is_av_mime( $mime ) ) {
 			return $form_fields;
 		}
 
-		$id = $post->ID;
+		$id         = $post->ID;
+		$capability = self::write_capability( $mime );
+
+		if ( 'read_only' === $capability ) {
+			$form_fields['mm_capability_notice'] = [ 'label' => '', 'input' => 'html', 'html' =>
+				'<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:3px;margin-bottom:8px;">'
+				. '<strong>' . esc_html__( 'Read-only format', 'metamanager' ) . '</strong> — '
+				. esc_html__( 'Metamanager can import metadata from this file but cannot write back to it. Fields are shown for reference only.', 'metamanager' )
+				. '</div>' ];
+		} elseif ( 'xmp_only' === $capability ) {
+			$form_fields['mm_capability_notice'] = [ 'label' => '', 'input' => 'html', 'html' =>
+				'<div style="background:#e8f4fd;border:1px solid #2196f3;padding:8px 12px;border-radius:3px;margin-bottom:8px;">'
+				. '<strong>' . esc_html__( 'Limited write support', 'metamanager' ) . '</strong> — '
+				. esc_html__( 'Metamanager will write XMP tags only for this format. Native container tags cannot be updated.', 'metamanager' )
+				. '</div>' ];
+		} elseif ( 'vorbis_only' === $capability ) {
+			$form_fields['mm_capability_notice'] = [ 'label' => '', 'input' => 'html', 'html' =>
+				'<div style="background:#e8f4fd;border:1px solid #2196f3;padding:8px 12px;border-radius:3px;margin-bottom:8px;">'
+				. '<strong>' . esc_html__( 'Limited write support', 'metamanager' ) . '</strong> — '
+				. esc_html__( 'Metamanager will write Vorbis comment tags only for this format.', 'metamanager' )
+				. '</div>' ];
+		}
 		$h4 = static fn( string $label, string $sub = '' ): string =>
 			'<h4 style="margin:1.2em 0 .3em;padding-bottom:4px;border-bottom:1px solid #c3c4c7;color:#1d2327;">'
 			. esc_html( $label )
@@ -540,7 +685,15 @@ class MM_Metadata {
 	 * @return array
 	 */
 	public static function on_fields_save( array $post, array $attachment ): array {
-		if ( empty( $post['ID'] ) || ! wp_attachment_is_image( $post['ID'] ) ) {
+		if ( empty( $post['ID'] ) ) {
+			return $post;
+		}
+		$mime = (string) get_post_mime_type( $post['ID'] );
+		if ( ! wp_attachment_is_image( $post['ID'] ) && ! self::is_av_mime( $mime ) ) {
+			return $post;
+		}
+		// Do not attempt to write metadata back to read-only formats.
+		if ( 'read_only' === self::write_capability( $mime ) ) {
 			return $post;
 		}
 
