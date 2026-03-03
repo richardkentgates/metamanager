@@ -4,10 +4,10 @@
  *
  * Provides CLI access to Metamanager operations:
  *
- *   wp metamanager compress <id|all>  — queue lossless compression
- *   wp metamanager import  <id|all>   — import embedded metadata into WP fields
+ *   wp metamanager compress <id|all>  — queue lossless compression (images + video remux)
+ *   wp metamanager import  <id|all>   — import embedded metadata into WP fields (all supported types)
  *   wp metamanager queue   status     — show live queue statistics
- *   wp metamanager scan               — batch-import metadata for un-synced library
+ *   wp metamanager scan               — batch-import metadata for un-synced library (all supported types)
  *   wp metamanager stats              — show compression savings statistics
  *
  * @package Metamanager
@@ -20,7 +20,7 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 }
 
 /**
- * Manage Metamanager image processing jobs.
+ * Manage Metamanager media processing jobs.
  */
 class MM_CLI extends \WP_CLI_Command {
 
@@ -29,15 +29,19 @@ class MM_CLI extends \WP_CLI_Command {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Queue lossless compression for one or all image attachments.
+	 * Queue lossless compression for one or all compressible attachments.
+	 *
+	 * Images (JPEG, PNG, WebP, GIF, TIFF) are recompressed losslessly.
+	 * Video files are remuxed losslessly via ffmpeg.
+	 * Audio files and PDFs do not have a compression step and are skipped.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [<id>]
-	 * : Attachment ID to compress.  Omit (or pass "all") to compress everything.
+	 * : Attachment ID to compress.  Omit (or pass "all") to process everything compressible.
 	 *
 	 * [--force]
-	 * : Re-queue even if the image has already been compressed.
+	 * : Re-queue even if the file has already been compressed.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -49,36 +53,45 @@ class MM_CLI extends \WP_CLI_Command {
 	 * @param array $assoc_args Named arguments.
 	 */
 	public function compress( array $args, array $assoc_args ): void {
-		$force = isset( $assoc_args['force'] );
+		$force  = isset( $assoc_args['force'] );
 		$target = $args[0] ?? 'all';
 
 		if ( 'all' === strtolower( $target ) ) {
+			// Images + video are compressible; audio and PDF have no compression step.
+			$compressible_mimes = array_merge(
+				[ 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/tiff' ],
+				MM_Metadata::VIDEO_MIME_TYPES
+			);
 			$ids = get_posts( [
 				'post_type'      => 'attachment',
-				'post_mime_type' => 'image',
+				'post_mime_type' => $compressible_mimes,
 				'post_status'    => 'inherit',
 				'numberposts'    => -1,
 				'fields'         => 'ids',
 			] );
 			if ( empty( $ids ) ) {
-				\WP_CLI::success( 'No images found.' );
+				\WP_CLI::success( 'No compressible files found.' );
 				return;
 			}
 		} else {
-			$ids = [ (int) $target ];
-			if ( ! wp_attachment_is_image( $ids[0] ) ) {
-				\WP_CLI::error( "Attachment {$ids[0]} is not an image." );
+			$ids  = [ (int) $target ];
+			$mime = (string) get_post_mime_type( $ids[0] );
+			if ( ! wp_attachment_is_image( $ids[0] ) && ! MM_Metadata::is_video_mime( $mime ) ) {
+				$reason = MM_Metadata::is_audio_mime( $mime ) || MM_Metadata::is_pdf_mime( $mime )
+					? 'Audio files and PDFs have no compression step. Use `wp metamanager import` for metadata.'
+					: 'Attachment is not a compressible file type.';
+				\WP_CLI::error( $reason );
 				return;
 			}
 		}
 
-		$count   = 0;
-		$skipped = 0;
+		$count    = 0;
+		$skipped  = 0;
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Queuing compression', count( $ids ) );
 
 		foreach ( $ids as $id ) {
 			$id   = (int) $id;
-			$meta = wp_get_attachment_metadata( $id ) ?: [];
+			$mime = (string) get_post_mime_type( $id );
 			$file = get_attached_file( $id );
 
 			if ( ! $file || ! file_exists( $file ) ) {
@@ -87,21 +100,27 @@ class MM_CLI extends \WP_CLI_Command {
 				continue;
 			}
 
-			if ( ! $force ) {
-				if ( $file && MM_Status::is_compressed( $id, 'full' ) ) {
-					++$skipped;
-					$progress->tick();
-					continue;
-				}
+			if ( ! $force && MM_Status::is_compressed( $id, 'full' ) ) {
+				++$skipped;
+				$progress->tick();
+				continue;
 			}
 
-			MM_Job_Queue::enqueue_all_sizes( $id, $meta, 'compression', [ 'trigger' => 'cli' ] );
+			if ( MM_Metadata::is_video_mime( $mime ) ) {
+				// Video: single lossless remux job.
+				MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'cli', 'is_remux' => true ] );
+			} else {
+				// Image: queue all registered sizes.
+				$meta = wp_get_attachment_metadata( $id ) ?: [];
+				MM_Job_Queue::enqueue_all_sizes( $id, $meta, 'compression', [ 'trigger' => 'cli' ] );
+			}
+
 			++$count;
 			$progress->tick();
 		}
 
 		$progress->finish();
-		\WP_CLI::success( "Queued compression for {$count} image(s). Skipped: {$skipped}." );
+		\WP_CLI::success( "Queued compression for {$count} file(s). Skipped: {$skipped}." );
 	}
 
 	// -----------------------------------------------------------------------
@@ -109,12 +128,17 @@ class MM_CLI extends \WP_CLI_Command {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Import embedded metadata (EXIF/IPTC/XMP) into WordPress fields.
+	 * Import embedded metadata into WordPress fields.
+	 *
+	 * Reads embedded tags from the file using ExifTool and populates empty
+	 * WordPress fields.  Works for images (EXIF/IPTC/XMP), video (QuickTime
+	 * atoms, XMP), audio (ID3, Vorbis comments, XMP), and PDF (XMP).
+	 * Existing user-set values are never overwritten.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [<id>]
-	 * : Attachment ID to process.  Omit (or pass "all") to process everything.
+	 * : Attachment ID to process.  Omit (or pass "all") to process all supported files.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -127,21 +151,32 @@ class MM_CLI extends \WP_CLI_Command {
 		$target = $args[0] ?? 'all';
 
 		if ( 'all' === strtolower( $target ) ) {
+			$supported_mimes = array_merge(
+				[ 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/tiff' ],
+				MM_Metadata::VIDEO_MIME_TYPES,
+				MM_Metadata::AUDIO_MIME_TYPES,
+				MM_Metadata::PDF_MIME_TYPES
+			);
 			$ids = get_posts( [
 				'post_type'      => 'attachment',
-				'post_mime_type' => 'image',
+				'post_mime_type' => $supported_mimes,
 				'post_status'    => 'inherit',
 				'numberposts'    => -1,
 				'fields'         => 'ids',
 			] );
 			if ( empty( $ids ) ) {
-				\WP_CLI::success( 'No images found.' );
+				\WP_CLI::success( 'No supported files found.' );
 				return;
 			}
 		} else {
-			$ids = [ (int) $target ];
-			if ( ! wp_attachment_is_image( $ids[0] ) ) {
-				\WP_CLI::error( "Attachment {$ids[0]} is not an image." );
+			$ids  = [ (int) $target ];
+			$mime = (string) get_post_mime_type( $ids[0] );
+			if (
+				! wp_attachment_is_image( $ids[0] ) &&
+				! MM_Metadata::is_av_mime( $mime ) &&
+				! MM_Metadata::is_pdf_mime( $mime )
+			) {
+				\WP_CLI::error( "Attachment {$ids[0]} is not a supported file type for metadata import." );
 				return;
 			}
 		}
@@ -156,7 +191,7 @@ class MM_CLI extends \WP_CLI_Command {
 		}
 
 		$progress->finish();
-		\WP_CLI::success( "Imported metadata for {$count} image(s)." );
+		\WP_CLI::success( "Imported metadata for {$count} file(s)." );
 	}
 
 	// -----------------------------------------------------------------------
@@ -209,7 +244,11 @@ class MM_CLI extends \WP_CLI_Command {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Import metadata for every library image not yet processed by Metamanager.
+	 * Import metadata for every library file not yet processed by Metamanager.
+	 *
+	 * Scans all supported attachments (images, video, audio, PDF) that have
+	 * never been synced and imports their embedded metadata into WordPress
+	 * fields.  Already-synced files are skipped automatically.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -218,9 +257,16 @@ class MM_CLI extends \WP_CLI_Command {
 	 * @param array $args Positional arguments (unused).
 	 */
 	public function scan( array $args ): void {
+		$supported_mimes = array_merge(
+			[ 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/tiff' ],
+			MM_Metadata::VIDEO_MIME_TYPES,
+			MM_Metadata::AUDIO_MIME_TYPES,
+			MM_Metadata::PDF_MIME_TYPES
+		);
+
 		$ids = get_posts( [
 			'post_type'      => 'attachment',
-			'post_mime_type' => 'image',
+			'post_mime_type' => $supported_mimes,
 			'post_status'    => 'inherit',
 			'numberposts'    => -1,
 			'fields'         => 'ids',
@@ -233,7 +279,7 @@ class MM_CLI extends \WP_CLI_Command {
 		] );
 
 		if ( empty( $ids ) ) {
-			\WP_CLI::success( 'All images already scanned — nothing to do.' );
+			\WP_CLI::success( 'All supported files already scanned — nothing to do.' );
 			return;
 		}
 
@@ -247,7 +293,7 @@ class MM_CLI extends \WP_CLI_Command {
 		}
 
 		$progress->finish();
-		\WP_CLI::success( "Scanned and imported metadata for {$count} image(s)." );
+		\WP_CLI::success( "Scanned and imported metadata for {$count} file(s)." );
 	}
 
 	// -----------------------------------------------------------------------

@@ -828,32 +828,52 @@ class MM_Admin {
 
 	/**
 	 * REST: queue lossless compression for one attachment.
+	 *
+	 * Images are recompressed losslessly (jpegtran/optipng/cwebp).
+	 * Video files are remuxed losslessly (ffmpeg -c copy).
+	 * Audio files and PDFs have no compression step — returns 422.
 	 */
 	public static function rest_compress_attachment( \WP_REST_Request $request ) {
 		$id    = (int) $request->get_param( 'id' );
 		$force = (bool) $request->get_param( 'force' );
+		$mime  = (string) get_post_mime_type( $id );
 
-		if ( ! wp_attachment_is_image( $id ) ) {
-			return new \WP_Error( 'not_image', __( 'Attachment is not an image.', 'metamanager' ), [ 'status' => 400 ] );
+		$is_image = wp_attachment_is_image( $id );
+		$is_video = MM_Metadata::is_video_mime( $mime );
+
+		if ( ! $is_image && ! $is_video ) {
+			$detail = MM_Metadata::is_audio_mime( $mime ) || MM_Metadata::is_pdf_mime( $mime )
+				? __( 'Audio files and PDFs do not have a compression step. Use the metadata import endpoint instead.', 'metamanager' )
+				: __( 'Attachment type is not supported for compression.', 'metamanager' );
+			return new \WP_Error( 'not_compressible', $detail, [ 'status' => 422 ] );
 		}
 
 		if ( ! $force ) {
-			// Clear compression meta so all sizes get re-queued.
+			// Clear compression meta so the file gets re-queued unconditionally.
 			delete_post_meta( $id, '_mm_compressed_full' );
-			$meta = wp_get_attachment_metadata( $id ) ?: [];
-			if ( ! empty( $meta['sizes'] ) ) {
-				foreach ( array_keys( $meta['sizes'] ) as $size ) {
-					delete_post_meta( $id, '_mm_compressed_' . $size );
+			if ( $is_image ) {
+				$meta = wp_get_attachment_metadata( $id ) ?: [];
+				if ( ! empty( $meta['sizes'] ) ) {
+					foreach ( array_keys( $meta['sizes'] ) as $size ) {
+						delete_post_meta( $id, '_mm_compressed_' . $size );
+					}
 				}
 			}
 		}
 
-		MM_Job_Queue::enqueue_all_sizes( $id, [], 'compression', [ 'trigger' => 'rest_api' ] );
+		if ( $is_video ) {
+			$file = get_attached_file( $id );
+			MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'rest_api', 'is_remux' => true ] );
+		} else {
+			MM_Job_Queue::enqueue_all_sizes( $id, [], 'compression', [ 'trigger' => 'rest_api' ] );
+		}
 
 		return rest_ensure_response( [
 			'id'      => $id,
 			'queued'  => true,
-			'message' => __( 'Compression jobs queued.', 'metamanager' ),
+			'message' => $is_video
+				? __( 'Video remux job queued.', 'metamanager' )
+				: __( 'Compression jobs queued.', 'metamanager' ),
 		] );
 	}
 
