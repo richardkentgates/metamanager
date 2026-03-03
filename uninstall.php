@@ -33,6 +33,11 @@ function _mm_uninstall_site(): void {
 		'mm_notify_enabled',
 		'mm_notify_email',
 		'mm_delete_data_on_uninstall',
+		'mm_api_disabled',
+		'mm_api_allowed_ips',
+		'mm_upload_notify_enabled',
+		'mm_upload_notify_extra_email',
+		'mm_failed_upload_notices',
 	];
 	foreach ( $options as $option ) {
 		delete_option( $option );

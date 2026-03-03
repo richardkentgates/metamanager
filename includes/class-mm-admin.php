@@ -201,6 +201,51 @@ class MM_Admin {
 					'<p><a href="' . esc_url( admin_url( 'upload.php?page=metamanager-jobs' ) ) . '">' . esc_html__( 'View Job Dashboard →', 'metamanager' ) . '</a></p>',
 			] );
 		}
+
+		// Settings page help.
+		if ( 'media_page_metamanager-settings' === $screen->id ) {
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_settings_api',
+				'title'   => __( 'REST API Access', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'REST API Access Control', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'The REST API section lets you lock down the Metamanager REST endpoints at the plugin level, before any WordPress capability check runs.', 'metamanager' ) . '</p>' .
+					'<ul>' .
+					'<li><strong>' . esc_html__( 'Disable REST API', 'metamanager' ) . '</strong> — ' . esc_html__( 'When checked, every request to /wp-json/metamanager/v1/* returns 403 Forbidden regardless of the caller\'s WordPress role. Use this to lock down the API entirely.', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( 'Allowed IP Addresses', 'metamanager' ) . '</strong> — ' . esc_html__( 'Enter a comma-separated list of IPv4 or IPv6 addresses that are permitted to use the API. Leave blank to allow requests from any IP. If "Disable REST API" is checked this field has no effect.', 'metamanager' ) . '</li>' .
+					'</ul>' .
+					'<p>' . esc_html__( 'Normal WordPress authentication (X-WP-Nonce header or cookie) and capability checks still apply to all allowed requests.', 'metamanager' ) . '</p>',
+			] );
+
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_settings_notify',
+				'title'   => __( 'Upload Receipts', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'Upload Receipt Emails', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'When "Enable upload receipt emails" is checked, Metamanager sends a digest email after a batch of uploads. Emails are grouped into 60-second windows — no matter how many files are uploaded in that window, only one email is sent per uploader (plus one to the admin address).', 'metamanager' ) . '</p>' .
+					'<ul>' .
+					'<li><strong>' . esc_html__( 'Extra CC address', 'metamanager' ) . '</strong> — ' . esc_html__( 'An additional email address to CC on every upload receipt. Leave blank to send only to the uploader and the site admin.', 'metamanager' ) . '</li>' .
+					'</ul>' .
+					'<p>' . esc_html__( 'If an email fails to send, an admin notice banner appears at the top of the dashboard with a one-click retry button. Dismiss it to discard the failed batch without retrying.', 'metamanager' ) . '</p>',
+			] );
+
+			$screen->add_help_tab( [
+				'id'      => 'mm_help_settings_data',
+				'title'   => __( 'Data & Uninstall', 'metamanager' ),
+				'content' =>
+					'<h2>' . esc_html__( 'Data & Uninstall', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'By default, Metamanager leaves all data in place when the plugin is deleted — options, post meta, and the job log table are kept so nothing is lost on an accidental uninstall.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Enable "Remove all data on uninstall" only when you are certain you want a clean removal. When this setting is on, deleting the plugin from the Plugins screen will permanently remove all plugin options, all custom post meta, the metamanager_jobs database table, and the job queue directory.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'The daemon services must be stopped and removed manually from the server.', 'metamanager' ) . '</p>',
+			] );
+
+			$screen->set_help_sidebar(
+				'<p><strong>' . esc_html__( 'Metamanager', 'metamanager' ) . ' ' . MM_VERSION . '</strong></p>' .
+				'<p><a href="https://metamanager.richardkentgates.com" target="_blank" rel="noopener">' . esc_html__( 'Documentation Website', 'metamanager' ) . ' ↗</a></p>' .
+				'<p><a href="https://github.com/richardkentgates/metamanager" target="_blank" rel="noopener">' . esc_html__( 'GitHub Repository', 'metamanager' ) . ' ↗</a></p>' .
+				'<p><a href="https://github.com/richardkentgates/metamanager/issues" target="_blank" rel="noopener">' . esc_html__( 'Report an Issue', 'metamanager' ) . ' ↗</a></p>'
+			);
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -370,7 +415,7 @@ class MM_Admin {
 		} elseif ( $is_audio ) {
 			echo '<div style="margin-bottom:12px;">';
 			echo '<span style="color:#888;font-size:13px;">'
-				. esc_html__( 'Audio files are not compressed â metadata import and write-back only.', 'metamanager' ) . '</span>';
+				. esc_html__( 'Audio files are not compressed — metadata import and write-back only.', 'metamanager' ) . '</span>';
 			echo '</div>';
 		}
 
@@ -971,8 +1016,9 @@ class MM_Admin {
 			return new \WP_Error( 'not_compressible', $detail, [ 'status' => 422 ] );
 		}
 
-		if ( ! $force ) {
-			// Clear compression meta so the file gets re-queued unconditionally.
+		if ( $force ) {
+			// force=true: clear existing compression markers so the file is treated
+			// as uncompressed and the daemon result will always update status.
 			delete_post_meta( $id, '_mm_compressed_full' );
 			if ( $is_image ) {
 				$meta = wp_get_attachment_metadata( $id ) ?: [];

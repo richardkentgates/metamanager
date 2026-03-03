@@ -374,8 +374,24 @@ class MM_Job_Queue {
 			}
 		}
 
-		// Remove custom metadata fields.
-		foreach ( [ 'mm_creator', 'mm_copyright', 'mm_owner' ] as $key ) {
+		// Remove all Metamanager custom metadata fields.
+		foreach ( [
+			MM_Metadata::META_CREATOR,
+			MM_Metadata::META_COPYRIGHT,
+			MM_Metadata::META_OWNER,
+			MM_Metadata::META_HEADLINE,
+			MM_Metadata::META_CREDIT,
+			MM_Metadata::META_KEYWORDS,
+			MM_Metadata::META_DATE,
+			MM_Metadata::META_CITY,
+			MM_Metadata::META_STATE,
+			MM_Metadata::META_COUNTRY,
+			MM_Metadata::META_RATING,
+			MM_Metadata::META_GPS_LAT,
+			MM_Metadata::META_GPS_LON,
+			MM_Metadata::META_GPS_ALT,
+			MM_Metadata::META_SYNCED,
+		] as $key ) {
 			delete_post_meta( $attachment_id, $key );
 		}
 	}

@@ -71,7 +71,7 @@
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
           "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); and Open Graph tags — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "1.5.3",
+          "softwareVersion": "1.5.4",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -345,6 +345,16 @@
                 <div class="feature-icon">🧹</div>
                 <h3>Clean Uninstall</h3>
                 <p>An opt-in setting under <strong>Media → MM Settings → Data &amp; Uninstall</strong> removes all options, attachment metadata, the job-log table, and the queue directory when the plugin is deleted. Nothing is removed by default — data is always preserved unless you explicitly choose otherwise.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>REST API Access Control</h3>
+                <p>Disable the entire Metamanager REST API with one toggle, or restrict it to a comma-separated list of allowed IP addresses. Blocked requests receive a <code>403 Forbidden</code> before any WordPress capability check runs — from <strong>Media → MM Settings → REST API</strong>.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📬</div>
+                <h3>Upload Receipt Emails</h3>
+                <p>Optional digest emails when media is uploaded. Uploads within a 60-second window are batched into a single email per uploader — no per-file noise. Admin and an optional extra CC address are included. Failed sends surface as a dismissible notice with one-click retry.</p>
             </div>
         </div>
 
@@ -824,7 +834,7 @@ Metadata daemon: running</code></pre>
 <section class="section section-alt" id="rest-api">
     <div class="container">
         <h2 class="section-title">REST API</h2>
-        <p class="section-subtitle">Every operation is available via the WordPress REST API. Authentication uses a <code>X-WP-Nonce</code> header or cookie. Endpoints follow standard WordPress capability rules: read-only status checks require <code>upload_files</code> (Author+); site-wide data and write operations require <code>edit_others_posts</code> (Editor+).</p>
+        <p class="section-subtitle">Every operation is available via the WordPress REST API. Authentication uses a <code>X-WP-Nonce</code> header or cookie. Endpoints follow standard WordPress capability rules: read-only status checks require <code>upload_files</code> (Author+); site-wide data and write operations require <code>edit_others_posts</code> (Editor+). The API can be disabled entirely or restricted to a list of allowed IPs from <strong>Media → MM Settings → REST API</strong>.</p>
 
         <p style="text-align:center;margin-bottom:2rem;"><strong>Base URL:</strong> <code>https://yoursite.com/wp-json/metamanager/v1</code></p>
 

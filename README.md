@@ -37,6 +37,8 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 - **Real-time job dashboard**: live queue view and searchable/paginated history under Media → Metamanager
 - **Re-queue on failure**: one-click retry for any failed job from the history table
 - **Daemon health indicator**: status banner shows whether each daemon is running (via PID file — no `systemctl` privilege required)
+- **REST API access control**: disable all Metamanager REST endpoints or restrict them to a comma-separated list of allowed IP addresses from Media → MM Settings — unauthorized requests receive a `403` before any capability check runs
+- **Upload receipt emails**: optional batched digest email to the uploading user and admin when media is uploaded (one email per 60-second window); configurable extra CC address; failed sends are surfaced as a dismissible admin notice with one-click retry
 - **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates; includes a manual "Check for Updates" link on the Plugins page
 - **Multisite compatible**: network activation creates the DB table and schedules cron on every existing site; new blog creation is handled automatically via `wp_initialize_site`
 - **Clean uninstall**: an opt-in "Remove all data on uninstall" setting wipes all options, post meta, the job log table, the job queue directory, and the updater transient when the plugin is deleted — nothing is removed by default
@@ -485,7 +487,9 @@ DROP TABLE IF EXISTS wp_metamanager_jobs;
 
 -- Plugin settings
 DELETE FROM wp_options WHERE option_name IN
-  ('mm_compress_level','mm_notify_enabled','mm_notify_email','mm_delete_data_on_uninstall');
+  ('mm_compress_level','mm_notify_enabled','mm_notify_email','mm_delete_data_on_uninstall',
+   'mm_api_disabled','mm_api_allowed_ips',
+   'mm_upload_notify_enabled','mm_upload_notify_extra_email','mm_failed_upload_notices');
 
 -- Attachment metadata
 DELETE FROM wp_postmeta WHERE meta_key IN

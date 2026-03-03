@@ -7,7 +7,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.4] — 2026-03-03
+
+### Fixed
+- **`REST POST /attachment/{id}/compress` — inverted `force` flag** — `if ( ! $force )` cleared compression meta on every default call and did nothing when `force=true`. Corrected to `if ( $force )`, consistent with CLI's `--force` semantics.
+- **`on_delete_attachment()` — incomplete meta cleanup** — only 3 of 15 custom meta keys were removed when an attachment was deleted. All 15 `MM_Metadata::META_*` constants are now removed.
+- **Audio pane garbled em dash** — double UTF-8 encoding in `render_attachment_meta_pane()` displayed `â` instead of `—`.
+- **`mm_deactivate()` — upload receipt cron not cleared** — `mm_send_upload_receipt` WP-Cron event was never cleaned up on plugin deactivation, leaving a dangling event if deactivated mid-batch.
+- **`uninstall.php` — missing new options** — `mm_api_disabled`, `mm_api_allowed_ips`, `mm_upload_notify_enabled`, `mm_upload_notify_extra_email`, and `mm_failed_upload_notices` were not removed on clean uninstall.
+
+---
+
 ## [1.5.3] — 2026-03-03
+
+### Added
+- **REST API access control** — new settings section in Media → MM Settings. The entire REST API (`/wp-json/metamanager/v1/*`) can be disabled outright, or restricted to a comma-separated list of allowed IPs. Requests from disallowed IPs receive a `403 Forbidden` response before any capability check is performed.
+- **Upload receipt emails** — optional email notifications when media is uploaded. When enabled, the uploading user and the admin email address receive a batched digest once per 60-second window (rather than one email per file). An extra CC address can be specified in Settings. Failed send attempts are stored and surfaced in a dismissible admin notice with a one-click retry.
 
 ### Fixed
 - **WordPress permission model alignment** — all capability checks have been updated to match what each operation actually does, rather than using a single broad `upload_files` gate throughout.
