@@ -110,7 +110,7 @@ class MM_Admin {
 					'<h2>' . esc_html__( 'Job History', 'metamanager' ) . '</h2>' .
 					'<p>' . esc_html__( 'After a daemon finishes a job it writes a result JSON to the completed/ or failed/ directory. WP-Cron reads these files every 60 seconds and records them in the database.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'Completed jobs show the file size, dimensions (where applicable), and timestamps. Failed jobs show a Re-queue button — click it to re-submit the original job file without any manual steps.', 'metamanager' ) . '</p>' .
-					'<p>' . esc_html__( 'Use the search box to filter by image name, job type, or status. Clear History removes all records from the database but does not affect any image files.', 'metamanager' ) . '</p>',
+					'<p>' . esc_html__( 'Use the search box to filter by file name, job type, or status. Clear History removes all records from the database but does not affect any media files.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [

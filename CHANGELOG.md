@@ -7,6 +7,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.2] — 2026-03-03
+
+### Fixed
+- **`MM_Status::mark_compressed()` never called** — `mm_import_completed_jobs()` logged completed compression jobs to the database but never called `mark_compressed()`, so the Media Library column always showed "Not Compressed" regardless of daemon output, and bulk-compress re-queued every file on every run. The cron handler now calls `MM_Status::mark_compressed()` for every successfully completed compression job.
+- **Video compression status always `na`** — `MM_Status::compression_status()` used `wp_attachment_is_image()` to gate all logic, causing every non-image type (including ffmpeg-remuxed video) to return `'na'` / `—`. Videos now show ✔ Compressed or ✘ Not Compressed based on the `_mm_compressed_full` post-meta flag set by `mark_compressed()`.
+- **Video re-queue guard missing in `do_bulk_compress()`** — the video branch of the bulk compress handler was unconditionally writing a new remux job on every bulk action run. It now checks `MM_Status::is_compressed()` before queueing, matching the guard already present for image sizes.
+- **`requeue_source_id` key typo** — `MM_Job_Queue::requeue()` was writing the extra-data key `'re queue_source_id'` (space in the middle). Corrected to `'requeue_source_id'`.
+- **Admin copy: "image(s)" → "media file(s)"** — bulk-action success notices (Compress Lossless, Inject Site Info, Import Metadata), Library Scan JS progress text, and the Job History table column header all referred to "image(s)" despite working on all supported media types.
+- **Admin help tab: "filter by image name"** — Job History help tab search description now says "file name" to match the renamed "File" column.
+
+---
+
 ## [1.5.1] — 2026-03-02
 
 ### Fixed
