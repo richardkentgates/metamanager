@@ -77,6 +77,26 @@ process_job() {
         return 0
     fi
 
+    # Determine file category from extension — drives the tag writing strategy.
+    # ExifTool routes generic tags (e.g. -Title) to the correct namespace per format,
+    # but explicitly-namespaced IPTC/EXIF image tags fail on video/audio containers.
+    local ext="${file_path##*.}"
+    ext="${ext,,}"
+    local file_cat
+    case "${ext}" in
+        jpg|jpeg|png|webp|gif|tiff|tif) file_cat="image"     ;;
+        mp3)                             file_cat="mp3"       ;;
+        mp4|m4v|m4a|mov|3gp|3gpp|3g2)  file_cat="quicktime" ;;
+        ogg|oga|flac)                   file_cat="vorbis"    ;;
+        avi|wav|wmv|wma)                file_cat="xmp_only"  ;;
+        mkv|webm|ogv)
+            exec 9>&-; rm -f "${lockfile}"
+            write_result "${tmpfile}" "completed" "Read-only format — metadata embedding skipped: ${file_path}"
+            return 0
+            ;;
+        *)                              file_cat="image"     ;;
+    esac
+
     # Build ExifTool argument list from the logical field map.
     # Each logical field maps to one or more ExifTool tag assignments.
     # Tags are written with -TAG=VALUE syntax; empty/null values are skipped.
@@ -91,76 +111,143 @@ process_job() {
 
     local v
 
-    v=$(get_val "Title");       append_tag "Title"                   "${v}"
-                                 append_tag "IPTC:ObjectName"         "${v}"
-                                 append_tag "XMP:Title"               "${v}"
+    # ---- Format-aware tag building ----
 
-    v=$(get_val "Description"); append_tag "EXIF:ImageDescription"   "${v}"
-                                 append_tag "IPTC:Caption-Abstract"   "${v}"
-                                 append_tag "XMP:Description"         "${v}"
+    if [[ "${file_cat}" == "image" ]]; then
+        # Full EXIF + IPTC + XMP for images.
+        v=$(get_val "Title");       append_tag "Title"                   "${v}"
+                                     append_tag "IPTC:ObjectName"         "${v}"
+                                     append_tag "XMP:Title"               "${v}"
 
-    v=$(get_val "Caption");     append_tag "IPTC:Caption-Abstract"   "${v}"
-                                 append_tag "XMP:Caption"             "${v}"
+        v=$(get_val "Description"); append_tag "EXIF:ImageDescription"   "${v}"
+                                     append_tag "IPTC:Caption-Abstract"   "${v}"
+                                     append_tag "XMP:Description"         "${v}"
 
-    v=$(get_val "AltText");     append_tag "XMP:AltTextAccessibility" "${v}"
+        v=$(get_val "Caption");     append_tag "IPTC:Caption-Abstract"   "${v}"
+                                     append_tag "XMP:Caption"             "${v}"
 
-    v=$(get_val "Creator");     append_tag "EXIF:Artist"             "${v}"
-                                 append_tag "IPTC:By-line"            "${v}"
-                                 append_tag "XMP:Creator"             "${v}"
+        v=$(get_val "AltText");     append_tag "XMP:AltTextAccessibility" "${v}"
 
-    v=$(get_val "Copyright");   append_tag "EXIF:Copyright"          "${v}"
-                                 append_tag "IPTC:CopyrightNotice"    "${v}"
-                                 append_tag "XMP:Rights"              "${v}"
+        v=$(get_val "Creator");     append_tag "EXIF:Artist"             "${v}"
+                                     append_tag "IPTC:By-line"            "${v}"
+                                     append_tag "XMP:Creator"             "${v}"
 
-    v=$(get_val "Owner");       append_tag "EXIF:OwnerName"          "${v}"
-                                 append_tag "XMP:Owner"               "${v}"
+        v=$(get_val "Copyright");   append_tag "EXIF:Copyright"          "${v}"
+                                     append_tag "IPTC:CopyrightNotice"    "${v}"
+                                     append_tag "XMP:Rights"              "${v}"
 
-    v=$(get_val "Publisher");   append_tag "IPTC:Source"             "${v}"
-                                 append_tag "XMP:Publisher"           "${v}"
+        v=$(get_val "Owner");       append_tag "EXIF:OwnerName"          "${v}"
+                                     append_tag "XMP:Owner"               "${v}"
 
-    v=$(get_val "Website");     append_tag "XMP:WebStatement"        "${v}"
+        v=$(get_val "Publisher");   append_tag "IPTC:Source"             "${v}"
+                                     append_tag "XMP:Publisher"           "${v}"
 
-    # --- Editorial ---
-    v=$(get_val "Headline");    append_tag "IPTC:Headline"                      "${v}"
-                                 append_tag "XMP:Headline"                       "${v}"
+        v=$(get_val "Website");     append_tag "XMP:WebStatement"        "${v}"
+        v=$(get_val "Headline");    append_tag "IPTC:Headline"            "${v}"
+                                     append_tag "XMP:Headline"            "${v}"
+        v=$(get_val "Credit");      append_tag "IPTC:Credit"              "${v}"
+                                     append_tag "XMP:Credit"              "${v}"
 
-    v=$(get_val "Credit");     append_tag "IPTC:Credit"                        "${v}"
-                                 append_tag "XMP:Credit"                         "${v}"
+        IFS='; ' read -ra _kw_arr <<< "$(get_val 'Keywords')"
+        for _kw in "${_kw_arr[@]}"; do
+            [[ -n "${_kw}" ]] && exif_args+=( "-IPTC:Keywords+=${_kw}" "-XMP:Subject+=${_kw}" )
+        done
+        unset _kw_arr _kw
 
-    # --- Classification ---
-    # Keywords: stored semicolon-separated; write each as a separate multi-value tag.
-    IFS='; ' read -ra _kw_arr <<< "$(get_val 'Keywords')"
-    for _kw in "${_kw_arr[@]}"; do
-        [[ -n "${_kw}" ]] && exif_args+=( "-IPTC:Keywords+=${_kw}" "-XMP:Subject+=${_kw}" )
-    done
-    unset _kw_arr _kw
+        v=$(get_val "DateCreated"); append_tag "EXIF:DateTimeOriginal"   "${v}"
+                                     append_tag "IPTC:DateCreated"        "${v}"
+                                     append_tag "XMP:DateCreated"         "${v}"
 
-    v=$(get_val "DateCreated"); append_tag "EXIF:DateTimeOriginal"             "${v}"
-                                 append_tag "IPTC:DateCreated"                   "${v}"
-                                 append_tag "XMP:DateCreated"                    "${v}"
+        v=$(get_val "Rating");      append_tag "XMP:Rating"              "${v}"
 
-    v=$(get_val "Rating");     append_tag "XMP:Rating"                          "${v}"
+        v=$(get_val "City");        append_tag "IPTC:City"               "${v}"
+                                     append_tag "XMP:City"               "${v}"
+        v=$(get_val "State");       append_tag "IPTC:Province-State"     "${v}"
+                                     append_tag "XMP:State"              "${v}"
+        v=$(get_val "Country");     append_tag "IPTC:Country-PrimaryLocationName" "${v}"
+                                     append_tag "XMP:Country"            "${v}"
 
-    # --- Location (IPTC Photo Metadata Standard) ---
-    v=$(get_val "City");        append_tag "IPTC:City"                           "${v}"
-                                 append_tag "XMP:City"                            "${v}"
+        # IPTC:Source shared between Publisher and Website.
+        v_pub=$(get_val "Publisher"); v_web=$(get_val "Website")
+        if [[ -n "${v_web}" ]]; then append_tag "IPTC:Source" "${v_web}"
+        elif [[ -n "${v_pub}" ]]; then append_tag "IPTC:Source" "${v_pub}"; fi
 
-    v=$(get_val "State");       append_tag "IPTC:Province-State"                "${v}"
-                                 append_tag "XMP:State"                           "${v}"
+    elif [[ "${file_cat}" == "mp3" ]]; then
+        # ID3v2 tags (ExifTool maps generic names to ID3 for MP3) + XMP.
+        v=$(get_val "Title");       append_tag "ID3:Title"               "${v}"; append_tag "XMP:Title"       "${v}"
+        v=$(get_val "Creator");     append_tag "ID3:Artist"              "${v}"; append_tag "XMP:Creator"     "${v}"
+        v=$(get_val "Copyright");   append_tag "ID3:Copyright"           "${v}"; append_tag "XMP:Rights"      "${v}"
+        v=$(get_val "Description"); append_tag "ID3:Comment"             "${v}"; append_tag "XMP:Description" "${v}"
+        v=$(get_val "Publisher");   append_tag "ID3:Band"                "${v}"; append_tag "XMP:Publisher"   "${v}"
+        v=$(get_val "Headline");    append_tag "XMP:Headline"            "${v}"
+        v=$(get_val "Credit");      append_tag "XMP:Credit"              "${v}"
+        v=$(get_val "DateCreated"); append_tag "ID3:Year"                "${v}"; append_tag "XMP:DateCreated" "${v}"
+        v=$(get_val "Website");     append_tag "XMP:WebStatement"        "${v}"
+        v=$(get_val "Rating");      append_tag "XMP:Rating"              "${v}"
+        IFS='; ' read -ra _kw_arr <<< "$(get_val 'Keywords')"
+        for _kw in "${_kw_arr[@]}"; do
+            [[ -n "${_kw}" ]] && exif_args+=( "-ID3:Genre+=${_kw}" "-XMP:Subject+=${_kw}" )
+        done
+        unset _kw_arr _kw
 
-    v=$(get_val "Country");     append_tag "IPTC:Country-PrimaryLocationName"   "${v}"
-                                 append_tag "XMP:Country"                         "${v}"
+    elif [[ "${file_cat}" == "quicktime" ]]; then
+        # QuickTime/iTunes atom tags for MP4, MOV, M4A, etc. + XMP.
+        v=$(get_val "Title");       append_tag "QuickTime:Title"         "${v}"; append_tag "XMP:Title"       "${v}"
+        v=$(get_val "Creator");     append_tag "QuickTime:Author"        "${v}"; append_tag "XMP:Creator"     "${v}"
+        v=$(get_val "Copyright");   append_tag "QuickTime:Copyright"     "${v}"; append_tag "XMP:Rights"      "${v}"
+        v=$(get_val "Description"); append_tag "QuickTime:Description"   "${v}"; append_tag "XMP:Description" "${v}"
+        v=$(get_val "Publisher");   append_tag "XMP:Publisher"           "${v}"
+        v=$(get_val "Website");     append_tag "XMP:WebStatement"        "${v}"
+        v=$(get_val "Headline");    append_tag "XMP:Headline"            "${v}"
+        v=$(get_val "Credit");      append_tag "XMP:Credit"              "${v}"
+        v=$(get_val "DateCreated"); append_tag "QuickTime:CreateDate"    "${v}"; append_tag "XMP:DateCreated" "${v}"
+        v=$(get_val "Rating");      append_tag "XMP:Rating"              "${v}"
+        v=$(get_val "City");        append_tag "XMP:City"                "${v}"
+        v=$(get_val "State");       append_tag "XMP:State"               "${v}"
+        v=$(get_val "Country");     append_tag "XMP:Country"             "${v}"
+        IFS='; ' read -ra _kw_arr <<< "$(get_val 'Keywords')"
+        for _kw in "${_kw_arr[@]}"; do
+            [[ -n "${_kw}" ]] && exif_args+=( "-QuickTime:Keywords+=${_kw}" "-XMP:Subject+=${_kw}" )
+        done
+        unset _kw_arr _kw
 
-    # Note: IPTC:Source is shared with Publisher — write whichever is present.
-    # If both Publisher and Website are set, Website takes precedence for IPTC:Source.
-    v_pub=$(get_val "Publisher")
-    v_web=$(get_val "Website")
-    if [[ -n "${v_web}" ]]; then
-        append_tag "IPTC:Source" "${v_web}"
-    elif [[ -n "${v_pub}" ]]; then
-        append_tag "IPTC:Source" "${v_pub}"
+    elif [[ "${file_cat}" == "vorbis" ]]; then
+        # Vorbis comment tags for OGG/FLAC. ExifTool writes these natively via
+        # the Ogg: or FLAC: namespace; generic names are routed correctly.
+        v=$(get_val "Title");       append_tag "Title"                   "${v}"
+        v=$(get_val "Creator");     append_tag "Artist"                  "${v}"
+        v=$(get_val "Copyright");   append_tag "Copyright"               "${v}"
+        v=$(get_val "Description"); append_tag "Description"             "${v}"
+        v=$(get_val "Publisher");   append_tag "Organization"            "${v}"
+        v=$(get_val "DateCreated"); append_tag "Date"                    "${v}"
+        v=$(get_val "Headline");    append_tag "Title"                   "${v}"
+        IFS='; ' read -ra _kw_arr <<< "$(get_val 'Keywords')"
+        for _kw in "${_kw_arr[@]}"; do
+            [[ -n "${_kw}" ]] && exif_args+=( "-Genre+=${_kw}" )
+        done
+        unset _kw_arr _kw
+
+    else
+        # xmp_only (AVI, WAV, WMV, WMA) — XMP sidecar is acceptable here.
+        v=$(get_val "Title");       append_tag "XMP:Title"               "${v}"
+        v=$(get_val "Creator");     append_tag "XMP:Creator"             "${v}"
+        v=$(get_val "Copyright");   append_tag "XMP:Rights"              "${v}"
+        v=$(get_val "Description"); append_tag "XMP:Description"         "${v}"
+        v=$(get_val "Publisher");   append_tag "XMP:Publisher"           "${v}"
+        v=$(get_val "Website");     append_tag "XMP:WebStatement"        "${v}"
+        v=$(get_val "Headline");    append_tag "XMP:Headline"            "${v}"
+        v=$(get_val "Credit");      append_tag "XMP:Credit"              "${v}"
+        v=$(get_val "DateCreated"); append_tag "XMP:DateCreated"         "${v}"
+        v=$(get_val "Rating");      append_tag "XMP:Rating"              "${v}"
+        v=$(get_val "City");        append_tag "XMP:City"                "${v}"
+        v=$(get_val "State");       append_tag "XMP:State"               "${v}"
+        v=$(get_val "Country");     append_tag "XMP:Country"             "${v}"
+        IFS='; ' read -ra _kw_arr <<< "$(get_val 'Keywords')"
+        for _kw in "${_kw_arr[@]}"; do
+            [[ -n "${_kw}" ]] && exif_args+=( "-XMP:Subject+=${_kw}" )
+        done
+        unset _kw_arr _kw
     fi
-
     local success=false message=""
 
     if [[ ${#exif_args[@]} -eq 0 ]]; then
@@ -169,9 +256,10 @@ process_job() {
         success=true
     else
         # -overwrite_original: modify file in-place without creating _original backup
-        # -charset iptc=UTF8 : ensure IPTC strings are written as UTF-8
-        if "${EXIFTOOL}" -overwrite_original -charset iptc=UTF8 \
-                         "${exif_args[@]}" "${file_path}" >>"${LOG_FILE}" 2>&1; then
+        # -charset iptc=UTF8 : only relevant for image formats (IPTC namespace)
+        local -a et_base=( "${EXIFTOOL}" -overwrite_original )
+        [[ "${file_cat}" == "image" ]] && et_base+=( -charset iptc=UTF8 )
+        if "${et_base[@]}" "${exif_args[@]}" "${file_path}" >>"${LOG_FILE}" 2>&1; then
             message="Embedded ${#exif_args[@]} tag(s) in ${file_path}"
             log "OK: ${message} (size: ${size}, id: ${attachment_id})"
             success=true

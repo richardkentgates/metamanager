@@ -288,7 +288,8 @@ class MM_Admin {
 		}
 
 		if ( 'mm_meta_sync' === $column_name ) {
-			if ( ! wp_attachment_is_image( $attachment_id ) ) {
+			$mime = (string) get_post_mime_type( $attachment_id );
+			if ( ! wp_attachment_is_image( $attachment_id ) && ! MM_Metadata::is_av_mime( $mime ) ) {
 				return;
 			}
 			$synced = (string) get_post_meta( $attachment_id, MM_Metadata::META_SYNCED, true );
@@ -313,7 +314,16 @@ class MM_Admin {
 	 * @param \WP_Post $post Current post.
 	 */
 	public static function render_attachment_meta_pane( \WP_Post $post ): void {
-		if ( 'attachment' !== $post->post_type || ! wp_attachment_is_image( $post->ID ) ) {
+		if ( 'attachment' !== $post->post_type ) {
+			return;
+		}
+
+		$mime     = (string) get_post_mime_type( $post->ID );
+		$is_image = wp_attachment_is_image( $post->ID );
+		$is_video = MM_Metadata::is_video_mime( $mime );
+		$is_audio = MM_Metadata::is_audio_mime( $mime );
+
+		if ( ! $is_image && ! $is_video && ! $is_audio ) {
 			return;
 		}
 
@@ -322,22 +332,60 @@ class MM_Admin {
 			return;
 		}
 
-		$metadata = MM_Metadata::read_embedded( $file );
+		$capability = MM_Metadata::write_capability( $mime );
+		$metadata   = MM_Metadata::read_embedded( $file );
 
 		echo '<div class="postbox mm-meta-pane"><div class="postbox-header">'
 			. '<h2 class="hndle">' . esc_html__( 'Embedded File Metadata', 'metamanager' ) . '</h2>'
 			. '</div><div class="inside">';
 
-		// Re-compress action button.
-		$compress_status = MM_Status::compression_status( $post->ID );
-		echo '<div style="margin-bottom:12px;display:flex;align-items:center;gap:16px;">';
-		echo '<span>' . esc_html__( 'Compression:', 'metamanager' ) . ' '
-			. '<strong style="color:' . esc_attr( $compress_status['color'] ) . ';">'
-			. esc_html( $compress_status['label'] ) . '</strong></span>';
-		echo '<button type="button" class="button mm-recompress-btn" data-id="' . esc_attr( (string) $post->ID ) . '">'
-			. esc_html__( 'Re-compress This Image', 'metamanager' ) . '</button>';
-		echo '<span class="mm-recompress-result" style="font-size:13px;"></span>';
-		echo '</div>';
+		// Optimise / re-optimise action row.
+		if ( $is_image ) {
+			$compress_status = MM_Status::compression_status( $post->ID );
+			echo '<div style="margin-bottom:12px;display:flex;align-items:center;gap:16px;">';
+			echo '<span>' . esc_html__( 'Compression:', 'metamanager' ) . ' '
+				. '<strong style="color:' . esc_attr( $compress_status['color'] ) . ';">' . esc_html( $compress_status['label'] ) . '</strong></span>';
+			echo '<button type="button" class="button mm-recompress-btn" data-id="' . esc_attr( (string) $post->ID ) . '">'
+				. esc_html__( 'Re-compress This Image', 'metamanager' ) . '</button>';
+			echo '<span class="mm-recompress-result" style="font-size:13px;"></span>';
+			echo '</div>';
+		} elseif ( $is_video ) {
+			$can_remux = MM_Status::ffmpeg_available() && 'read_only' !== $capability;
+			echo '<div style="margin-bottom:12px;display:flex;align-items:center;gap:16px;">';
+			echo '<button type="button" class="button mm-recompress-btn" data-id="' . esc_attr( (string) $post->ID ) . '"'
+				. ( $can_remux ? '' : ' disabled' ) . '>'
+				. ( $can_remux
+					? esc_html__( 'Re-remux This Video', 'metamanager' )
+					: esc_html__( 'Remux unavailable', 'metamanager' ) ) . '</button>';
+			if ( ! MM_Status::ffmpeg_available() ) {
+				echo '<span style="color:#888;font-size:13px;">' . esc_html__( '(ffmpeg not installed)', 'metamanager' ) . '</span>';
+			}
+			echo '<span class="mm-recompress-result" style="font-size:13px;"></span>';
+			echo '</div>';
+		} elseif ( $is_audio ) {
+			echo '<div style="margin-bottom:12px;">';
+			echo '<span style="color:#888;font-size:13px;">'
+				. esc_html__( 'Audio files are not compressed â metadata import and write-back only.', 'metamanager' ) . '</span>';
+			echo '</div>';
+		}
+
+		// Write capability notice.
+		if ( 'read_only' === $capability ) {
+			echo '<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:3px;margin-bottom:12px;">'
+				. '<strong>' . esc_html__( 'Read-only format', 'metamanager' ) . '</strong> &mdash; '
+				. esc_html__( 'Metamanager can import metadata from this file but cannot write back to it.', 'metamanager' )
+				. '</div>';
+		} elseif ( 'xmp_only' === $capability ) {
+			echo '<div style="background:#e8f4fd;border:1px solid #2196f3;padding:8px 12px;border-radius:3px;margin-bottom:12px;">'
+				. '<strong>' . esc_html__( 'Limited write support', 'metamanager' ) . '</strong> &mdash; '
+				. esc_html__( 'Metamanager writes XMP tags only for this format.', 'metamanager' )
+				. '</div>';
+		} elseif ( 'vorbis_only' === $capability ) {
+			echo '<div style="background:#e8f4fd;border:1px solid #2196f3;padding:8px 12px;border-radius:3px;margin-bottom:12px;">'
+				. '<strong>' . esc_html__( 'Limited write support', 'metamanager' ) . '</strong> &mdash; '
+				. esc_html__( 'Metamanager writes Vorbis comment tags only for this format.', 'metamanager' )
+				. '</div>';
+		}
 
 		if ( ! MM_Status::exiftool_available() ) {
 			echo '<p style="color:#d63638;">' . esc_html__( 'ExifTool is not installed. Metadata display unavailable.', 'metamanager' ) . '</p>';
