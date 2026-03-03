@@ -904,12 +904,12 @@ class MM_Admin {
 					<div style="margin-top:.8em;line-height:1.7;">
 						<p><?php esc_html_e( 'This dashboard shows all Metamanager activity in real time. It refreshes every 5 seconds automatically — no page reload needed.', 'metamanager' ); ?></p>
 						<h4><?php esc_html_e( 'Job Queue', 'metamanager' ); ?></h4>
-						<p><?php esc_html_e( 'Jobs appear here when an image is uploaded, metadata fields are saved, or a bulk action is triggered. Each job is a small JSON file the OS daemon picks up via inotifywait. Jobs vanish as soon as the daemon processes them.', 'metamanager' ); ?></p>
+						<p><?php esc_html_e( 'Jobs appear here when a media file is uploaded, metadata fields are saved, or a bulk action is triggered. Each job is a small JSON file the OS daemon picks up via inotifywait. Jobs vanish as soon as the daemon processes them.', 'metamanager' ); ?></p>
 						<h4><?php esc_html_e( 'Job History', 'metamanager' ); ?></h4>
 						<p><?php esc_html_e( 'Once a daemon finishes a job it writes a result file to completed/ or failed/. WP-Cron reads those files every 60 seconds and records them here. Click the image name to open the edit screen. Use Re-queue on any failed job to resubmit it without manual steps.', 'metamanager' ); ?></p>
 						<h4><?php esc_html_e( 'Bulk Actions (Media Library)', 'metamanager' ); ?></h4>
 						<ul style="margin:.3em 0 0 1.5em;">
-							<li><strong><?php esc_html_e( 'Compress Lossless', 'metamanager' ); ?></strong> — <?php esc_html_e( 'queues lossless compression for all uncompressed sizes of selected images. JPEG via jpegtran, PNG via optipng. Files are only replaced if the result is smaller.', 'metamanager' ); ?></li>
+							<li><strong><?php esc_html_e( 'Compress Lossless', 'metamanager' ); ?></strong> — <?php esc_html_e( 'queues lossless compression for all uncompressed files in the selection. Images: JPEG via jpegtran, PNG via optipng, WebP via cwebp. Video: container remux via ffmpeg. Files are only replaced if the result is smaller.', 'metamanager' ); ?></li>
 							<li><strong><?php esc_html_e( 'Inject Site Info into Metadata', 'metamanager' ); ?></strong> — <?php esc_html_e( 'writes Publisher (your site name) and Website (your site URL) into IPTC and XMP. This is neutral provenance — it never sets Creator, Copyright, or Owner.', 'metamanager' ); ?></li>
 						</ul>
 						<h4><?php esc_html_e( 'Status Banner', 'metamanager' ); ?></h4>
@@ -925,7 +925,7 @@ class MM_Admin {
 				<div class="inside" style="display:flex;flex-direction:column;gap:10px;">
 					<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
 						<p style="margin:0;">
-							<?php esc_html_e( 'Scans every image in the library that has never been processed by Metamanager and imports any embedded metadata into WordPress fields. Safe to run at any time — existing user-set values are never overwritten.', 'metamanager' ); ?>
+							<?php esc_html_e( 'Scans every media file in the library that has never been processed by Metamanager and imports any embedded metadata into WordPress fields. Safe to run at any time — existing user-set values are never overwritten.', 'metamanager' ); ?>
 						</p>
 						<button id="mm-scan-library-btn" class="button button-primary" style="white-space:nowrap;">
 							<?php esc_html_e( 'Scan Existing Library', 'metamanager' ); ?>

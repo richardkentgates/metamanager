@@ -310,6 +310,18 @@ class MM_Frontend {
 			self::build_schema_base( $id, $post )
 		);
 
+		// uploadDate is required by Google for VideoObject rich results; always set from post date.
+		$schema['uploadDate'] = gmdate( 'Y-m-d', strtotime( $post->post_date_gmt ) );
+
+		// Thumbnail: featured image attached to the media post, used by VideoObject.
+		if ( $is_video ) {
+			$thumb_id  = (int) get_post_thumbnail_id( $id );
+			$thumb_src = $thumb_id ? wp_get_attachment_image_src( $thumb_id, 'medium' ) : false;
+			if ( $thumb_src ) {
+				$schema['thumbnailUrl'] = $thumb_src[0];
+			}
+		}
+
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		printf(
 			"\n<!-- Metamanager: Schema.org JSON-LD -->\n<script type=\"application/ld+json\">\n%s\n</script>\n",
@@ -367,6 +379,11 @@ class MM_Frontend {
 	 * @param string $mime MIME type.
 	 */
 	private static function output_video_audio_open_graph( int $id, string $mime ): void {
+		$post = get_post( $id );
+		if ( ! $post ) {
+			return;
+		}
+
 		$url = wp_get_attachment_url( $id );
 		if ( ! $url ) {
 			return;
@@ -379,6 +396,29 @@ class MM_Frontend {
 			printf( "\t<meta property=\"%s\" content=\"%s\">\n", esc_attr( $prop ), esc_attr( $content ) );
 
 		echo "\n<!-- Metamanager: Open Graph -->\n";
+		$tag( 'og:type', $is_video ? 'video.other' : 'music.song' );
+		$tag( 'og:url',  get_attachment_link( $id ) ?: $url );
+
+		$title = trim( $post->post_title );
+		if ( '' !== $title ) {
+			$tag( 'og:title', $title );
+		}
+		if ( '' !== $post->post_content ) {
+			$tag( 'og:description', wp_strip_all_tags( $post->post_content ) );
+		}
+
+		// Preview image for link unfurling on social platforms.
+		$thumb_id  = (int) get_post_thumbnail_id( $id );
+		$thumb_src = $thumb_id ? wp_get_attachment_image_src( $thumb_id, 'large' ) : false;
+		if ( $thumb_src ) {
+			$tag( 'og:image', $thumb_src[0] );
+			if ( str_starts_with( $thumb_src[0], 'https://' ) ) {
+				$tag( 'og:image:secure_url', $thumb_src[0] );
+			}
+			if ( ! empty( $thumb_src[1] ) ) { $tag( 'og:image:width',  (string) $thumb_src[1] ); }
+			if ( ! empty( $thumb_src[2] ) ) { $tag( 'og:image:height', (string) $thumb_src[2] ); }
+		}
+
 		$tag( $ns, $url );
 		if ( str_starts_with( $url, 'https://' ) ) {
 			$tag( $ns . ':secure_url', $url );
