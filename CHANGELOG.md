@@ -7,6 +7,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.0] — 2026-03-03
+
+### Added
+- **`uninstall.php`** — full cleanup routine triggered when the plugin is deleted from the Plugins screen. Removes all options, post meta (including wildcard `_mm_compressed_*` keys), the `metamanager_jobs` DB table, the `metamanager-jobs/` queue directory tree, and the updater transient. Data is only removed when the **Remove all data on uninstall** setting is enabled; by default nothing is deleted on uninstall.
+- **"Data & Uninstall" settings section** — new `mm_delete_data_on_uninstall` option with a clearly worded warning rendered on the Settings page. Defaults to `false` (keep data).
+- **Multisite support** — network-wide activation now iterates every site and creates the DB table + schedules cron per-blog. Deactivation clears the cron event on every site. New-site hooks (`wp_initialize_site` / `wpmu_new_blog`) create the table and schedule automatically when a new blog is added to a network where the plugin is network-activated.
+- **`index.php` silence files** — added to all plugin directories (`/`, `includes/`, `assets/`, `assets/js/`, `daemons/`, `languages/`) to prevent directory listing.
+- **`languages/` directory** — created to satisfy the declared `Domain Path` in the plugin header (required by Plugin Checker).
+
+### Changed
+- **`mm_activate()` / `mm_deactivate()`** — refactored to accept a `$network_wide` parameter and delegate per-site work to a new `mm_activate_single_site()` helper.
+- **`MM_Job_Queue::ensure_dirs()` and `write_job()`** — replaced `file_put_contents()` with `WP_Filesystem::put_contents()` via a new private `get_filesystem()` helper. Eliminates the `file_system_operations_file_put_contents` PHPCS warning.
+- **`mm_import_completed_jobs()`** — replaced `file_get_contents()` with `WP_Filesystem::get_contents()` and replaced `@unlink()` with `wp_delete_file()`. Both PHPCS violations resolved.
+- **`MM_DB::drop_table()`** — new method used by `uninstall.php` to drop the jobs table.
+
+---
+
 ## [1.4.1] — 2026-03-02
 
 ### Fixed

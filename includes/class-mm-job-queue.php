@@ -17,6 +17,25 @@ defined( 'ABSPATH' ) || exit;
 class MM_Job_Queue {
 
 	// -----------------------------------------------------------------------
+	// Filesystem helper
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Initialise and return the global WP_Filesystem object (direct method).
+	 * Safe to call in any execution context — cron, admin, front-end uploads.
+	 *
+	 * @return WP_Filesystem_Base|null
+	 */
+	private static function get_filesystem(): ?WP_Filesystem_Base {
+		global $wp_filesystem;
+		if ( empty( $wp_filesystem ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			WP_Filesystem();
+		}
+		return $wp_filesystem instanceof WP_Filesystem_Base ? $wp_filesystem : null;
+	}
+
+	// -----------------------------------------------------------------------
 	// Directory management
 	// -----------------------------------------------------------------------
 
@@ -38,8 +57,10 @@ class MM_Job_Queue {
 			// Drop an .htaccess in each queue dir to prevent direct HTTP access.
 			$htaccess = trailingslashit( $dir ) . '.htaccess';
 			if ( ! file_exists( $htaccess ) ) {
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-				file_put_contents( $htaccess, "Deny from all\n" );
+				$fs = self::get_filesystem();
+				if ( $fs ) {
+					$fs->put_contents( $htaccess, "Deny from all\n", FS_CHMOD_FILE );
+				}
 			}
 		}
 	}
@@ -93,8 +114,10 @@ class MM_Job_Queue {
 		$uid      = wp_generate_password( 6, false, false );
 		$filename = $dir . $attachment_id . '-' . $size . '-' . time() . '-' . $uid . '.json';
 
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		file_put_contents( $filename, wp_json_encode( $job ) );
+		$fs = self::get_filesystem();
+		if ( $fs ) {
+			$fs->put_contents( $filename, (string) wp_json_encode( $job ), FS_CHMOD_FILE );
+		}
 	}
 
 	// -----------------------------------------------------------------------

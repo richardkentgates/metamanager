@@ -23,6 +23,7 @@ class MM_Settings {
 	const OPTION_COMPRESS_LEVEL = 'mm_compress_level';
 	const OPTION_NOTIFY_ENABLED = 'mm_notify_enabled';
 	const OPTION_NOTIFY_EMAIL   = 'mm_notify_email';
+	const OPTION_DELETE_DATA    = 'mm_delete_data_on_uninstall';
 
 	// -----------------------------------------------------------------------
 	// Boot
@@ -83,6 +84,16 @@ class MM_Settings {
 			]
 		);
 
+		register_setting(
+			'mm_settings_group',
+			self::OPTION_DELETE_DATA,
+			[
+				'type'              => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default'           => false,
+			]
+		);
+
 		// ---- Sections & fields ----
 
 		add_settings_section(
@@ -121,6 +132,21 @@ class MM_Settings {
 			[ __CLASS__, 'field_notify_email' ],
 			'metamanager-settings',
 			'mm_section_notifications'
+		);
+
+		add_settings_section(
+			'mm_section_uninstall',
+			esc_html__( 'Data &amp; Uninstall', 'metamanager' ),
+			fn() => esc_html_e( 'Controls what happens to plugin data when Metamanager is deleted from WordPress.', 'metamanager' ),
+			'metamanager-settings'
+		);
+
+		add_settings_field(
+			'mm_delete_data_on_uninstall',
+			esc_html__( 'Remove all data on uninstall', 'metamanager' ),
+			[ __CLASS__, 'field_delete_data' ],
+			'metamanager-settings',
+			'mm_section_uninstall'
 		);
 	}
 
@@ -172,6 +198,17 @@ class MM_Settings {
 		echo '<p class="description">' . esc_html__( 'Leave blank to use the WordPress admin email address.', 'metamanager' ) . '</p>';
 	}
 
+	public static function field_delete_data(): void {
+		$checked = self::get_delete_data();
+		printf(
+			'<input type="checkbox" id="mm_delete_data_on_uninstall" name="%s" value="1"%s>',
+			esc_attr( self::OPTION_DELETE_DATA ),
+			checked( $checked, true, false )
+		);
+		echo ' <label for="mm_delete_data_on_uninstall">' . esc_html__( 'Delete all plugin data when the plugin is deleted', 'metamanager' ) . '</label>';
+		echo '<p class="description" style="color:#d63638;"><strong>' . esc_html__( 'Warning:', 'metamanager' ) . '</strong> ' . esc_html__( 'When enabled and the plugin is deleted, all compression logs, attachment metadata, settings, and job queue directories will be permanently removed. This action cannot be undone.', 'metamanager' ) . '</p>';
+	}
+
 	// -----------------------------------------------------------------------
 	// Page renderer
 	// -----------------------------------------------------------------------
@@ -218,5 +255,12 @@ class MM_Settings {
 	public static function get_notify_email(): string {
 		$email = sanitize_email( (string) get_option( self::OPTION_NOTIFY_EMAIL, '' ) );
 		return $email ?: (string) get_option( 'admin_email', '' );
+	}
+
+	/**
+	 * Whether all plugin data should be removed on uninstall.
+	 */
+	public static function get_delete_data(): bool {
+		return (bool) get_option( self::OPTION_DELETE_DATA, false );
 	}
 }

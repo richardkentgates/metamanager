@@ -24,6 +24,16 @@ class MM_DB {
 	}
 
 	/**
+	 * Drop the jobs table. Called during uninstall when data deletion is enabled.
+	 */
+	public static function drop_table(): void {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+	}
+
+	/**
 	 * Create or update the jobs table using dbDelta.
 	 * Safe to call on every admin_init — dbDelta only applies changes.
 	 */
