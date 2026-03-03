@@ -70,13 +70,31 @@ class MM_Job_Queue {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Write one job JSON file for a single image file.
+	 * Write one job JSON file for a single file.
+	 *
+	 * Deduplication behaviour:
+	 *   Compression — if an unclaimed .json job already exists for this
+	 *   attachment+size, the new write is suppressed entirely. Running lossless
+	 *   compression twice on the same file is wasteful and produces an identical
+	 *   result. A user-facing admin notice is queued via transient.
+	 *
+	 *   Metadata — if an unclaimed .json job already exists for this
+	 *   attachment+size, the new job is written normally (they will run in
+	 *   sequence). A user-facing admin notice is queued so the user knows their
+	 *   update is behind an existing job and will follow it.
+	 *
+	 *   Only plain .json files are inspected — .processing files are already
+	 *   owned by a running daemon subshell and are never touched here.
 	 *
 	 * @param string $type          'compression' or 'metadata'.
 	 * @param int    $attachment_id WordPress attachment ID.
-	 * @param string $file_path     Absolute path to the image file.
+	 * @param string $file_path     Absolute path to the file.
 	 * @param string $size          WP size slug (e.g. 'full', 'thumbnail').
 	 * @param array  $extra         Optional additional fields merged into the job.
+	 *
+	 * @return string 'written'  — new job queued, no duplicate detected.
+	 *                'skipped'  — compression duplicate found; write suppressed.
+	 *                'queued'   — metadata job written behind an existing pending job.
 	 */
 	public static function write_job(
 		string $type,
@@ -84,9 +102,37 @@ class MM_Job_Queue {
 		string $file_path,
 		string $size = 'full',
 		array $extra = []
-	): void {
+	): string {
 		self::ensure_dirs();
 
+		$dir = ( 'compression' === $type ) ? MM_JOB_COMPRESS : MM_JOB_META;
+
+		// Check for unclaimed pending jobs for this attachment+size.
+		$pending = glob( $dir . $attachment_id . '-' . $size . '-*.json' ) ?: [];
+
+		if ( ! empty( $pending ) ) {
+			if ( 'compression' === $type ) {
+				// Do not write a duplicate compression job. Notify the user and stop.
+				self::push_queue_notice( 'skipped', 'compression', $attachment_id, $size );
+				error_log( sprintf(
+					'[Metamanager] Compression job skipped — already pending: attachment %d, size %s.',
+					$attachment_id,
+					$size
+				) );
+				return 'skipped';
+			}
+
+			// Metadata: write the new job (runs in sequence after the existing one).
+			// Notify the user that their update is queued behind the current pending job.
+			self::push_queue_notice( 'queued', 'metadata', $attachment_id, $size );
+			error_log( sprintf(
+				'[Metamanager] Metadata job queued behind existing pending job: attachment %d, size %s.',
+				$attachment_id,
+				$size
+			) );
+		}
+
+		// Build and write the job file.
 		$post = get_post( $attachment_id );
 
 		// Dimensions from file — only valid for images; skip for video/audio.
@@ -110,7 +156,6 @@ class MM_Job_Queue {
 			'metadata'       => MM_Metadata::get_fields_for_job( $attachment_id ),
 		], $extra );
 
-		$dir      = ( 'compression' === $type ) ? MM_JOB_COMPRESS : MM_JOB_META;
 		$uid      = wp_generate_password( 6, false, false );
 		$filename = $dir . $attachment_id . '-' . $size . '-' . time() . '-' . $uid . '.json';
 
@@ -118,6 +163,63 @@ class MM_Job_Queue {
 		if ( $fs ) {
 			$fs->put_contents( $filename, (string) wp_json_encode( $job ), FS_CHMOD_FILE );
 		}
+
+		return ! empty( $pending ) ? 'queued' : 'written';
+	}
+
+	/**
+	 * Store a queue-status notice in a short-lived user-scoped transient so it
+	 * can be displayed on the next admin page load or included in an AJAX response.
+	 *
+	 * Notices are grouped by attachment_id to avoid repeating the same file name
+	 * once per size in the rendered output.
+	 *
+	 * @param string $status        'skipped' or 'queued'.
+	 * @param string $job_type      'compression' or 'metadata'.
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $size          WP size slug.
+	 */
+	private static function push_queue_notice(
+		string $status,
+		string $job_type,
+		int $attachment_id,
+		string $size
+	): void {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return; // Background processes (cron, daemon import) — no UI to notify.
+		}
+
+		$post  = get_post( $attachment_id );
+		$name  = $post ? $post->post_title : '#' . $attachment_id;
+		$key   = 'mm_queue_notices_' . $user_id;
+		$items = get_transient( $key ) ?: [];
+
+		// One entry per attachment_id+job_type+status combination.
+		// If the same attachment already has a notice of this kind, just add the size.
+		$idx = null;
+		foreach ( $items as $i => $item ) {
+			if ( $item['attachment_id'] === $attachment_id
+				&& $item['job_type'] === $job_type
+				&& $item['status'] === $status ) {
+				$idx = $i;
+				break;
+			}
+		}
+
+		if ( null !== $idx ) {
+			$items[ $idx ]['sizes'][] = $size;
+		} else {
+			$items[] = [
+				'status'        => $status,
+				'job_type'      => $job_type,
+				'attachment_id' => $attachment_id,
+				'name'          => $name,
+				'sizes'         => [ $size ],
+			];
+		}
+
+		set_transient( $key, $items, 120 );
 	}
 
 	// -----------------------------------------------------------------------

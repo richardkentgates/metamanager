@@ -73,6 +73,9 @@ class MM_Admin {
 
 		// Contextual help tabs (appear in the top-right "Help" tab on WP screens).
 		add_action( 'current_screen', [ __CLASS__, 'add_help_tabs' ] );
+
+		// Job queue status notices (duplicate compression suppressed, metadata queued in sequence).
+		add_action( 'admin_notices', [ __CLASS__, 'queue_notices' ] );
 	}
 
 	// -----------------------------------------------------------------------
@@ -427,7 +430,13 @@ class MM_Admin {
 				}, function(resp){
 					btn.prop('disabled', false).text('" . esc_js( __( 'Re-compress This Image', 'metamanager' ) ) . "');
 					if (resp.success) {
-						result.css('color','#00a32a').text('" . esc_js( __( 'Queued — daemon will process shortly.', 'metamanager' ) ) . "');
+						var msg = '" . esc_js( __( 'Queued — daemon will process shortly.', 'metamanager' ) ) . "';
+						if (resp.data && resp.data.notices && resp.data.notices.length) {
+							msg += '<br><em>' + resp.data.notices.join('<br>') + '</em>';
+							result.html(msg).css('color','#996800');
+						} else {
+							result.css('color','#00a32a').text(msg);
+						}
 					} else {
 						result.css('color','#d63638').text(resp.data || '" . esc_js( __( 'Error.', 'metamanager' ) ) . "');
 					}
@@ -487,6 +496,101 @@ class MM_Admin {
 		}
 
 		return $redirect_to;
+	}
+
+	// -----------------------------------------------------------------------
+	// Job queue status notices
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Read and clear the current user's queue-status transient, then render
+	 * any pending notices as standard WordPress admin notices.
+	 *
+	 * Called via admin_notices. Also used by AJAX handlers to pull messages
+	 * into JSON responses before the transient expires.
+	 */
+	public static function queue_notices(): void {
+		$items = self::get_and_clear_queue_notices();
+		if ( empty( $items ) ) {
+			return;
+		}
+		foreach ( $items as $item ) {
+			$name  = esc_html( $item['name'] );
+			$sizes = implode( ', ', array_unique( $item['sizes'] ) );
+
+			if ( 'skipped' === $item['status'] ) {
+				// Compression duplicate — job was not written.
+				echo '<div class="notice notice-warning is-dismissible"><p>'
+					. sprintf(
+						/* translators: 1: file name, 2: size slug(s) */
+						esc_html__( 'Metamanager: A compression job for “%1$s” (%2$s) is already in the queue — your request was not duplicated.', 'metamanager' ),
+						$name,
+						esc_html( $sizes )
+					)
+					. '</p></div>';
+			} else {
+				// Metadata queued in sequence behind an existing pending job.
+				echo '<div class="notice notice-info is-dismissible"><p>'
+					. sprintf(
+						/* translators: 1: file name, 2: size slug(s) */
+						esc_html__( 'Metamanager: A metadata job for “%1$s” (%2$s) is already in the queue — your update has been added and will run in sequence after it.', 'metamanager' ),
+						$name,
+						esc_html( $sizes )
+					)
+					. '</p></div>';
+			}
+		}
+	}
+
+	/**
+	 * Read and clear the queue-status transient for the current user.
+	 * Returns the notices array (may be empty). Used by both queue_notices()
+	 * and AJAX handlers that need to forward messages in JSON responses.
+	 *
+	 * @return array
+	 */
+	private static function get_and_clear_queue_notices(): array {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return [];
+		}
+		$key   = 'mm_queue_notices_' . $user_id;
+		$items = get_transient( $key ) ?: [];
+		if ( ! empty( $items ) ) {
+			delete_transient( $key );
+		}
+		return is_array( $items ) ? $items : [];
+	}
+
+	/**
+	 * Convert queue-notice items into plain strings suitable for inclusion in
+	 * an AJAX JSON response. The JS handler is responsible for rendering them.
+	 *
+	 * @param  array $items Items returned by get_and_clear_queue_notices().
+	 * @return string[]
+	 */
+	private static function format_notices_for_ajax( array $items ): array {
+		$messages = [];
+		foreach ( $items as $item ) {
+			$name  = $item['name'];
+			$sizes = implode( ', ', array_unique( $item['sizes'] ) );
+			if ( 'skipped' === $item['status'] ) {
+				$messages[] = sprintf(
+					/* translators: 1: file name, 2: size slug(s) */
+					__( 'A compression job for "%1$s" (%2$s) is already in the queue — your request was not duplicated.', 'metamanager' ),
+					$name,
+					$sizes
+				);
+			} else {
+				$messages[] = sprintf(
+					/* translators: 1: file name, 2: size slug(s) */
+					__( 'A metadata job for "%1$s" (%2$s) is already in the queue — your update has been added and will run in sequence after it.', 'metamanager' ),
+					$name,
+					$sizes
+				);
+			}
+		}
+		return $messages;
 	}
 
 	/**
@@ -1206,7 +1310,8 @@ class MM_Admin {
 			MM_Job_Queue::enqueue_all_sizes( $id, $meta, 'compression', [ 'trigger' => 'manual' ] );
 		}
 
-		wp_send_json_success();
+		$notices = self::get_and_clear_queue_notices();
+		wp_send_json_success( [ 'notices' => self::format_notices_for_ajax( $notices ) ] );
 	}
 
 	/**
@@ -1246,7 +1351,8 @@ class MM_Admin {
 		// Queue a metadata embedding job for the changed image.
 		MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'bulk_meta_edit' ] );
 
-		wp_send_json_success();
+		$notices = self::get_and_clear_queue_notices();
+		wp_send_json_success( [ 'notices' => self::format_notices_for_ajax( $notices ) ] );
 	}
 
 	// -----------------------------------------------------------------------
@@ -1636,6 +1742,14 @@ class MM_Admin {
 					if (resp.success) {
 						statusEl.css('color','#00a32a').text('✔');
 						setTimeout(function(){ statusEl.text(''); }, 3000);
+						if (resp.data && resp.data.notices && resp.data.notices.length) {
+							var $status = $('#mm-bulk-meta-status');
+							var html = resp.data.notices.map(function(n){
+								return '<div class="notice notice-info inline" style="margin:.25em 0;padding:.4em .75em;"><p>' + n + '</p></div>';
+							}).join('');
+							$status.html(html);
+							setTimeout(function(){ $status.html(''); }, 8000);
+						}
 					} else {
 						statusEl.css('color','#d63638').text('✘ ' + (resp.data || '<?php echo esc_js( __( 'Error', 'metamanager' ) ); ?>'));
 					}
