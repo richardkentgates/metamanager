@@ -497,8 +497,8 @@ class MM_Admin {
 			$n = absint( $_REQUEST['mm_bulk_compress'] );
 			echo '<div class="notice notice-success is-dismissible"><p>'
 				. sprintf(
-					/* translators: %d: number of images */
-					esc_html__( 'Metamanager: Compression queued for %d image(s).', 'metamanager' ),
+					/* translators: %d: number of media files */
+					esc_html__( 'Metamanager: Compression queued for %d media file(s).', 'metamanager' ),
 					$n
 				)
 				. '</p></div>';
@@ -507,8 +507,8 @@ class MM_Admin {
 			$n = absint( $_REQUEST['mm_bulk_site_info'] );
 			echo '<div class="notice notice-success is-dismissible"><p>'
 				. sprintf(
-					/* translators: %d: number of images */
-					esc_html__( 'Metamanager: Site provenance info (Publisher + Website) injected for %d image(s).', 'metamanager' ),
+					/* translators: %d: number of media files */
+					esc_html__( 'Metamanager: Site provenance info (Publisher + Website) injected for %d media file(s).', 'metamanager' ),
 					$n
 				)
 				. '</p></div>';
@@ -517,8 +517,8 @@ class MM_Admin {
 			$n = absint( $_REQUEST['mm_bulk_import_meta'] );
 			echo '<div class="notice notice-success is-dismissible"><p>'
 				. sprintf(
-					/* translators: %d: number of images */
-					esc_html__( 'Metamanager: Metadata imported from %d image file(s).', 'metamanager' ),
+					/* translators: %d: number of media files */
+					esc_html__( 'Metamanager: Metadata imported from %d media file(s).', 'metamanager' ),
 					$n
 				)
 				. '</p></div>';
@@ -1035,7 +1035,7 @@ class MM_Admin {
 						progressEl.css('width', pct + '%');
 						result.css('color','#50575e').text(
 							'<?php echo esc_js( __( 'Scanned', 'metamanager' ) ); ?> ' + totalScanned +
-							' / ' + resp.data.total + ' <?php echo esc_js( __( 'image(s)…', 'metamanager' ) ); ?>'
+							' / ' + resp.data.total + ' <?php echo esc_js( __( 'media file(s)…', 'metamanager' ) ); ?>'
 						);
 						if (!resp.data.done) {
 							runBatch(resp.data.offset);
@@ -1043,7 +1043,7 @@ class MM_Admin {
 							btn.prop('disabled', false).text('<?php echo esc_js( __( 'Scan Existing Library', 'metamanager' ) ); ?>');
 							result.css('color','#00a32a').text(
 								'<?php echo esc_js( __( 'Done — scanned', 'metamanager' ) ); ?> ' +
-								totalScanned + ' <?php echo esc_js( __( 'image(s).', 'metamanager' ) ); ?>'
+								totalScanned + ' <?php echo esc_js( __( 'media file(s).', 'metamanager' ) ); ?>'
 							);
 							$('#mm-scan-progress-wrap').hide();
 						}
@@ -1334,7 +1334,7 @@ class MM_Admin {
 		} else {
 			echo '<table><thead><tr>'
 				. '<th>#</th>'
-				. '<th>' . esc_html__( 'Image', 'metamanager' ) . '</th>'
+				. '<th>' . esc_html__( 'File', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Type', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Size', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Dimensions', 'metamanager' ) . '</th>'
