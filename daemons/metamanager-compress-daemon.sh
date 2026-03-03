@@ -9,12 +9,12 @@
 # On completion, writes a result JSON to JOB_DONE or JOB_FAILED so that
 # WordPress (via WP-Cron) can record it in the database and update post meta.
 #
-# install.sh patches JOB_ROOT to match the actual WP_CONTENT_DIR on this server.
+# metamanager-install.sh patches JOB_ROOT to match the actual WP_CONTENT_DIR on this server.
 # =============================================================================
 
 set -euo pipefail
 
-# --- Configuration (patched by install.sh) ---
+# --- Configuration (patched by metamanager-install.sh) ---
 JOB_ROOT="__WP_CONTENT_DIR__/metamanager-jobs"
 JOB_DIR="${JOB_ROOT}/compress"
 JOB_DONE="${JOB_ROOT}/completed"

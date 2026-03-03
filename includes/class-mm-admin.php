@@ -167,7 +167,7 @@ class MM_Admin {
 					'<p>' . esc_html__( 'Metamanager integrates with the WordPress update system. New GitHub releases appear automatically in Dashboard → Updates within 12 hours.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'To check immediately, go to Plugins → Installed Plugins and click the “Check for Updates” link next to Metamanager.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'To update only the plugin files from the server without restarting daemons:', 'metamanager' ) . '</p>' .
-					'<code>sudo bash install.sh --update</code>',
+					'<code>sudo bash metamanager-install.sh --update</code>',
 			] );
 
 			$screen->set_help_sidebar(

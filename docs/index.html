@@ -146,7 +146,7 @@
             <a href="https://github.com/richardkentgates/metamanager" class="btn btn-outline" target="_blank" rel="noopener">View on GitHub</a>
         </div>
         <div class="hero-install-preview">
-            <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash</code>
+            <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash</code>
         </div>
     </div>
 </section>
@@ -326,8 +326,8 @@ updates history table</code></pre>
                 <h3>Server Script (plugin files only)</h3>
                 <p>Use <code>--update</code> to sync only PHP, JS, and asset files. Daemons keep running, dependencies are not reinstalled, and systemd services are not restarted — zero downtime for the compression and metadata pipelines.</p>
                 <div class="code-block" style="margin-top:1em;">
-                    <code>sudo bash install.sh --update</code>
-                    <button class="copy-btn" data-copy="sudo bash install.sh --update">Copy</button>
+                    <code>sudo bash metamanager-install.sh --update</code>
+                    <button class="copy-btn" data-copy="sudo bash metamanager-install.sh --update">Copy</button>
                 </div>
             </div>
         </div>
@@ -800,24 +800,24 @@ X-WP-Nonce: &lt;nonce&gt;
         <div class="install-box">
             <div class="install-label">One-command installer (auto-detects WordPress path)</div>
             <div class="code-block">
-                <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash</code>
-                <button class="copy-btn" data-copy="wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash">Copy</button>
+                <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash</code>
+                <button class="copy-btn" data-copy="wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash">Copy</button>
             </div>
         </div>
 
         <div class="install-box">
             <div class="install-label">With explicit WordPress path</div>
             <div class="code-block">
-                <code>sudo bash install.sh --wp-path /var/www/html</code>
-                <button class="copy-btn" data-copy="sudo bash install.sh --wp-path /var/www/html">Copy</button>
+                <code>sudo bash metamanager-install.sh --wp-path /var/www/html</code>
+                <button class="copy-btn" data-copy="sudo bash metamanager-install.sh --wp-path /var/www/html">Copy</button>
             </div>
         </div>
 
         <div class="install-box">
             <div class="install-label">Update plugin files only (keeps daemons running, skips dependencies)</div>
             <div class="code-block">
-                <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash -s -- --update</code>
-                <button class="copy-btn" data-copy="wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash -s -- --update">Copy</button>
+                <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update</code>
+                <button class="copy-btn" data-copy="wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update">Copy</button>
             </div>
         </div>
 

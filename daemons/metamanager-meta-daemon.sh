@@ -16,12 +16,12 @@
 #   Publisher   → IPTC:Source,       XMP:Publisher
 #   Website     → XMP:WebStatement,  IPTC:Source
 #
-# install.sh patches JOB_ROOT to match the actual WP_CONTENT_DIR on this server.
+# metamanager-install.sh patches JOB_ROOT to match the actual WP_CONTENT_DIR on this server.
 # =============================================================================
 
 set -euo pipefail
 
-# --- Configuration (patched by install.sh) ---
+# --- Configuration (patched by metamanager-install.sh) ---
 JOB_ROOT="__WP_CONTENT_DIR__/metamanager-jobs"
 JOB_DIR="${JOB_ROOT}/meta"
 JOB_DONE="${JOB_ROOT}/completed"

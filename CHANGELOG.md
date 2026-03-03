@@ -90,7 +90,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Video/audio support in bulk actions**: "Import Metadata from Files" and "Inject Site Info" now process video/audio attachments as well as images; "Compress Lossless" bulk action queues video remux jobs for video attachments
 - **Schema.org VideoObject / AudioObject** (`MM_Frontend::output_video_audio_json_ld()`): video and audio attachment pages now emit structured data using the appropriate `@type` with name, description, creator, copyright, keywords, date, location, and GPS fields
 - **Open Graph og:video / og:audio** (`MM_Frontend::output_video_audio_open_graph()`): video and audio attachment pages emit `og:video` or `og:audio` tags (with secure_url and type) instead of `og:image`
-- **`mm_ffmpeg` package** added to `install.sh` for apt, dnf, and yum package managers; `ffmpeg` added to post-install tool verification loop
+- **`mm_ffmpeg` package** added to `metamanager-install.sh` for apt, dnf, and yum package managers; `ffmpeg` added to post-install tool verification loop
 
 ### Changed
 - `MM_Job_Queue::on_upload()` now handles video and audio MIME types: imports metadata, queues metadata write-back (if format supports it), and queues video remux (video only)
@@ -126,7 +126,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   - `POST /attachment/{id}/compress` — queue compression for one attachment (`force` param)
   - `GET /stats` — aggregate compression statistics
 - **Batched Library Scan**: `ajax_scan_library()` now processes 50 images per HTTP request (`batch_size` param); JS chains calls automatically and renders a live progress bar; replaces the previous single unbounded `get_posts(-1)` call
-- `install.sh` now installs the `webp` (apt) / `libwebp-tools` (dnf/yum) package and verifies `cwebp` availability after install
+- `metamanager-install.sh` now installs the `webp` (apt) / `libwebp-tools` (dnf/yum) package and verifies `cwebp` availability after install
 
 ### Changed
 - DB schema: `bytes_before BIGINT UNSIGNED` and `bytes_after BIGINT UNSIGNED` columns added via `dbDelta` (safe zero-downtime migration)
@@ -165,7 +165,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 - Native WordPress auto-updater (`MM_Updater`) — hooks into the core plugin-update pipeline so Metamanager appears in Dashboard → Updates automatically when a new GitHub release is published
 - "Check for Updates" action link on the Plugins page for immediate on-demand update checks
-- `install.sh --update` flag — updates plugin PHP/JS/asset files only without re-installing daemons, dependencies, or systemd services; flushes WordPress object cache via WP-CLI when available
+- `metamanager-install.sh --update` flag — updates plugin PHP/JS/asset files only without re-installing daemons, dependencies, or systemd services; flushes WordPress object cache via WP-CLI when available
 - Contextual help tabs on the Media → Metamanager admin screen (via WordPress Screen API)
 - Inline help section on the job dashboard with explanations of the queue, history, bulk actions, daemon statuses, and metadata field behaviour
 
@@ -195,9 +195,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - Two systemd daemons watching job queue directories with `inotifywait`
 - Result JSON written to `completed/` or `failed/` directories by daemons
 - WP-Cron imports daemon results into the database every 60 seconds
-- One-command `install.sh` supporting apt (Debian/Ubuntu) and dnf (RHEL/Rocky)
-- `install.sh` patches daemon scripts at deploy time with the actual `WP_CONTENT_DIR` — no hardcoded paths
-- WP-CLI activation support in `install.sh` when WP-CLI is available
+- One-command `metamanager-install.sh` supporting apt (Debian/Ubuntu) and dnf (RHEL/Rocky)
+- `metamanager-install.sh` patches daemon scripts at deploy time with the actual `WP_CONTENT_DIR` — no hardcoded paths
+- WP-CLI activation support in `metamanager-install.sh` when WP-CLI is available
 - GitHub Pages documentation website at `metamanager.richardkentgates.com`
 - GPLv3 license
 - PHP 8.0+ minimum requirement

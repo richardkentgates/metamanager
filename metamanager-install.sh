@@ -3,14 +3,14 @@
 # Metamanager — Server Installation Script
 #
 # Usage:
-#   wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash
+#   wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash
 # OR after cloning:
-#   sudo bash install.sh [--wp-path /path/to/wordpress]
+#   sudo bash metamanager-install.sh [--wp-path /path/to/wordpress]
 #
 # To update only the plugin files (skip daemons and dependencies):
-#   sudo bash install.sh --update [--wp-path /path/to/wordpress]
+#   sudo bash metamanager-install.sh --update [--wp-path /path/to/wordpress]
 # OR:
-#   wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/install.sh | sudo bash -s -- --update
+#   wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update
 #
 # What this script does:
 #   1. Detects or accepts the WordPress installation path
@@ -40,7 +40,7 @@ error()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
 # --- Must be root ---
 if [[ "${EUID}" -ne 0 ]]; then
-    error "This script must be run as root (sudo bash install.sh)"
+    error "This script must be run as root (sudo bash metamanager-install.sh)"
 fi
 
 # =============================================================================
@@ -61,7 +61,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help|-h)
-            echo "Usage: sudo bash install.sh [--update] [--wp-path /path/to/wordpress]"
+            echo "Usage: sudo bash metamanager-install.sh [--update] [--wp-path /path/to/wordpress]"
             echo ""
             echo "  --update    Update plugin files only; skip daemons and dependencies."
             exit 0
@@ -117,7 +117,7 @@ success "WordPress found at: ${WP_PATH}"
 info "WP content dir: ${WP_CONTENT_DIR}"
 
 # Determine the script's own directory (works when piped or run directly)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-install.sh}")" 2>/dev/null && pwd || echo ".")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-metamanager-install.sh}")" 2>/dev/null && pwd || echo ".")"
 
 # =============================================================================
 # Detect package manager and install dependencies
@@ -189,7 +189,7 @@ if [[ "${UPDATE_ONLY}" == true ]]; then
     fi
 
     # Sync plugin files only — leave daemons/ untouched in the plugin dir.
-    rsync -a --exclude='daemons/' --exclude='.git/' --exclude='install.sh' \
+    rsync -a --exclude='daemons/' --exclude='.git/' --exclude='metamanager-install.sh' \
         --exclude='docs/' --exclude='*.md' --exclude='*.gitignore' \
         "${TMP_UPDATE}/" "${PLUGIN_DEST}/"
     success "Plugin files updated."

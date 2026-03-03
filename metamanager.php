@@ -30,7 +30,7 @@ define( 'MM_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
 /**
  * Job queue directories.
  *
- * MM_JOB_ROOT is the only path the daemons need to know. install.sh patches
+ * MM_JOB_ROOT is the only path the daemons need to know. metamanager-install.sh patches
  * the shell scripts with the exact value of WP_CONTENT_DIR at deploy time,
  * so PHP and the OS always agree on the location — no hardcoded paths anywhere.
  */
