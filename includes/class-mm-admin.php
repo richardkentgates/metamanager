@@ -98,7 +98,7 @@ class MM_Admin {
 				'title'   => __( 'Job Queue', 'metamanager' ),
 				'content' =>
 					'<h2>' . esc_html__( 'Job Queue', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'Jobs enter the queue when you upload an image, save metadata fields on an image edit screen, or trigger a bulk action from the Media Library.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Jobs enter the queue when you upload a media file, save metadata fields on an attachment edit screen, or trigger a bulk action from the Media Library.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'Each job is written as a small JSON file to one of two directories inside wp-content/metamanager-jobs/: compress/ for image compression jobs, and meta/ for metadata embedding jobs.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'The OS daemons watch these directories with inotifywait and process jobs immediately — no polling delay. Jobs disappear from this view as soon as a daemon processes them.', 'metamanager' ) . '</p>',
 			] );
@@ -109,7 +109,7 @@ class MM_Admin {
 				'content' =>
 					'<h2>' . esc_html__( 'Job History', 'metamanager' ) . '</h2>' .
 					'<p>' . esc_html__( 'After a daemon finishes a job it writes a result JSON to the completed/ or failed/ directory. WP-Cron reads these files every 60 seconds and records them in the database.', 'metamanager' ) . '</p>' .
-					'<p>' . esc_html__( 'Completed jobs show the file size, image dimensions, and timestamps. Failed jobs show a Re-queue button — click it to re-submit the original job file without any manual steps.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Completed jobs show the file size, dimensions (where applicable), and timestamps. Failed jobs show a Re-queue button — click it to re-submit the original job file without any manual steps.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'Use the search box to filter by image name, job type, or status. Clear History removes all records from the database but does not affect any image files.', 'metamanager' ) . '</p>',
 			] );
 

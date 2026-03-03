@@ -54,7 +54,7 @@
           "@id": "https://metamanager.richardkentgates.com/#website",
           "url": "https://metamanager.richardkentgates.com",
           "name": "Metamanager",
-          "description": "Lossless image compression and standards-compliant EXIF/IPTC/XMP metadata embedding for WordPress.",
+          "description": "WordPress plugin for lossless compression of images (JPEG/PNG/WebP), video (ffmpeg remux), and audio; bidirectional metadata sync via EXIF/IPTC/XMP, ID3, QuickTime atoms, and Vorbis comments; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument) and Open Graph tags for all media types. Multisite compatible with clean uninstall.",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
             "@type": "Person",
@@ -515,18 +515,33 @@ updates history table</code></pre>
 <section class="section section-alt" id="schema">
     <div class="container">
         <h2 class="section-title">Schema.org &amp; Open Graph</h2>
-        <p class="section-subtitle">Every image page gets structured data automatically — no configuration required.</p>
+        <p class="section-subtitle">Every media attachment page gets structured data automatically — no configuration required.</p>
 
         <div class="feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 2.5rem;">
             <div class="feature-card">
-                <div class="feature-icon">🔍</div>
+                <div class="feature-icon">�️</div>
                 <h3>Schema.org <code>ImageObject</code></h3>
-                <p>A full JSON-LD block is emitted in <code>&lt;head&gt;</code> on attachment pages and any post with a featured image. Includes name, description, creator, copyright, keywords, date, location, and GPS coordinates when available. Eligible for Google Images rich results and Google Discover.</p>
+                <p>Emitted on image attachment pages and any post with a featured image. Includes name, description, creator, copyright, keywords, date, location, and GPS coordinates when available. Includes a <code>thumbnail</code> reference and is eligible for Google Images rich results and Google Discover.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎬</div>
+                <h3>Schema.org <code>VideoObject</code></h3>
+                <p>Emitted on video attachment pages (MP4, MOV, AVI, MKV, WebM, WMV, OGV, 3GP). Carries title, description, creator, copyright, keywords, upload date, and a thumbnail URL when one is present.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎵</div>
+                <h3>Schema.org <code>AudioObject</code></h3>
+                <p>Emitted on audio attachment pages (MP3, M4A, OGG, WAV, FLAC, WMA, AIFF). Carries title, description, creator, copyright, keywords, and upload date read from the file's ID3, QuickTime, or Vorbis tags.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📄</div>
+                <h3>Schema.org <code>DigitalDocument</code></h3>
+                <p>Emitted on PDF attachment pages. Title, author, keywords, and creation date are imported from XMP on upload and included in the JSON-LD block automatically.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">📲</div>
                 <h3>Open Graph Tags</h3>
-                <p>Correct <code>og:image</code>, <code>og:image:alt</code>, <code>og:image:width</code>, <code>og:image:height</code>, and <code>og:image:type</code> tags are written for every image. Social platforms — Facebook, LinkedIn, Slack, iMessage — use these to generate accurate link previews.</p>
+                <p>Type-appropriate Open Graph tags per media family: <code>og:image</code> (with width/height/alt/type) for images; <code>og:video</code> with MIME type for video; <code>og:audio</code> with MIME type for audio; <code>og:type=article</code> with title, description, and URL for PDF. Social platforms use these for accurate link previews.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">⚖️</div>
@@ -535,7 +550,9 @@ updates history table</code></pre>
             </div>
         </div>
 
-        <h3 style="margin-bottom:.75rem;">Sample <code>ImageObject</code> JSON-LD output (images)</h3>
+        <h3 style="margin-bottom:.75rem;">Sample JSON-LD output by media type</h3>
+
+        <p style="margin-bottom:.5rem;"><strong><code>ImageObject</code></strong> — images (JPEG / PNG / WebP / GIF / TIFF)</p>
         <div class="arch-diagram">
 <pre><code>{
   "@context": "https://schema.org",
@@ -566,6 +583,56 @@ updates history table</code></pre>
   "contentLocation": { "@type": "Place", "name": "Boulder, CO, USA", "geo": { ... } },
   "thumbnail": { "@type": "ImageObject", "url": "https://example.com/.../photo-300x225.jpg" },
   "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=42" }
+}</code></pre>
+        </div>
+
+        <p style="margin:.75rem 0 .5rem;"><strong><code>VideoObject</code></strong> — video (MP4 / MOV / AVI / MKV / WebM / WMV / OGV / 3GP)</p>
+        <div class="arch-diagram">
+<pre><code>{
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
+  "url": "https://example.com/wp-content/uploads/2026/01/interview.mp4",
+  "contentUrl": "https://example.com/wp-content/uploads/2026/01/interview.mp4",
+  "name": "Behind the Lens — Interview with Jane Doe",
+  "description": "A short interview recorded on location in Boulder, CO.",
+  "creator": { "@type": "Person", "name": "Jane Doe" },
+  "copyrightNotice": "© 2026 Jane Doe",
+  "keywords": ["interview", "documentary", "behind-the-scenes"],
+  "uploadDate": "2026-01-15",
+  "thumbnailUrl": "https://example.com/wp-content/uploads/2026/01/interview-300x169.jpg",
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=55" }
+}</code></pre>
+        </div>
+
+        <p style="margin:.75rem 0 .5rem;"><strong><code>AudioObject</code></strong> — audio (MP3 / M4A / OGG / WAV / FLAC / WMA / AIFF)</p>
+        <div class="arch-diagram">
+<pre><code>{
+  "@context": "https://schema.org",
+  "@type": "AudioObject",
+  "url": "https://example.com/wp-content/uploads/2026/01/episode-12.mp3",
+  "contentUrl": "https://example.com/wp-content/uploads/2026/01/episode-12.mp3",
+  "name": "Episode 12 — Landscape Photography Tips",
+  "description": "Practical tips for shooting golden-hour landscapes.",
+  "creator": { "@type": "Person", "name": "Jane Doe" },
+  "copyrightNotice": "© 2026 Mountain Light Photography",
+  "keywords": ["podcast", "photography", "landscape"],
+  "uploadDate": "2026-01-20",
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=63" }
+}</code></pre>
+        </div>
+
+        <p style="margin:.75rem 0 .5rem;"><strong><code>DigitalDocument</code></strong> — PDF</p>
+        <div class="arch-diagram">
+<pre><code>{
+  "@context": "https://schema.org",
+  "@type": "DigitalDocument",
+  "url": "https://example.com/wp-content/uploads/2026/01/style-guide.pdf",
+  "name": "Mountain Light Photography — Style Guide",
+  "description": "Brand guidelines and post-processing standards for the team.",
+  "creator": { "@type": "Person", "name": "Jane Doe" },
+  "keywords": ["style guide", "brand", "photography"],
+  "dateCreated": "2026-01-10",
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=71" }
 }</code></pre>
         </div>
     </div>
