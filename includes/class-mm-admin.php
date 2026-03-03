@@ -225,10 +225,10 @@ class MM_Admin {
 
 		$icon = fn( bool $ok, string $ok_title, string $fail_title ) =>
 			$ok
-				? '<span style="color:#13bb2c;font-size:18px;" title="' . esc_attr( $ok_title ) . '">&#10004;</span>'
-				: '<span style="color:#e54c3c;font-size:18px;" title="' . esc_attr( $fail_title ) . '">&#10006;</span>';
+				? '<span class="dashicons dashicons-yes-alt" style="color:#00a32a;vertical-align:middle;" title="' . esc_attr( $ok_title ) . '"></span>'
+				: '<span class="dashicons dashicons-dismiss" style="color:#d63638;vertical-align:middle;" title="' . esc_attr( $fail_title ) . '"></span>';
 
-		echo '<div class="notice notice-info mm-banner" style="padding:12px 18px;border-radius:6px;font-size:14px;">';
+		echo '<div class="notice notice-info mm-banner" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:10px 16px;">';
 		echo '<strong>' . esc_html__( 'Metamanager', 'metamanager' ) . ':</strong> &nbsp;';
 		echo 'ExifTool '  . $icon( $status['exiftool'],        'ExifTool found',   'ExifTool missing — metadata embedding disabled' );
 		echo ' &nbsp;jpegtran ' . $icon( $status['jpegtran'],  'jpegtran found',   'jpegtran missing — JPEG lossless compression disabled' );
@@ -290,15 +290,14 @@ class MM_Admin {
 
 		$metadata = MM_Metadata::read_embedded( $file );
 
-		echo '<div class="mm-meta-pane">';
-		echo '<h2 style="margin:0 0 .75em;font-size:1.15em;color:#2d8cf0;">'
-			. esc_html__( 'Embedded File Metadata', 'metamanager' )
-			. '</h2>';
+		echo '<div class="postbox mm-meta-pane"><div class="postbox-header">'
+			. '<h2 class="hndle">' . esc_html__( 'Embedded File Metadata', 'metamanager' ) . '</h2>'
+			. '</div><div class="inside">';
 
 		if ( ! MM_Status::exiftool_available() ) {
-			echo '<p style="color:#a00;">' . esc_html__( 'ExifTool is not installed. Metadata display unavailable.', 'metamanager' ) . '</p>';
+			echo '<p style="color:#d63638;">' . esc_html__( 'ExifTool is not installed. Metadata display unavailable.', 'metamanager' ) . '</p>';
 		} elseif ( empty( $metadata ) ) {
-			echo '<p style="color:#888;">' . esc_html__( 'No embedded metadata found in this file.', 'metamanager' ) . '</p>';
+			echo '<p style="color:#50575e;">' . esc_html__( 'No embedded metadata found in this file.', 'metamanager' ) . '</p>';
 		} else {
 			echo '<div style="max-height:420px;overflow:auto;">';
 			echo '<table class="widefat striped" style="font-size:13px;">';
@@ -317,7 +316,7 @@ class MM_Admin {
 			}
 			echo '</tbody></table></div>';
 		}
-		echo '</div>';
+		echo '</div></div>'; // .inside .postbox
 	}
 
 	// -----------------------------------------------------------------------
@@ -545,27 +544,30 @@ class MM_Admin {
 		}
 
 		?>
-		<div class="wrap mm-admin-wrap">
-			<h1 class="mm-title"><?php esc_html_e( 'Metamanager — Job Dashboard', 'metamanager' ); ?></h1>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Metamanager — Job Dashboard', 'metamanager' ); ?></h1>
+			<hr class="wp-header-end">
 
-			<details class="mm-help-box" style="background:#f0f7ff;border:1px solid #c5dff8;border-radius:6px;padding:14px 18px;margin-bottom:1.5em;font-size:13px;">
-				<summary style="cursor:pointer;font-weight:600;color:#2d8cf0;"><?php esc_html_e( 'About this page (click to expand)', 'metamanager' ); ?></summary>
-				<div style="margin-top:1em;line-height:1.7;">
-					<p><?php esc_html_e( 'This dashboard shows all Metamanager activity in real time. It refreshes every 5 seconds automatically — no page reload needed.', 'metamanager' ); ?></p>
-					<h4 style="margin:.75em 0 .3em;"><?php esc_html_e( 'Job Queue', 'metamanager' ); ?></h4>
-					<p><?php esc_html_e( 'Jobs appear here when an image is uploaded, metadata fields are saved, or a bulk action is triggered. Each job is a small JSON file the OS daemon picks up via inotifywait. Jobs vanish as soon as the daemon processes them.', 'metamanager' ); ?></p>
-					<h4 style="margin:.75em 0 .3em;"><?php esc_html_e( 'Job History', 'metamanager' ); ?></h4>
-					<p><?php esc_html_e( 'Once a daemon finishes a job it writes a result file to completed/ or failed/. WP-Cron reads those files every 60 seconds and records them here. Click the image name to open the edit screen. Use Re-queue on any failed job to resubmit it without manual steps.', 'metamanager' ); ?></p>
-					<h4 style="margin:.75em 0 .3em;"><?php esc_html_e( 'Bulk Actions (Media Library)', 'metamanager' ); ?></h4>
-					<ul style="margin:.3em 0 0 1.5em;">
-						<li><strong><?php esc_html_e( 'Compress Lossless', 'metamanager' ); ?></strong> — <?php esc_html_e( 'queues lossless compression for all uncompressed sizes of selected images. JPEG via jpegtran, PNG via optipng. Files are only replaced if the result is smaller.', 'metamanager' ); ?></li>
-						<li><strong><?php esc_html_e( 'Inject Site Info into Metadata', 'metamanager' ); ?></strong> — <?php esc_html_e( 'writes Publisher (your site name) and Website (your site URL) into IPTC and XMP. This is neutral provenance — it never sets Creator, Copyright, or Owner.', 'metamanager' ); ?></li>
-					</ul>
-					<h4 style="margin:.75em 0 .3em;"><?php esc_html_e( 'Status Banner', 'metamanager' ); ?></h4>
-					<p><?php esc_html_e( 'The banner at the top shows tool availability and daemon health. A green checkmark means the tool is installed and reachable. A red cross means it is missing or the daemon is not running. Daemon status is read from a PID file in /tmp/ — no elevated privileges are needed.', 'metamanager' ); ?></p>
-					<p style="margin-top:.75em;"><?php esc_html_e( 'Full documentation is available in the Help tab (top right) and at', 'metamanager' ); ?> <a href="https://metamanager.richardkentgates.com" target="_blank" rel="noopener">metamanager.richardkentgates.com</a>.</p>
-				</div>
-			</details>
+			<div class="notice notice-info inline mm-help-box" style="padding:12px 16px;margin:1em 0 1.5em;">
+				<details>
+					<summary style="cursor:pointer;font-weight:600;"><?php esc_html_e( 'About this page (click to expand)', 'metamanager' ); ?></summary>
+					<div style="margin-top:.8em;line-height:1.7;">
+						<p><?php esc_html_e( 'This dashboard shows all Metamanager activity in real time. It refreshes every 5 seconds automatically — no page reload needed.', 'metamanager' ); ?></p>
+						<h4><?php esc_html_e( 'Job Queue', 'metamanager' ); ?></h4>
+						<p><?php esc_html_e( 'Jobs appear here when an image is uploaded, metadata fields are saved, or a bulk action is triggered. Each job is a small JSON file the OS daemon picks up via inotifywait. Jobs vanish as soon as the daemon processes them.', 'metamanager' ); ?></p>
+						<h4><?php esc_html_e( 'Job History', 'metamanager' ); ?></h4>
+						<p><?php esc_html_e( 'Once a daemon finishes a job it writes a result file to completed/ or failed/. WP-Cron reads those files every 60 seconds and records them here. Click the image name to open the edit screen. Use Re-queue on any failed job to resubmit it without manual steps.', 'metamanager' ); ?></p>
+						<h4><?php esc_html_e( 'Bulk Actions (Media Library)', 'metamanager' ); ?></h4>
+						<ul style="margin:.3em 0 0 1.5em;">
+							<li><strong><?php esc_html_e( 'Compress Lossless', 'metamanager' ); ?></strong> — <?php esc_html_e( 'queues lossless compression for all uncompressed sizes of selected images. JPEG via jpegtran, PNG via optipng. Files are only replaced if the result is smaller.', 'metamanager' ); ?></li>
+							<li><strong><?php esc_html_e( 'Inject Site Info into Metadata', 'metamanager' ); ?></strong> — <?php esc_html_e( 'writes Publisher (your site name) and Website (your site URL) into IPTC and XMP. This is neutral provenance — it never sets Creator, Copyright, or Owner.', 'metamanager' ); ?></li>
+						</ul>
+						<h4><?php esc_html_e( 'Status Banner', 'metamanager' ); ?></h4>
+						<p><?php esc_html_e( 'The banner at the top shows tool availability and daemon health. A green icon means the tool is installed and reachable. A red icon means it is missing or the daemon is not running. Daemon status is read from a PID file — no elevated privileges are needed.', 'metamanager' ); ?></p>
+						<p><?php esc_html_e( 'Full documentation is available in the Help tab (top right) and at', 'metamanager' ); ?> <a href="https://metamanager.richardkentgates.com" target="_blank" rel="noopener">metamanager.richardkentgates.com</a>.</p>
+					</div>
+				</details>
+			</div>
 
 			<div id="mm-jobs-dashboard">
 				<?php self::render_jobs_content(); ?>
@@ -573,18 +575,21 @@ class MM_Admin {
 		</div>
 
 		<style>
-		.mm-admin-wrap { max-width: 1200px; font-family: system-ui, sans-serif; font-size: 14px; }
-		.mm-title      { color: #2d8cf0; font-weight: 700; letter-spacing: .3px; }
-		.mm-section    { background: #f9fafc; border-radius: 8px; box-shadow: 0 2px 10px #0001; padding: 20px 24px 14px; margin-bottom: 2em; }
-		.mm-section h2 { margin: 0 0 .8em; font-size: 1.2em; color: #1a2233; border-left: 4px solid #2d8cf0; padding-left: 12px; }
-		.mm-section table { width: 100%; font-size: 13px; border-collapse: collapse; }
-		.mm-section th { background: #eaf3fb; color: #334; padding: 9px 8px; text-align: left; }
-		.mm-section td { padding: 8px; border-top: 1px solid #edf2f8; }
-		.mm-section tr:hover td { background: #f0f7ff; }
-		.mm-tag-completed { color: #13bb2c; font-weight: bold; }
-		.mm-tag-failed    { color: #e54c3c; font-weight: bold; }
-		.mm-tag-pending   { color: #e6b800; font-weight: bold; }
-		.mm-meta-pane { background: #f9fafc; border-radius: 8px; padding: 16px 20px; margin: 1.5em 0 2em; max-width: 900px; }
+		/* Metamanager admin — leverages WP native classes wherever possible */
+		.mm-section               { margin-bottom: 1.5em; }
+		.mm-section .hndle        { cursor: default; padding: 8px 12px; }
+		.mm-section .hndle span   { font-size: .8em; font-weight: 400; color: #50575e; margin-left: .5em; }
+		.mm-section .inside       { padding: 0 12px 12px; }
+		.mm-section table         { width: 100%; font-size: 13px; border-collapse: collapse; }
+		.mm-section th            { background: #f6f7f7; color: #1d2327; padding: 9px 8px; text-align: left; border-bottom: 1px solid #c3c4c7; }
+		.mm-section td            { padding: 8px; border-top: 1px solid #f0f0f1; }
+		.mm-section tr:hover td   { background: #f6f7f7; }
+		.mm-section h4            { color: #1d2327; margin: 1em 0 .3em; }
+		.mm-tag-completed         { color: #00a32a; font-weight: 600; }
+		.mm-tag-failed            { color: #d63638; font-weight: 600; }
+		.mm-tag-pending           { color: #dba617; font-weight: 600; }
+		.mm-meta-pane             { margin: 1.5em 0 2em; max-width: 900px; }
+		.mm-banner .dashicons     { font-size: 18px; width: 18px; height: 18px; }
 		</style>
 
 		<script>
@@ -695,22 +700,22 @@ class MM_Admin {
 		$all_jobs = MM_Job_Queue::get_pending_jobs();
 		$total    = count( $all_jobs['compression'] ) + count( $all_jobs['metadata'] );
 
-		echo '<div class="mm-section">';
-		echo '<h2>' . esc_html__( 'Job Queue', 'metamanager' )
-			. ' <span style="font-size:.8em;font-weight:400;color:#82cfff;">'
-			. esc_html__( '(live)', 'metamanager' ) . '</span>'
-			. ' <span style="font-size:.8em;color:#888;margin-left:.5em;">'
-			. sprintf(
+		echo '<div class="postbox mm-section">';
+		echo '<div class="postbox-header"><h2 class="hndle">'
+			. esc_html__( 'Job Queue', 'metamanager' )
+			. ' <span>' . esc_html__( '(live)', 'metamanager' ) . '</span>'
+			. ' <span>' . sprintf(
 				/* translators: %d: job count */
 				esc_html__( '%d waiting', 'metamanager' ),
 				$total
-			) . '</span></h2>';
+			) . '</span>'
+			. '</h2></div><div class="inside">';
 
 		foreach ( [ 'compression' => __( 'Compression Jobs', 'metamanager' ), 'metadata' => __( 'Metadata Jobs', 'metamanager' ) ] as $type => $label ) {
 			$jobs = $all_jobs[ $type ];
-			echo '<h4 style="margin:.5em 0 .3em;color:#334;">' . esc_html( $label ) . ': <strong>' . count( $jobs ) . '</strong></h4>';
+			echo '<h4>' . esc_html( $label ) . ': <strong>' . count( $jobs ) . '</strong></h4>';
 			if ( empty( $jobs ) ) {
-				echo '<p style="color:#aaa;font-size:12px;">' . esc_html__( 'Queue is empty.', 'metamanager' ) . '</p>';
+				echo '<p style="color:#50575e;font-size:12px;">' . esc_html__( 'Queue is empty.', 'metamanager' ) . '</p>';
 				continue;
 			}
 			echo '<table><thead><tr>'
@@ -727,12 +732,12 @@ class MM_Admin {
 					. '<td>' . esc_html( $job['size'] ?? '' ) . '</td>'
 					. '<td>' . esc_html( $job['dimensions'] ?? '' ) . '</td>'
 					. '<td>' . esc_html( $job['trigger'] ?? '' ) . '</td>'
-					. '<td><span style="color:#888;font-size:11px;">' . esc_html( $age ) . ' ago</span></td>'
-					. '</tr>';
+				. '<td><span style="color:#50575e;font-size:11px;">' . esc_html( $age ) . ' ago</span></td>'
+				. '</tr>';
 			}
 			echo '</tbody></table>';
 		}
-		echo '</div>';
+		echo '</div></div>'; // .inside .postbox
 	}
 
 	/**
@@ -750,13 +755,13 @@ class MM_Admin {
 		$per_page   = 20;
 		$total_pages = (int) ceil( $total / $per_page );
 
-		echo '<div class="mm-section">';
-		echo '<h2 style="display:flex;align-items:center;justify-content:space-between;">'
-			. '<span>' . esc_html__( 'Job History', 'metamanager' )
-			. ' <span style="font-size:.8em;font-weight:400;color:#82cfff;">' . esc_html__( '(live)', 'metamanager' ) . '</span></span>'
-			. '<button id="mm-clear-history-btn" class="button button-secondary" style="font-size:12px;">'
-			. esc_html__( 'Clear History', 'metamanager' ) . '</button>'
-			. '</h2>';
+		echo '<div class="postbox mm-section">';
+		echo '<div class="postbox-header">'
+			. '<h2 class="hndle">' . esc_html__( 'Job History', 'metamanager' )
+			. ' <span>' . esc_html__( '(live)', 'metamanager' ) . '</span></h2>'
+			. '<div class="handle-actions"><button id="mm-clear-history-btn" class="button button-secondary button-small">'
+			. esc_html__( 'Clear History', 'metamanager' ) . '</button></div>'
+			. '</div><div class="inside">';
 
 		// Search form.
 		echo '<form class="mm-search-form" style="margin-bottom:1em;display:flex;gap:8px;">'
@@ -766,7 +771,7 @@ class MM_Admin {
 			. '</form>';
 
 		if ( empty( $jobs ) ) {
-			echo '<p style="color:#aaa;">' . esc_html__( 'No jobs recorded yet.', 'metamanager' ) . '</p>';
+			echo '<p style="color:#50575e;">' . esc_html__( 'No jobs recorded yet.', 'metamanager' ) . '</p>';
 		} else {
 			echo '<table><thead><tr>'
 				. '<th>#</th>'
@@ -814,19 +819,24 @@ class MM_Admin {
 
 			// Pagination.
 			if ( $total_pages > 1 ) {
-				echo '<div style="margin-top:.8em;">' . esc_html__( 'Page:', 'metamanager' ) . ' ';
+				echo '<div class="tablenav bottom"><div class="tablenav-pages"><span class="displaying-num">' . sprintf(
+					/* translators: %d: total count */
+					esc_html__( '%d items', 'metamanager' ), $total
+				) . '</span><span class="pagination-links">';
 				for ( $i = 1; $i <= $total_pages; $i++ ) {
 					if ( $i === $paged ) {
-						echo '<strong>' . esc_html( (string) $i ) . '</strong> ';
+						echo '<span class="tablenav-pages-navspan button disabled" aria-current="page">'
+							. esc_html( (string) $i ) . '</span>';
 					} else {
-						echo '<a href="#" class="mm-page-link" data-paged="' . esc_attr( (string) $i ) . '">' . esc_html( (string) $i ) . '</a> ';
+						echo '<a class="mm-page-link button" data-paged="' . esc_attr( (string) $i ) . '" href="#">'
+							. esc_html( (string) $i ) . '</a>';
 					}
 				}
-				echo '</div>';
+				echo '</span></div></div>';
 			}
 		}
 
-		echo '</div>';
+		echo '</div></div>'; // .inside .postbox
 	}
 
 	// -----------------------------------------------------------------------

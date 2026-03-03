@@ -397,9 +397,9 @@ class MM_Metadata {
 
 		$id = $post->ID;
 		$h4 = static fn( string $label, string $sub = '' ): string =>
-			'<h4 style="margin:1.2em 0 .3em;color:#1a2233;border-bottom:2px solid #2d8cf0;padding-bottom:4px;">'
+			'<h4 style="margin:1.2em 0 .3em;padding-bottom:4px;border-bottom:1px solid #c3c4c7;color:#1d2327;">'
 			. esc_html( $label )
-			. ( $sub ? ' <small style="font-weight:400;color:#888;font-size:.85em;">' . esc_html( $sub ) . '</small>' : '' )
+			. ( $sub ? ' <small style="font-weight:400;color:#50575e;font-size:.85em;">' . esc_html( $sub ) . '</small>' : '' )
 			. '</h4>';
 
 		// --- Attribution & Rights ---
