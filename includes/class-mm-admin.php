@@ -208,7 +208,7 @@ class MM_Admin {
 			'upload.php',
 			esc_html__( 'Metamanager Jobs', 'metamanager' ),
 			esc_html__( 'Metamanager', 'metamanager' ),
-			'upload_files',
+			'edit_others_posts',
 			'metamanager-jobs',
 			[ __CLASS__, 'render_jobs_page' ]
 		);
@@ -216,7 +216,7 @@ class MM_Admin {
 			'upload.php',
 			esc_html__( 'Bulk Edit Metadata', 'metamanager' ),
 			esc_html__( 'Bulk Edit Metadata', 'metamanager' ),
-			'upload_files',
+			'edit_others_posts',
 			'metamanager-bulk-meta',
 			[ __CLASS__, 'render_bulk_meta_page' ]
 		);
@@ -467,7 +467,7 @@ class MM_Admin {
 	 * @return string
 	 */
 	public static function handle_bulk_actions( string $redirect_to, string $doaction, array $post_ids ): string {
-		if ( ! current_user_can( 'upload_files' ) ) {
+		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			return $redirect_to;
 		}
 
@@ -675,7 +675,10 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	public static function register_rest_routes(): void {
-		$auth = fn() => current_user_can( 'upload_files' );
+		// Read-only status checks: any user who can access the Media Library.
+		$auth_uploader = fn() => current_user_can( 'upload_files' );
+		// Dashboard / write operations: must be able to manage others' media.
+		$auth_editor   = fn() => current_user_can( 'edit_others_posts' );
 
 		// --- Compression status (POST: batch, for Media Library column polling) ---
 		register_rest_route(
@@ -684,7 +687,7 @@ class MM_Admin {
 			[
 				'methods'             => 'POST',
 				'callback'            => [ __CLASS__, 'rest_compression_status' ],
-				'permission_callback' => $auth,
+				'permission_callback' => $auth_uploader,
 				'args' => [
 					'ids' => [
 						'required'          => true,
@@ -702,7 +705,7 @@ class MM_Admin {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ __CLASS__, 'rest_get_jobs' ],
-				'permission_callback' => $auth,
+				'permission_callback' => $auth_editor,
 				'args' => [
 					'search'   => [ 'type' => 'string',  'default' => '' ],
 					'orderby'  => [ 'type' => 'string',  'default' => 'id' ],
@@ -720,7 +723,7 @@ class MM_Admin {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ __CLASS__, 'rest_get_job' ],
-				'permission_callback' => $auth,
+				'permission_callback' => $auth_editor,
 				'args' => [
 					'id' => [ 'type' => 'integer', 'required' => true ],
 				],
@@ -734,7 +737,7 @@ class MM_Admin {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ __CLASS__, 'rest_attachment_status' ],
-				'permission_callback' => $auth,
+				'permission_callback' => $auth_uploader,
 				'args' => [
 					'id' => [ 'type' => 'integer', 'required' => true ],
 				],
@@ -748,7 +751,7 @@ class MM_Admin {
 			[
 				'methods'             => 'POST',
 				'callback'            => [ __CLASS__, 'rest_compress_attachment' ],
-				'permission_callback' => $auth,
+				'permission_callback' => $auth_editor,
 				'args' => [
 					'id'    => [ 'type' => 'integer', 'required' => true ],
 					'force' => [ 'type' => 'boolean', 'default' => false ],
@@ -763,7 +766,7 @@ class MM_Admin {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ __CLASS__, 'rest_get_stats' ],
-				'permission_callback' => $auth,
+				'permission_callback' => $auth_editor,
 			]
 		);
 	}
@@ -889,7 +892,7 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	public static function render_jobs_page(): void {
-		if ( ! current_user_can( 'upload_files' ) ) {
+		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'metamanager' ) );
 		}
 
@@ -1071,7 +1074,7 @@ class MM_Admin {
 
 	public static function ajax_jobs_refresh(): void {
 		check_ajax_referer( 'mm_jobs_refresh', 'nonce' );
-		if ( ! current_user_can( 'upload_files' ) ) {
+		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			wp_die( '-1' );
 		}
 		self::render_jobs_content();
@@ -1080,7 +1083,7 @@ class MM_Admin {
 
 	public static function ajax_requeue_job(): void {
 		check_ajax_referer( 'mm_requeue_job', 'nonce' );
-		if ( ! current_user_can( 'upload_files' ) ) {
+		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			wp_send_json_error( 'Permission denied.' );
 		}
 		$job_id = absint( $_POST['job_id'] ?? 0 );
@@ -1111,7 +1114,7 @@ class MM_Admin {
 	 */
 	public static function ajax_scan_library(): void {
 		check_ajax_referer( 'mm_scan_library', 'nonce' );
-		if ( ! current_user_can( 'upload_files' ) ) {
+		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			wp_send_json_error( 'Permission denied.' );
 		}
 
@@ -1171,13 +1174,15 @@ class MM_Admin {
 	 */
 	public static function ajax_recompress(): void {
 		check_ajax_referer( 'mm_recompress', 'nonce' );
-		if ( ! current_user_can( 'upload_files' ) ) {
-			wp_send_json_error( 'Permission denied.' );
-		}
 
 		$id   = absint( $_POST['id'] ?? 0 );
 		$mime = $id ? (string) get_post_mime_type( $id ) : '';
-		if ( ! $id || ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_video_mime( $mime ) ) ) {
+
+		if ( ! $id || ! current_user_can( 'edit_post', $id ) ) {
+			wp_send_json_error( 'Permission denied.' );
+		}
+
+		if ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_video_mime( $mime ) ) {
 			wp_send_json_error( __( 'Invalid or unsupported attachment.', 'metamanager' ) );
 		}
 
@@ -1208,15 +1213,16 @@ class MM_Admin {
 	 */
 	public static function ajax_save_bulk_meta_row(): void {
 		check_ajax_referer( 'mm_bulk_meta_save', 'nonce' );
-		if ( ! current_user_can( 'upload_files' ) ) {
-			wp_send_json_error( 'Permission denied.' );
-		}
 
 		$id     = absint( $_POST['id'] ?? 0 );
 		$fields = $_POST['fields'] ?? []; // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( ! $id || ! get_post( $id ) ) {
 			wp_send_json_error( __( 'Attachment not found.', 'metamanager' ) );
+		}
+
+		if ( ! current_user_can( 'edit_post', $id ) ) {
+			wp_send_json_error( 'Permission denied.' );
 		}
 
 		// Allowed bulk-editable fields (no rights/attribution fields).
@@ -1443,7 +1449,7 @@ class MM_Admin {
 	 * per-image only.
 	 */
 	public static function render_bulk_meta_page(): void {
-		if ( ! current_user_can( 'upload_files' ) ) {
+		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'metamanager' ) );
 		}
 
