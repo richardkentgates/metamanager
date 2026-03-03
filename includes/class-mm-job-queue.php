@@ -335,7 +335,7 @@ class MM_Job_Queue {
 			(int) $row->attachment_id,
 			$row->file_path,
 			$row->size,
-			[ 'trigger' => 'requeue', 're queue_source_id' => $job_id ]
+			[ 'trigger' => 'requeue', 'requeue_source_id' => $job_id ]
 		);
 
 		return true;
