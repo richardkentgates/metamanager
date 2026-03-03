@@ -217,8 +217,25 @@ class MM_Status {
 	 * @return array{ status: string, label: string, color: string }
 	 */
 	public static function compression_status( int $attachment_id ): array {
-		if ( ! wp_attachment_is_image( $attachment_id ) ) {
+		$mime     = (string) get_post_mime_type( $attachment_id );
+		$is_image = wp_attachment_is_image( $attachment_id );
+		$is_video = MM_Metadata::is_video_mime( $mime );
+
+		// Audio and PDF are not compressed by Metamanager daemons.
+		if ( ! $is_image && ! $is_video ) {
 			return [ 'status' => 'na', 'label' => '—', 'color' => '#bbb' ];
+		}
+
+		// Videos only have a single 'full' size (ffmpeg remux).
+		if ( $is_video ) {
+			$file = get_attached_file( $attachment_id );
+			if ( ! $file || ! file_exists( $file ) ) {
+				return [ 'status' => 'na', 'label' => '—', 'color' => '#bbb' ];
+			}
+			if ( self::is_compressed( $attachment_id, 'full' ) ) {
+				return [ 'status' => 'all', 'label' => '✔ Compressed', 'color' => '#13bb2c' ];
+			}
+			return [ 'status' => 'none', 'label' => '✘ Not Compressed', 'color' => '#e54c3c' ];
 		}
 
 		$meta = wp_get_attachment_metadata( $attachment_id ) ?: [];

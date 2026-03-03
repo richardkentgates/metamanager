@@ -549,10 +549,10 @@ class MM_Admin {
 				continue;
 			}
 
-			// Videos: queue remux.
+			// Videos: queue remux (skip if already compressed).
 			if ( $is_video ) {
 				$file = get_attached_file( $id );
-				if ( $file && file_exists( $file ) ) {
+				if ( $file && file_exists( $file ) && ! MM_Status::is_compressed( $id, 'full' ) ) {
 					MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'bulk', 'is_remux' => true ] );
 					++$count;
 				}

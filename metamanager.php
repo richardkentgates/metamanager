@@ -233,6 +233,18 @@ function mm_import_completed_jobs(): void {
 				$job['status'] = $status;
 				MM_DB::log_job( $job );
 
+				// Mark the attachment size as compressed so the Media Library
+				// column and bulk-compress skip logic reflect the real state.
+				if ( 'completed' === $status
+					&& 'compression' === ( $job['job_type'] ?? '' )
+					&& ! empty( $job['attachment_id'] )
+				) {
+					MM_Status::mark_compressed(
+						(int) $job['attachment_id'],
+						(string) ( $job['size'] ?? 'full' )
+					);
+				}
+
 				if ( 'failed' === $status ) {
 					$failed_jobs[] = $job;
 				}
