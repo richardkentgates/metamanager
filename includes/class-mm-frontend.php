@@ -8,11 +8,13 @@
  *     has_post_thumbnail()).
  *
  * Outputs:
- *   1. Schema.org JSON-LD  ImageObject  with GeoCoordinates when GPS data is
- *      present. Uses all fields stored by MM_Metadata, including the full
- *      IPTC location hierarchy and GPS lat/lon/altitude from the camera.
- *   2. Open Graph meta tags  (og:image, og:image:alt, og:image:width,
- *      og:image:height, og:image:type, og:image:secure_url).
+ *   1. Schema.org JSON-LD:
+ *        ImageObject    for images
+ *        VideoObject    for video attachments
+ *        AudioObject    for audio attachments
+ *        DigitalDocument for PDF attachments
+ *      All types include GeoCoordinates when GPS data is present.
+ *   2. Open Graph meta tags appropriate to each media type.
  *   3. <link rel="license"> or <meta name="copyright"> when copyright is set.
  *
  * Design notes:
@@ -21,8 +23,10 @@
  *   - Each output section is wrapped in an HTML comment so it is easy to
  *     recognise in View Source.
  *   - JSON is encoded with JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE so
- *     URLs remain readable and non-ASCII characters (e.g. © symbols in
- *     copyright notices) are preserved verbatim.
+ *     URLs remain readable and non-ASCII characters are preserved verbatim.
+ *   - build_schema_base() is the single source of truth for the shared fields
+ *     (attribution, keywords, location, dates) so each type-specific builder
+ *     only adds its own distinct properties.
  *
  * @package Metamanager
  * @since   1.1.0
@@ -52,7 +56,7 @@ class MM_Frontend {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Resolve the current page to an image attachment and emit all head tags.
+	 * Resolve the current page to an attachment and emit all head tags.
 	 */
 	public static function output_head_tags(): void {
 		$attachment_id = self::resolve_attachment_id();
@@ -65,6 +69,9 @@ class MM_Frontend {
 		if ( MM_Metadata::is_video_mime( $mime ) || MM_Metadata::is_audio_mime( $mime ) ) {
 			self::output_video_audio_json_ld( $attachment_id, $mime );
 			self::output_video_audio_open_graph( $attachment_id, $mime );
+		} elseif ( MM_Metadata::is_pdf_mime( $mime ) ) {
+			self::output_pdf_json_ld( $attachment_id );
+			self::output_pdf_open_graph( $attachment_id );
 		} else {
 			self::output_json_ld( $attachment_id );
 			self::output_open_graph( $attachment_id );
@@ -90,8 +97,9 @@ class MM_Frontend {
 		if ( is_attachment() ) {
 			$id   = (int) get_the_ID();
 			$mime = (string) get_post_mime_type( $id );
-			// Accept images and supported video/audio types.
-			if ( wp_attachment_is_image( $id ) || MM_Metadata::is_av_mime( $mime ) ) {
+			if ( wp_attachment_is_image( $id )
+				|| MM_Metadata::is_av_mime( $mime )
+				|| MM_Metadata::is_pdf_mime( $mime ) ) {
 				return $id;
 			}
 			return 0;
@@ -106,72 +114,43 @@ class MM_Frontend {
 	}
 
 	// -----------------------------------------------------------------------
-	// Schema.org JSON-LD
+	// Shared schema base builder
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Emit a Schema.org ImageObject JSON-LD block.
+	 * Build the common fields shared by all Schema.org types: attribution,
+	 * copyright, keywords, location (IPTC text + GPS), and dates.
 	 *
-	 * Fields produced (when data is available):
-	 *   - @type ImageObject
-	 *   - url / contentUrl         (full-size image URL)
-	 *   - width / height
-	 *   - name                     (post title)
-	 *   - description              (post content)
-	 *   - caption                  (post excerpt)
-	 *   - alternativeHeadline      (alt text)
-	 *   - headline                 (mm_headline)
-	 *   - creator → Person         (mm_creator)
-	 *   - copyrightNotice          (mm_copyright)
-	 *   - copyrightHolder → Org    (mm_owner)
-	 *   - creditText               (mm_credit)
-	 *   - keywords[]               (mm_keywords, split on ';')
-	 *   - dateCreated              (mm_date_created)
-	 *   - locationCreated → Place  (IPTC city/state/country + GeoCoordinates)
-	 *   - contentLocation → Place  (same — where the subject is depicted)
-	 *   - thumbnail → ImageObject  (medium size)
-	 *   - mainEntityOfPage         (attachment page URL)
+	 * The caller receives a partial schema array and is responsible for adding
+	 * @context, @type, url, contentUrl, and any type-specific fields.
 	 *
-	 * @param int $id  Attachment post ID.
+	 * @param  int       $id   Attachment post ID.
+	 * @param  \WP_Post  $post Post object (passed in to avoid re-fetching).
+	 * @return array           Partial schema array.
 	 */
-	private static function output_json_ld( int $id ): void {
-		$post = get_post( $id );
-		if ( ! $post || ! wp_attachment_is_image( $id ) ) {
-			return;
-		}
-
-		// Full-size URL and pixel dimensions.
-		$src = wp_get_attachment_image_src( $id, 'full' );
-		if ( ! $src ) {
-			return;
-		}
-		[ $url, $width, $height ] = $src;
-
+	private static function build_schema_base( int $id, \WP_Post $post ): array {
 		$meta = static fn( string $key ): string => (string) get_post_meta( $id, $key, true );
 
-		// Build schema incrementally — only include keys that have values.
-		$schema = [
-			'@context'   => 'https://schema.org',
-			'@type'      => 'ImageObject',
-			'url'        => $url,
-			'contentUrl' => $url,
-		];
+		$schema = [];
 
-		if ( $width )  { $schema['width']  = $width; }
-		if ( $height ) { $schema['height'] = $height; }
-
-		// WordPress native fields.
+		// Title / name.
 		$title = trim( $post->post_title );
-		if ( '' !== $title )              { $schema['name']        = $title; }
-		if ( '' !== $post->post_content ) { $schema['description'] = wp_strip_all_tags( $post->post_content ); }
-		if ( '' !== $post->post_excerpt ) { $schema['caption']     = $post->post_excerpt; }
+		if ( '' !== $title ) {
+			$schema['name'] = $title;
+		}
 
-		$alt = (string) get_post_meta( $id, '_wp_attachment_image_alt', true );
-		if ( '' !== $alt ) { $schema['alternativeHeadline'] = $alt; }
+		// Description (long-form body text).
+		if ( '' !== $post->post_content ) {
+			$schema['description'] = wp_strip_all_tags( $post->post_content );
+		}
 
 		// Editorial.
-		if ( '' !== ( $v = $meta( MM_Metadata::META_HEADLINE ) ) ) { $schema['headline']    = $v; }
-		if ( '' !== ( $v = $meta( MM_Metadata::META_CREDIT ) ) )   { $schema['creditText']  = $v; }
+		if ( '' !== ( $v = $meta( MM_Metadata::META_HEADLINE ) ) ) {
+			$schema['headline'] = $v;
+		}
+		if ( '' !== ( $v = $meta( MM_Metadata::META_CREDIT ) ) ) {
+			$schema['creditText'] = $v;
+		}
 
 		// Attribution.
 		if ( '' !== ( $v = $meta( MM_Metadata::META_CREATOR ) ) ) {
@@ -187,23 +166,28 @@ class MM_Frontend {
 		// Classification.
 		if ( '' !== ( $v = $meta( MM_Metadata::META_KEYWORDS ) ) ) {
 			$kw = array_values( array_filter( array_map( 'trim', explode( ';', $v ) ) ) );
-			if ( $kw ) { $schema['keywords'] = $kw; }
+			if ( $kw ) {
+				$schema['keywords'] = $kw;
+			}
 		}
-		if ( '' !== ( $v = $meta( MM_Metadata::META_DATE ) ) ) { $schema['dateCreated'] = $v; }
+
+		// Date.
+		if ( '' !== ( $v = $meta( MM_Metadata::META_DATE ) ) ) {
+			$schema['dateCreated'] = $v;
+		}
 
 		// Location: IPTC text fields.
-		$city    = $meta( MM_Metadata::META_CITY );
-		$state   = $meta( MM_Metadata::META_STATE );
-		$country = $meta( MM_Metadata::META_COUNTRY );
+		$city      = $meta( MM_Metadata::META_CITY );
+		$state     = $meta( MM_Metadata::META_STATE );
+		$country   = $meta( MM_Metadata::META_COUNTRY );
 		$loc_parts = array_filter( [ $city, $state, $country ] );
 
 		// Location: GPS coordinates.
-		$lat = $meta( MM_Metadata::META_GPS_LAT );
-		$lon = $meta( MM_Metadata::META_GPS_LON );
+		$lat   = $meta( MM_Metadata::META_GPS_LAT );
+		$lon   = $meta( MM_Metadata::META_GPS_LON );
 		$alt_m = $meta( MM_Metadata::META_GPS_ALT );
 
 		if ( '' !== $lat && '' !== $lon ) {
-			// We have GPS — build a full Place with GeoCoordinates.
 			$geo = [
 				'@type'     => 'GeoCoordinates',
 				'latitude'  => (float) $lat,
@@ -212,32 +196,75 @@ class MM_Frontend {
 			if ( '' !== $alt_m ) {
 				$geo['elevation'] = (float) $alt_m;
 			}
-
 			$place = [ '@type' => 'Place', 'geo' => $geo ];
 			if ( $loc_parts ) {
 				$place['name'] = implode( ', ', $loc_parts );
 			}
-
-			$schema['locationCreated']  = $place;
-			$schema['contentLocation']  = $place;
-
+			$schema['locationCreated'] = $place;
+			$schema['contentLocation'] = $place;
 		} elseif ( $loc_parts ) {
-			// IPTC text location only — no GPS.
 			$place = [ '@type' => 'Place', 'name' => implode( ', ', $loc_parts ) ];
 			$schema['locationCreated'] = $place;
 			$schema['contentLocation'] = $place;
-		}
-
-		// Thumbnail (medium size, if different from full).
-		$thumb = wp_get_attachment_image_src( $id, 'medium' );
-		if ( $thumb && $thumb[0] !== $url ) {
-			$schema['thumbnail'] = [ '@type' => 'ImageObject', 'url' => $thumb[0] ];
 		}
 
 		// Canonical page URL.
 		$page_url = get_attachment_link( $id );
 		if ( $page_url ) {
 			$schema['mainEntityOfPage'] = [ '@type' => 'WebPage', '@id' => $page_url ];
+		}
+
+		return $schema;
+	}
+
+	// -----------------------------------------------------------------------
+	// Schema.org JSON-LD — images
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Emit a Schema.org ImageObject JSON-LD block.
+	 *
+	 * @param int $id  Attachment post ID.
+	 */
+	private static function output_json_ld( int $id ): void {
+		$post = get_post( $id );
+		if ( ! $post || ! wp_attachment_is_image( $id ) ) {
+			return;
+		}
+
+		$src = wp_get_attachment_image_src( $id, 'full' );
+		if ( ! $src ) {
+			return;
+		}
+		[ $url, $width, $height ] = $src;
+
+		$schema = array_merge(
+			[
+				'@context'   => 'https://schema.org',
+				'@type'      => 'ImageObject',
+				'url'        => $url,
+				'contentUrl' => $url,
+			],
+			self::build_schema_base( $id, $post )
+		);
+
+		if ( $width )  { $schema['width']  = $width; }
+		if ( $height ) { $schema['height'] = $height; }
+
+		// Image-specific fields.
+		if ( '' !== $post->post_excerpt ) {
+			$schema['caption'] = $post->post_excerpt;
+		}
+
+		$alt = (string) get_post_meta( $id, '_wp_attachment_image_alt', true );
+		if ( '' !== $alt ) {
+			$schema['alternativeHeadline'] = $alt;
+		}
+
+		// Thumbnail (medium size, if different from full).
+		$thumb = wp_get_attachment_image_src( $id, 'medium' );
+		if ( $thumb && $thumb[0] !== $url ) {
+			$schema['thumbnail'] = [ '@type' => 'ImageObject', 'url' => $thumb[0] ];
 		}
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -248,7 +275,7 @@ class MM_Frontend {
 	}
 
 	// -----------------------------------------------------------------------
-	// Video / Audio — Schema.org + Open Graph
+	// Schema.org JSON-LD — video / audio
 	// -----------------------------------------------------------------------
 
 	/**
@@ -269,66 +296,19 @@ class MM_Frontend {
 			return;
 		}
 
-		$is_video   = MM_Metadata::is_video_mime( $mime );
+		$is_video    = MM_Metadata::is_video_mime( $mime );
 		$schema_type = $is_video ? 'VideoObject' : 'AudioObject';
 
-		$meta = static fn( string $key ): string => (string) get_post_meta( $id, $key, true );
-
-		$schema = [
-			'@context'   => 'https://schema.org',
-			'@type'      => $schema_type,
-			'url'        => $url,
-			'contentUrl' => $url,
-		];
-
-		$title = trim( $post->post_title );
-		if ( '' !== $title )              { $schema['name']        = $title; }
-		if ( '' !== $post->post_content ) { $schema['description'] = wp_strip_all_tags( $post->post_content ); }
-
-		if ( '' !== ( $v = $meta( MM_Metadata::META_HEADLINE ) ) )  { $schema['headline']   = $v; }
-		if ( '' !== ( $v = $meta( MM_Metadata::META_CREDIT ) ) )    { $schema['creditText'] = $v; }
-		if ( '' !== ( $v = $meta( MM_Metadata::META_DATE ) ) )      { $schema['dateCreated'] = $v; }
-
-		if ( '' !== ( $v = $meta( MM_Metadata::META_CREATOR ) ) ) {
-			$schema['creator'] = [ '@type' => 'Person', 'name' => $v ];
-		}
-		if ( '' !== ( $v = $meta( MM_Metadata::META_COPYRIGHT ) ) ) {
-			$schema['copyrightNotice'] = $v;
-		}
-		if ( '' !== ( $v = $meta( MM_Metadata::META_OWNER ) ) ) {
-			$schema['copyrightHolder'] = [ '@type' => 'Organization', 'name' => $v ];
-		}
-
-		if ( '' !== ( $v = $meta( MM_Metadata::META_KEYWORDS ) ) ) {
-			$kw = array_values( array_filter( array_map( 'trim', explode( ';', $v ) ) ) );
-			if ( $kw ) { $schema['keywords'] = $kw; }
-		}
-
-		// Location.
-		$city    = $meta( MM_Metadata::META_CITY );
-		$state   = $meta( MM_Metadata::META_STATE );
-		$country = $meta( MM_Metadata::META_COUNTRY );
-		$loc_parts = array_filter( [ $city, $state, $country ] );
-
-		$lat   = $meta( MM_Metadata::META_GPS_LAT );
-		$lon   = $meta( MM_Metadata::META_GPS_LON );
-		$alt_m = $meta( MM_Metadata::META_GPS_ALT );
-
-		if ( '' !== $lat && '' !== $lon ) {
-			$geo   = [ '@type' => 'GeoCoordinates', 'latitude' => (float) $lat, 'longitude' => (float) $lon ];
-			if ( '' !== $alt_m ) { $geo['elevation'] = (float) $alt_m; }
-			$place = [ '@type' => 'Place', 'geo' => $geo ];
-			if ( $loc_parts ) { $place['name'] = implode( ', ', $loc_parts ); }
-			$schema['locationCreated'] = $place;
-			$schema['contentLocation'] = $place;
-		} elseif ( $loc_parts ) {
-			$place = [ '@type' => 'Place', 'name' => implode( ', ', $loc_parts ) ];
-			$schema['locationCreated'] = $place;
-			$schema['contentLocation'] = $place;
-		}
-
-		$schema['encodingFormat']  = $mime;
-		$schema['mainEntityOfPage'] = [ '@type' => 'WebPage', '@id' => get_attachment_link( $id ) ];
+		$schema = array_merge(
+			[
+				'@context'       => 'https://schema.org',
+				'@type'          => $schema_type,
+				'url'            => $url,
+				'contentUrl'     => $url,
+				'encodingFormat' => $mime,
+			],
+			self::build_schema_base( $id, $post )
+		);
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		printf(
@@ -337,10 +317,51 @@ class MM_Frontend {
 		);
 	}
 
+	// -----------------------------------------------------------------------
+	// Schema.org JSON-LD — PDF (DigitalDocument)
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Emit Schema.org DigitalDocument JSON-LD for a PDF attachment.
+	 *
+	 * @param int $id  Attachment post ID.
+	 */
+	private static function output_pdf_json_ld( int $id ): void {
+		$post = get_post( $id );
+		if ( ! $post ) {
+			return;
+		}
+
+		$url = wp_get_attachment_url( $id );
+		if ( ! $url ) {
+			return;
+		}
+
+		$schema = array_merge(
+			[
+				'@context'       => 'https://schema.org',
+				'@type'          => 'DigitalDocument',
+				'url'            => $url,
+				'contentUrl'     => $url,
+				'encodingFormat' => 'application/pdf',
+			],
+			self::build_schema_base( $id, $post )
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		printf(
+			"\n<!-- Metamanager: Schema.org JSON-LD -->\n<script type=\"application/ld+json\">\n%s\n</script>\n",
+			wp_json_encode( $schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+		);
+	}
+
+	// -----------------------------------------------------------------------
+	// Open Graph — video / audio
+	// -----------------------------------------------------------------------
+
 	/**
 	 * Emit Open Graph tags for a video or audio attachment.
-	 *
-	 * Video attachments get og:video; audio gets og:audio.
+	 * Video → og:video; audio → og:audio.
 	 *
 	 * @param int    $id   Attachment post ID.
 	 * @param string $mime MIME type.
@@ -358,7 +379,6 @@ class MM_Frontend {
 			printf( "\t<meta property=\"%s\" content=\"%s\">\n", esc_attr( $prop ), esc_attr( $content ) );
 
 		echo "\n<!-- Metamanager: Open Graph -->\n";
-
 		$tag( $ns, $url );
 		if ( str_starts_with( $url, 'https://' ) ) {
 			$tag( $ns . ':secure_url', $url );
@@ -367,7 +387,45 @@ class MM_Frontend {
 	}
 
 	// -----------------------------------------------------------------------
-	// Open Graph
+	// Open Graph — PDF
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Emit Open Graph tags for a PDF attachment page.
+	 * PDFs are typed as og:type=article (closest OG equivalent for documents).
+	 *
+	 * @param int $id  Attachment post ID.
+	 */
+	private static function output_pdf_open_graph( int $id ): void {
+		$post = get_post( $id );
+		if ( ! $post ) {
+			return;
+		}
+
+		$url = wp_get_attachment_url( $id );
+		if ( ! $url ) {
+			return;
+		}
+
+		$tag = static fn( string $prop, string $content ) =>
+			printf( "\t<meta property=\"%s\" content=\"%s\">\n", esc_attr( $prop ), esc_attr( $content ) );
+
+		echo "\n<!-- Metamanager: Open Graph -->\n";
+		$tag( 'og:type',  'article' );
+		$tag( 'og:url',   get_attachment_link( $id ) ?: $url );
+
+		$title = trim( $post->post_title );
+		if ( '' !== $title ) {
+			$tag( 'og:title', $title );
+		}
+
+		if ( '' !== $post->post_content ) {
+			$tag( 'og:description', wp_strip_all_tags( $post->post_content ) );
+		}
+	}
+
+	// -----------------------------------------------------------------------
+	// Open Graph — images
 	// -----------------------------------------------------------------------
 
 	/**
@@ -393,7 +451,6 @@ class MM_Frontend {
 			printf( "\t<meta property=\"%s\" content=\"%s\">\n", esc_attr( $prop ), esc_attr( $content ) );
 
 		echo "\n<!-- Metamanager: Open Graph -->\n";
-
 		$tag( 'og:image', $url );
 
 		if ( str_starts_with( $url, 'https://' ) ) {
@@ -404,10 +461,14 @@ class MM_Frontend {
 		if ( $height ) { $tag( 'og:image:height', (string) $height ); }
 
 		$mime = get_post_mime_type( $id );
-		if ( $mime ) { $tag( 'og:image:type', $mime ); }
+		if ( $mime ) {
+			$tag( 'og:image:type', $mime );
+		}
 
 		$alt = (string) get_post_meta( $id, '_wp_attachment_image_alt', true );
-		if ( '' !== $alt ) { $tag( 'og:image:alt', $alt ); }
+		if ( '' !== $alt ) {
+			$tag( 'og:image:alt', $alt );
+		}
 	}
 
 	// -----------------------------------------------------------------------

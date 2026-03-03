@@ -88,7 +88,7 @@ process_job() {
         mp3)                             file_cat="mp3"       ;;
         mp4|m4v|m4a|mov|3gp|3gpp|3g2)  file_cat="quicktime" ;;
         ogg|oga|flac)                   file_cat="vorbis"    ;;
-        avi|wav|wmv|wma)                file_cat="xmp_only"  ;;
+        avi|wav|wmv|wma|pdf)             file_cat="xmp_only"  ;;
         mkv|webm|ogv)
             exec 9>&-; rm -f "${lockfile}"
             write_result "${tmpfile}" "completed" "Read-only format — metadata embedding skipped: ${file_path}"
@@ -228,7 +228,7 @@ process_job() {
         unset _kw_arr _kw
 
     else
-        # xmp_only (AVI, WAV, WMV, WMA) — XMP sidecar is acceptable here.
+        # xmp_only (AVI, WAV, WMV, WMA, PDF) — XMP is the only reliable namespace.
         v=$(get_val "Title");       append_tag "XMP:Title"               "${v}"
         v=$(get_val "Creator");     append_tag "XMP:Creator"             "${v}"
         v=$(get_val "Copyright");   append_tag "XMP:Rights"              "${v}"

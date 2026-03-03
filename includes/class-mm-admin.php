@@ -289,7 +289,7 @@ class MM_Admin {
 
 		if ( 'mm_meta_sync' === $column_name ) {
 			$mime = (string) get_post_mime_type( $attachment_id );
-			if ( ! wp_attachment_is_image( $attachment_id ) && ! MM_Metadata::is_av_mime( $mime ) ) {
+			if ( ! wp_attachment_is_image( $attachment_id ) && ! MM_Metadata::is_av_mime( $mime ) && ! MM_Metadata::is_pdf_mime( $mime ) ) {
 				return;
 			}
 			$synced = (string) get_post_meta( $attachment_id, MM_Metadata::META_SYNCED, true );
@@ -322,8 +322,9 @@ class MM_Admin {
 		$is_image = wp_attachment_is_image( $post->ID );
 		$is_video = MM_Metadata::is_video_mime( $mime );
 		$is_audio = MM_Metadata::is_audio_mime( $mime );
+		$is_pdf   = MM_Metadata::is_pdf_mime( $mime );
 
-		if ( ! $is_image && ! $is_video && ! $is_audio ) {
+		if ( ! $is_image && ! $is_video && ! $is_audio && ! $is_pdf ) {
 			return;
 		}
 
@@ -611,7 +612,7 @@ class MM_Admin {
 		foreach ( $post_ids as $id ) {
 			$id   = (int) $id;
 			$mime = (string) get_post_mime_type( $id );
-			if ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_av_mime( $mime ) ) {
+			if ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_av_mime( $mime ) && ! MM_Metadata::is_pdf_mime( $mime ) ) {
 				continue;
 			}
 			MM_Metadata::import_from_file( $id );
@@ -625,7 +626,7 @@ class MM_Admin {
 		foreach ( $post_ids as $id ) {
 			$id   = (int) $id;
 			$mime = (string) get_post_mime_type( $id );
-			if ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_av_mime( $mime ) ) {
+			if ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_av_mime( $mime ) && ! MM_Metadata::is_pdf_mime( $mime ) ) {
 				continue;
 			}
 			if ( wp_attachment_is_image( $id ) ) {
@@ -1101,7 +1102,8 @@ class MM_Admin {
 		$all_mime_types = array_merge(
 			[ 'image' ],
 			MM_Metadata::VIDEO_MIME_TYPES,
-			MM_Metadata::AUDIO_MIME_TYPES
+			MM_Metadata::AUDIO_MIME_TYPES,
+			MM_Metadata::PDF_MIME_TYPES
 		);
 
 		$base_query = [

@@ -7,6 +7,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.0] — 2026-03-02
+
+### Added
+- **PDF support** (`application/pdf`): PDFs are now scanned, have metadata imported from embedded XMP via ExifTool, and support XMP write-back on field save. Classified as `xmp_only` in `WRITE_CAPABILITY`
+- **`MM_Metadata::PDF_MIME_TYPES`** constant and **`is_pdf_mime()`** helper method used throughout all classes
+- **Schema.org `DigitalDocument`** (`MM_Frontend::output_pdf_json_ld()`): PDF attachment pages now emit structured data with name, description, creator, copyright, keywords, date, location, and `encodingFormat: application/pdf`
+- **Open Graph for PDFs** (`MM_Frontend::output_pdf_open_graph()`): PDFs emit `og:type=article`, `og:title`, `og:description`, and `og:url` on their attachment pages
+- **PDF-specific ExifTool tag candidates** in `MM_Metadata::import_from_file()`: `PDF:Title`, `PDF:Author`, `PDF:Keywords`, `PDF:CreateDate` are checked before falling back to XMP equivalents so the document information dictionary is preferred when present
+- **`pdf` extension** added to the `xmp_only` case in `metamanager-meta-daemon.sh` so XMP-only tag writing applies to PDFs
+
+### Changed
+- **`MM_Frontend`** refactored to extract `build_schema_base()` — a single shared method building the common attribution/keywords/location/date schema fields used by ImageObject, VideoObject, AudioObject, and DigitalDocument. Eliminates the previous duplication between image and AV JSON-LD builders
+- **`MM_Admin::render_attachment_meta_pane()`** major UI overhaul:
+  - Type icon and label in the postbox header (dashicons for image, video, audio, PDF)
+  - Action row uses WordPress native notice classes (`.notice.notice-info`, `.notice.notice-warning`)
+  - **Stored Fields** summary table shows all MM-managed post_meta values grouped into Identity / Attribution / Editorial / Location sections, displayed before the raw ExifTool dump rather than jumbled with it; GPS shown as decimal lat/lon with altitude; star rating rendered using `★/☆` glyphs
+  - Raw ExifTool dump is now **collapsible** (`<details>`) and grouped by tag namespace (File, EXIF, IPTC, XMP, GPS, QuickTime, ID3, Vorbis, ASF, Matroska, Composite, Colour Profile) each as their own nested collapsible group with a dashicon badge
+  - Group prefixes are stripped from tag names inside each group table for readability
+  - PDF branch added: shows document info notice and renders the same fields/dump structure
+- **`MM_Admin::render_media_column()`**, **`do_bulk_import_meta()`**, **`do_bulk_inject_site_info()`**, and **`ajax_scan_library()`** all updated to include `application/pdf` alongside images and AV types
+- **`MM_Metadata::register_fields()`** and **`on_fields_save()`** now accept PDF MIME type
+- **`MM_Job_Queue::on_upload()`** now handles PDF: imports metadata on first upload and queues an XMP write-back job
+- Plugin version bumped to `1.4.0`
+
+---
+
 ## [1.3.0] — 2026-03-02
 
 ### Added

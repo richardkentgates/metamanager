@@ -175,8 +175,9 @@ class MM_Job_Queue {
 		$is_image = wp_attachment_is_image( $attachment_id );
 		$is_video = MM_Metadata::is_video_mime( $mime );
 		$is_audio = MM_Metadata::is_audio_mime( $mime );
+		$is_pdf   = MM_Metadata::is_pdf_mime( $mime );
 
-		if ( ! $is_image && ! $is_video && ! $is_audio ) {
+		if ( ! $is_image && ! $is_video && ! $is_audio && ! $is_pdf ) {
 			return $metadata;
 		}
 
@@ -199,7 +200,7 @@ class MM_Job_Queue {
 			return $metadata;
 		}
 
-		// ---- Video / Audio: single-file handling ----
+		// ---- Video / Audio / PDF: single-file handling ----
 		$file = get_attached_file( $attachment_id );
 		if ( ! $file || ! file_exists( $file ) ) {
 			return $metadata;
@@ -209,12 +210,12 @@ class MM_Job_Queue {
 			MM_Metadata::import_from_file( $attachment_id );
 		}
 
-		// Queue metadata write-back (if the format supports it).
+		// Queue metadata write-back if the format supports it.
 		if ( MM_Metadata::can_write_meta( $mime ) ) {
 			self::write_job( 'metadata', $attachment_id, $file, 'full', [ 'trigger' => 'upload' ] );
 		}
 
-		// Queue video remux (container repack, lossless) — audio has no remux.
+		// Queue video remux (container repack, lossless) — audio and PDF have no remux.
 		if ( $is_video ) {
 			self::write_job( 'compression', $attachment_id, $file, 'full', [ 'trigger' => 'upload', 'is_remux' => true ] );
 		}

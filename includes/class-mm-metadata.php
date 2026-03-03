@@ -101,6 +101,9 @@ class MM_Metadata {
 		'audio/x-aiff',
 	];
 
+	/** PDF MIME type. ExifTool reads and writes embedded XMP in PDF files. */
+	public const PDF_MIME_TYPES = [ 'application/pdf' ];
+
 	/**
 	 * Metadata write-back capability per MIME type.
 	 *
@@ -136,6 +139,8 @@ class MM_Metadata {
 		'audio/ogg'        => 'vorbis_only',
 		'audio/wav'        => 'xmp_only',
 		'audio/x-ms-wma'   => 'xmp_only',
+		// PDF — ExifTool reads and writes embedded XMP natively.
+		'application/pdf'  => 'xmp_only',
 	];
 
 	// -----------------------------------------------------------------------
@@ -155,6 +160,11 @@ class MM_Metadata {
 	/** Return true if the MIME type is a supported video or audio format. */
 	public static function is_av_mime( string $mime ): bool {
 		return self::is_video_mime( $mime ) || self::is_audio_mime( $mime );
+	}
+
+	/** Return true if the MIME type is a PDF document. */
+	public static function is_pdf_mime( string $mime ): bool {
+		return 'application/pdf' === $mime;
 	}
 
 	/**
@@ -371,6 +381,7 @@ class MM_Metadata {
 
 		// For video and audio files, prepend container-native tag candidates so
 		// QuickTime/ID3/Vorbis/ASF tags are preferred over generic XMP equivalents.
+		// For PDFs, prepend PDF-namespace candidates so PDF:Author etc. win over IPTC.
 		$mime = (string) get_post_mime_type( $attachment_id );
 		if ( self::is_av_mime( $mime ) ) {
 			$av_candidates = [
@@ -387,6 +398,23 @@ class MM_Metadata {
 				self::META_GPS_ALT   => [ 'Composite:GPSAltitude', 'Keys:GPSAltitude' ],
 			];
 			foreach ( $av_candidates as $key => $prepend ) {
+				if ( isset( $meta_import[ $key ] ) ) {
+					$meta_import[ $key ] = array_merge( $prepend, $meta_import[ $key ] );
+				}
+			}
+		}
+
+		if ( self::is_pdf_mime( $mime ) ) {
+			// PDF metadata is XMP-based; ExifTool also exposes a PDF: group for
+			// the document information dictionary (pre-XMP legacy fields).
+			$pdf_candidates = [
+				self::META_HEADLINE  => [ 'PDF:Title', 'XMP:Title', 'XMP-dc:Title' ],
+				self::META_CREATOR   => [ 'PDF:Author', 'XMP:Author', 'XMP-dc:Creator', 'XMP:Creator' ],
+				self::META_COPYRIGHT => [ 'XMP:Rights', 'XMP-dc:Rights' ],
+				self::META_KEYWORDS  => [ 'PDF:Keywords', 'XMP:Subject', 'XMP-dc:Subject' ],
+				self::META_DATE      => [ 'PDF:CreateDate', 'XMP:CreateDate', 'XMP-xmp:CreateDate' ],
+			];
+			foreach ( $pdf_candidates as $key => $prepend ) {
 				if ( isset( $meta_import[ $key ] ) ) {
 					$meta_import[ $key ] = array_merge( $prepend, $meta_import[ $key ] );
 				}
@@ -537,7 +565,7 @@ class MM_Metadata {
 	 */
 	public static function register_fields( array $form_fields, \WP_Post $post ): array {
 		$mime = (string) get_post_mime_type( $post->ID );
-		if ( ! wp_attachment_is_image( $post->ID ) && ! self::is_av_mime( $mime ) ) {
+		if ( ! wp_attachment_is_image( $post->ID ) && ! self::is_av_mime( $mime ) && ! self::is_pdf_mime( $mime ) ) {
 			return $form_fields;
 		}
 
@@ -689,7 +717,7 @@ class MM_Metadata {
 			return $post;
 		}
 		$mime = (string) get_post_mime_type( $post['ID'] );
-		if ( ! wp_attachment_is_image( $post['ID'] ) && ! self::is_av_mime( $mime ) ) {
+		if ( ! wp_attachment_is_image( $post['ID'] ) && ! self::is_av_mime( $mime ) && ! self::is_pdf_mime( $mime ) ) {
 			return $post;
 		}
 		// Do not attempt to write metadata back to read-only formats.
