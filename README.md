@@ -38,6 +38,8 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 - **Re-queue on failure**: one-click retry for any failed job from the history table
 - **Daemon health indicator**: status banner shows whether each daemon is running (via PID file — no `systemctl` privilege required)
 - **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates; includes a manual "Check for Updates" link on the Plugins page
+- **Multisite compatible**: network activation creates the DB table and schedules cron on every existing site; new blog creation is handled automatically via `wp_initialize_site`
+- **Clean uninstall**: an opt-in "Remove all data on uninstall" setting wipes all options, post meta, the job log table, the job queue directory, and the updater transient when the plugin is deleted — nothing is removed by default
 
 ---
 
@@ -439,6 +441,22 @@ sudo systemctl restart metamanager-meta-daemon
 
 ## Uninstall
 
+### Removing plugin data via the WordPress admin (recommended)
+
+Before deleting the plugin, go to **Media → MM Settings → Data & Uninstall** and enable **Remove all data on uninstall**. Once that box is checked and you delete the plugin from the Plugins screen, Metamanager will automatically:
+
+- Delete all plugin settings
+- Remove all metadata it stored on attachments (16 post meta keys + `_mm_compressed_*` keys)
+- Drop the `wp_metamanager_jobs` job-log table
+- Remove the `wp-content/metamanager-jobs/` queue directory
+- Delete the updater transient
+
+On **multisite**, each site's setting is checked individually — only sites where the option is enabled are cleaned up.
+
+If the option is **not** enabled (the default), deleting the plugin leaves all data intact — it can be recovered by reinstalling.
+
+### Removing the system daemons
+
 ```bash
 # Stop and remove daemons
 sudo systemctl stop metamanager-compress-daemon metamanager-meta-daemon
@@ -447,16 +465,28 @@ sudo rm /etc/systemd/system/metamanager-*.service
 sudo rm /usr/local/bin/metamanager-*-daemon.sh
 sudo systemctl daemon-reload
 
-# Remove plugin (or deactivate via WordPress admin first)
+# Remove the plugin if not already deleted via WP admin
 rm -rf /path/to/wordpress/wp-content/plugins/metamanager
-
-# Remove job queue (optional — contains no permanent data)
-rm -rf /path/to/wordpress/wp-content/metamanager-jobs
 ```
 
-The plugin database table (`wp_metamanager_jobs`) is left in place when you deactivate. Delete it manually if you want a clean removal:
+### Manual database cleanup (if needed)
+
+If you deleted the plugin without enabling the data-removal setting, you can clean up manually:
+
 ```sql
+-- Job log table
 DROP TABLE IF EXISTS wp_metamanager_jobs;
+
+-- Plugin settings
+DELETE FROM wp_options WHERE option_name IN
+  ('mm_compress_level','mm_notify_enabled','mm_notify_email','mm_delete_data_on_uninstall');
+
+-- Attachment metadata
+DELETE FROM wp_postmeta WHERE meta_key IN
+  ('mm_creator','mm_copyright','mm_owner','mm_headline','mm_credit','mm_keywords',
+   'mm_date_created','mm_location_city','mm_location_state','mm_location_country',
+   'mm_rating','mm_gps_lat','mm_gps_lon','mm_gps_alt','mm_meta_synced','_mm_compressed_full');
+DELETE FROM wp_postmeta WHERE meta_key LIKE '_mm_compressed_%';
 ```
 
 ---

@@ -3,7 +3,7 @@
  * Plugin Name:  Metamanager
  * Plugin URI:   https://github.com/richardkentgates/metamanager
  * Description:  Lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) via OS-level daemons. Expands the WordPress Media Library with native metadata editing, bulk operations, and a real-time job dashboard.
- * Version:      1.5.0
+ * Version:      1.5.1
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:       Richard Kent Gates
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 // Plugin constants
 // ---------------------------------------------------------------------------
 
-define( 'MM_VERSION',     '1.5.0' );
+define( 'MM_VERSION',     '1.5.1' );
 define( 'MM_PLUGIN_FILE', __FILE__ );
 define( 'MM_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'MM_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -142,6 +142,9 @@ add_action( 'wpmu_new_blog',      'mm_on_new_blog'  ); // WP < 5.1 (deprecated b
  * @param WP_Site $site The newly created site object.
  */
 function mm_on_new_site( WP_Site $site ): void {
+	if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
 	if ( ! is_plugin_active_for_network( plugin_basename( MM_PLUGIN_FILE ) ) ) {
 		return;
 	}
@@ -156,6 +159,9 @@ function mm_on_new_site( WP_Site $site ): void {
  * @param int $blog_id The new blog ID.
  */
 function mm_on_new_blog( int $blog_id ): void {
+	if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
 	if ( ! is_plugin_active_for_network( plugin_basename( MM_PLUGIN_FILE ) ) ) {
 		return;
 	}
@@ -213,7 +219,14 @@ function mm_import_completed_jobs(): void {
 			continue;
 		}
 		foreach ( $files as $filepath ) {
-			$raw = $wp_filesystem ? $wp_filesystem->get_contents( $filepath ) : false;
+			if ( $wp_filesystem ) {
+				$raw = $wp_filesystem->get_contents( $filepath );
+			} else {
+				// Fallback for uncommon server configurations where WP_Filesystem
+				// cannot initialise without credentials (e.g. FTP-only servers).
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+				$raw = file_get_contents( $filepath );
+			}
 			$job = $raw ? json_decode( $raw, true ) : null;
 
 			if ( is_array( $job ) ) {

@@ -5,10 +5,11 @@
  * Registers and renders the plugin settings under Media → Settings.
  *
  * Options:
- *   mm_compress_level  — PNG/WebP optimisation level (1–7, default 2).
- *                        JPEG compression is always maximum lossless quality.
- *   mm_notify_enabled  — Whether to send an email on job failure.
- *   mm_notify_email    — Recipient address; falls back to admin email if empty.
+ *   mm_compress_level          — PNG/WebP optimisation level (1–7, default 2).
+ *                                JPEG compression is always maximum lossless quality.
+ *   mm_notify_enabled          — Whether to send an email on job failure.
+ *   mm_notify_email            — Recipient address; falls back to admin email if empty.
+ *   mm_delete_data_on_uninstall — When true, all plugin data is wiped on plugin deletion.
  *
  * @package Metamanager
  */
@@ -136,7 +137,7 @@ class MM_Settings {
 
 		add_settings_section(
 			'mm_section_uninstall',
-			esc_html__( 'Data &amp; Uninstall', 'metamanager' ),
+			esc_html__( 'Data & Uninstall', 'metamanager' ),
 			fn() => esc_html_e( 'Controls what happens to plugin data when Metamanager is deleted from WordPress.', 'metamanager' ),
 			'metamanager-settings'
 		);

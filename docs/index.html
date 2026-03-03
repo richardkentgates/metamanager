@@ -71,7 +71,7 @@
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
           "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); and Open Graph tags — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "1.4.0",
+          "softwareVersion": "1.5.1",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -224,6 +224,16 @@
                 <div class="feature-icon">📦</div>
                 <h3>Native Auto-Updates</h3>
                 <p>Integrates with the WordPress update pipeline. New releases published to GitHub appear automatically in <strong>Dashboard → Updates</strong> — update with one click, just like any other plugin. A manual “Check for Updates” link is also available on the Plugins page.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌐</div>
+                <h3>Multisite Ready</h3>
+                <p>Network activation creates the job-log table and schedules cron on every existing site. New blog creation is handled automatically via <code>wp_initialize_site</code>. Per-site settings, per-site tables, shared job queue — each concern is scoped correctly.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧹</div>
+                <h3>Clean Uninstall</h3>
+                <p>An opt-in setting under <strong>Media → MM Settings → Data &amp; Uninstall</strong> removes all options, attachment metadata, the job-log table, and the queue directory when the plugin is deleted. Nothing is removed by default — data is always preserved unless you explicitly choose otherwise.</p>
             </div>
         </div>
     </div>

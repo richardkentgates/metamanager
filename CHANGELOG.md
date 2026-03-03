@@ -7,7 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.5.0] — 2026-03-03
+## [1.5.1] — 2026-03-02
+
+### Fixed
+- **`uninstall.php` multisite logic** — the v1.5.0 release checked `mm_delete_data_on_uninstall` against the primary site's option before iterating blogs, meaning sites other than site 1 were cleaned up unconditionally. The option is now checked inside the `switch_to_blog()` loop so each site is only cleaned up when that site's admin opted in.
+- **Settings section title double-encoding** — `'Data &amp; Uninstall'` passed to `esc_html__()` produced `Data &amp;amp; Uninstall` in the browser. Fixed to `'Data & Uninstall'`.
+- **`is_plugin_active_for_network()` availability** — `mm_on_new_site()` and `mm_on_new_blog()` now guard the call with `function_exists()` + `require_once ABSPATH . 'wp-admin/includes/plugin.php'` so the function is always available regardless of the hook's execution context.
+- **WP_Filesystem cron fallback** — if `WP_Filesystem()` cannot initialise (e.g. on FTP-only servers that require credentials), the cron handler now falls back to native `file_get_contents()` instead of silently skipping all result files.
+
+### Changed
+- **README.md** — Uninstall section rewritten with clear instructions for the admin UI route, the daemon removal steps, and a manual SQL cleanup block. Features list updated with multisite and clean-uninstall bullets.
+- **Documentation website** — `softwareVersion` updated to 1.5.1; two new feature cards added: "Multisite Ready" and "Clean Uninstall".
+
+---
+
+## [1.5.0] — 2026-03-02
 
 ### Added
 - **`uninstall.php`** — full cleanup routine triggered when the plugin is deleted from the Plugins screen. Removes all options, post meta (including wildcard `_mm_compressed_*` keys), the `metamanager_jobs` DB table, the `metamanager-jobs/` queue directory tree, and the updater transient. Data is only removed when the **Remove all data on uninstall** setting is enabled; by default nothing is deleted on uninstall.

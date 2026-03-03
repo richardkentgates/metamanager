@@ -3,8 +3,10 @@
  * Uninstall Metamanager
  *
  * Runs when the plugin is deleted from "Plugins → Delete".
- * Only removes data when the admin has opted in via the
- * "Remove all data on uninstall" setting.
+ * On single-site installs, data is removed only when the admin has opted in
+ * via the "Remove all data on uninstall" setting.
+ * On multisite networks, each blog's option is checked individually so only
+ * sites that have opted in are cleaned up.
  *
  * @package Metamanager
  */
@@ -12,11 +14,6 @@
 // WordPress sets this constant before running uninstall.php.  Any direct
 // execution attempt is silently blocked.
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
-
-// If the user chose to keep data, do nothing.
-if ( ! get_option( 'mm_delete_data_on_uninstall' ) ) {
-	return;
-}
 
 global $wpdb;
 
@@ -83,18 +80,34 @@ function _mm_uninstall_site(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Multisite: run cleanup for every site; single-site: run once.
+// Multisite: check option per-site; only clean up consenting sites.
+// Single-site: check option once and proceed or bail.
 // ---------------------------------------------------------------------------
+
+$job_root    = WP_CONTENT_DIR . '/metamanager-jobs';
+$any_deleted = false;
 
 if ( is_multisite() ) {
 	$sites = get_sites( [ 'number' => 0 ] );
 	foreach ( $sites as $site ) {
 		switch_to_blog( (int) $site->blog_id );
-		_mm_uninstall_site();
+		if ( get_option( 'mm_delete_data_on_uninstall' ) ) {
+			_mm_uninstall_site();
+			$any_deleted = true;
+		}
 		restore_current_blog();
 	}
 } else {
+	// Single-site: bail early if the admin chose to keep data.
+	if ( ! get_option( 'mm_delete_data_on_uninstall' ) ) {
+		return;
+	}
 	_mm_uninstall_site();
+	$any_deleted = true;
+}
+
+if ( ! $any_deleted ) {
+	return;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +117,7 @@ if ( is_multisite() ) {
 
 /**
  * Recursively delete a directory and all its contents.
+ * Uses wp_delete_file() for individual files so WordPress hooks are honoured.
  *
  * @param string $dir Absolute path to directory.
  */
@@ -125,7 +139,6 @@ function _mm_rmdir_recursive( string $dir ): void {
 	rmdir( $dir );
 }
 
-$job_root = WP_CONTENT_DIR . '/metamanager-jobs';
 _mm_rmdir_recursive( $job_root );
 
 // ---------------------------------------------------------------------------
