@@ -66,6 +66,12 @@ class MM_Metadata {
 	/** Altitude in metres above sea level (may be negative). */
 	public const META_GPS_ALT  = 'mm_gps_alt';
 
+	/**
+	 * Flag: ExifTool has run on this file at least once and populated WP fields.
+	 * Value is '1' when synced, unset (empty string) when never scanned.
+	 */
+	public const META_SYNCED = 'mm_meta_synced';
+
 	// -----------------------------------------------------------------------
 	// Field definitions — logical key → ExifTool write tags
 	// -----------------------------------------------------------------------
@@ -161,6 +167,17 @@ class MM_Metadata {
 			'show_in_rest'      => true,
 		] );
 
+		// Sync flag — set once ExifTool has run a file scan, integer 0/1.
+		register_post_meta( 'attachment', self::META_SYNCED, [
+			'object_subtype'    => 'attachment',
+			'type'              => 'integer',
+			'description'       => __( 'Whether Metamanager has imported metadata from this file.', 'metamanager' ),
+			'single'            => true,
+			'sanitize_callback' => fn( $v ) => (int) (bool) $v,
+			'auth_callback'     => fn() => current_user_can( 'upload_files' ),
+			'show_in_rest'      => false,
+		] );
+
 		// GPS fields — read-only, imported from EXIF Composite group, never user-edited.
 		$gps_fields = [
 			self::META_GPS_LAT => __( 'GPS latitude (signed decimal degrees).', 'metamanager' ),
@@ -206,6 +223,11 @@ class MM_Metadata {
 		}
 
 		$embedded = self::read_embedded( $file );
+
+		// Mark as synced regardless of whether the file contained any metadata.
+		// The scan ran — don't re-run it unnecessarily.
+		update_post_meta( $attachment_id, self::META_SYNCED, 1 );
+
 		if ( empty( $embedded ) ) {
 			return;
 		}

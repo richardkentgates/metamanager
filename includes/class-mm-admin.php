@@ -59,6 +59,9 @@ class MM_Admin {
 		// AJAX: clear job history.
 		add_action( 'wp_ajax_mm_clear_history', [ __CLASS__, 'ajax_clear_history' ] );
 
+		// AJAX: scan existing library (import metadata for all un-synced images).
+		add_action( 'wp_ajax_mm_scan_library', [ __CLASS__, 'ajax_scan_library' ] );
+
 		// Bulk spinner (lightweight UX touch on the Media Library).
 		add_action( 'admin_footer-upload.php', [ __CLASS__, 'bulk_spinner_markup' ] );
 
@@ -248,6 +251,7 @@ class MM_Admin {
 	 */
 	public static function add_media_column( array $columns ): array {
 		$columns['mm_compression'] = esc_html__( 'Compression', 'metamanager' );
+		$columns['mm_meta_sync']   = esc_html__( 'Meta Sync', 'metamanager' );
 		return $columns;
 	}
 
@@ -256,16 +260,30 @@ class MM_Admin {
 	 * @param int    $attachment_id Attachment ID.
 	 */
 	public static function render_media_column( string $column_name, int $attachment_id ): void {
-		if ( 'mm_compression' !== $column_name ) {
+		if ( 'mm_compression' === $column_name ) {
+			$status = MM_Status::compression_status( $attachment_id );
+			echo '<span class="mm-compress-status" '
+				. 'id="mm-status-' . esc_attr( (string) $attachment_id ) . '" '
+				. 'data-id="' . esc_attr( (string) $attachment_id ) . '" '
+				. 'style="color:' . esc_attr( $status['color'] ) . ';font-weight:bold;">'
+				. esc_html( $status['label'] )
+				. '</span>';
 			return;
 		}
-		$status = MM_Status::compression_status( $attachment_id );
-		echo '<span class="mm-compress-status" '
-			. 'id="mm-status-' . esc_attr( (string) $attachment_id ) . '" '
-			. 'data-id="' . esc_attr( (string) $attachment_id ) . '" '
-			. 'style="color:' . esc_attr( $status['color'] ) . ';font-weight:bold;">'
-			. esc_html( $status['label'] )
-			. '</span>';
+
+		if ( 'mm_meta_sync' === $column_name ) {
+			if ( ! wp_attachment_is_image( $attachment_id ) ) {
+				return;
+			}
+			$synced = (string) get_post_meta( $attachment_id, MM_Metadata::META_SYNCED, true );
+			if ( '1' === $synced ) {
+				echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a;" title="'
+					. esc_attr__( 'Metadata imported from file', 'metamanager' ) . '"></span>';
+			} else {
+				echo '<span class="dashicons dashicons-warning" style="color:#dba617;" title="'
+					. esc_attr__( 'Not yet synced — use Bulk Action: Import Metadata from Files', 'metamanager' ) . '"></span>';
+			}
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -337,8 +355,9 @@ class MM_Admin {
 	 * @return array
 	 */
 	public static function register_bulk_actions( array $actions ): array {
-		$actions['mm_bulk_compress']   = esc_html__( 'Compress Lossless (Metamanager)', 'metamanager' );
-		$actions['mm_bulk_site_info']  = esc_html__( 'Inject Site Info into Metadata (Metamanager)', 'metamanager' );
+		$actions['mm_bulk_compress']      = esc_html__( 'Compress Lossless (Metamanager)', 'metamanager' );
+		$actions['mm_bulk_site_info']     = esc_html__( 'Inject Site Info into Metadata (Metamanager)', 'metamanager' );
+		$actions['mm_bulk_import_meta']   = esc_html__( 'Import Metadata from Files (Metamanager)', 'metamanager' );
 		return $actions;
 	}
 
@@ -361,6 +380,10 @@ class MM_Admin {
 			case 'mm_bulk_site_info':
 				$count = self::do_bulk_inject_site_info( $post_ids );
 				return add_query_arg( 'mm_bulk_site_info', $count, $redirect_to );
+
+			case 'mm_bulk_import_meta':
+				$count = self::do_bulk_import_meta( $post_ids );
+				return add_query_arg( 'mm_bulk_import_meta', $count, $redirect_to );
 		}
 
 		return $redirect_to;
@@ -387,6 +410,16 @@ class MM_Admin {
 				. sprintf(
 					/* translators: %d: number of images */
 					esc_html__( 'Metamanager: Site provenance info (Publisher + Website) injected for %d image(s).', 'metamanager' ),
+					$n
+				)
+				. '</p></div>';
+		}
+		if ( isset( $_REQUEST['mm_bulk_import_meta'] ) ) {
+			$n = absint( $_REQUEST['mm_bulk_import_meta'] );
+			echo '<div class="notice notice-success is-dismissible"><p>'
+				. sprintf(
+					/* translators: %d: number of images */
+					esc_html__( 'Metamanager: Metadata imported from %d image file(s).', 'metamanager' ),
 					$n
 				)
 				. '</p></div>';
@@ -451,6 +484,27 @@ class MM_Admin {
 	 * @param int[] $post_ids Attachment IDs.
 	 * @return int Number of attachments processed.
 	 */
+	/**
+	 * Import embedded file metadata into WordPress fields for selected images.
+	 * Calls MM_Metadata::import_from_file() which preserves existing user values
+	 * and sets the mm_meta_synced flag when done.
+	 *
+	 * @param int[] $post_ids Attachment IDs.
+	 * @return int Number of attachments processed.
+	 */
+	private static function do_bulk_import_meta( array $post_ids ): int {
+		$count = 0;
+		foreach ( $post_ids as $id ) {
+			$id = (int) $id;
+			if ( ! wp_attachment_is_image( $id ) ) {
+				continue;
+			}
+			MM_Metadata::import_from_file( $id );
+			++$count;
+		}
+		return $count;
+	}
+
 	private static function do_bulk_inject_site_info( array $post_ids ): int {
 		$count = 0;
 		foreach ( $post_ids as $id ) {
@@ -569,6 +623,20 @@ class MM_Admin {
 				</details>
 			</div>
 
+			<!-- Library Sync tool -->
+			<div class="postbox mm-section" id="mm-sync-box">
+				<div class="postbox-header"><h2 class="hndle"><?php esc_html_e( 'Library Sync', 'metamanager' ); ?></h2></div>
+				<div class="inside" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+					<p style="margin:0;">
+						<?php esc_html_e( 'Scans every image in the library that has never been processed by Metamanager and imports any embedded metadata into WordPress fields. Safe to run at any time — existing user-set values are never overwritten.', 'metamanager' ); ?>
+					</p>
+					<button id="mm-scan-library-btn" class="button button-primary" style="white-space:nowrap;">
+						<?php esc_html_e( 'Scan Existing Library', 'metamanager' ); ?>
+					</button>
+					<span id="mm-scan-result" style="font-size:13px;"></span>
+				</div>
+			</div>
+
 			<div id="mm-jobs-dashboard">
 				<?php self::render_jobs_content(); ?>
 			</div>
@@ -635,6 +703,29 @@ class MM_Admin {
 				}, 'json');
 			});
 
+			$(document).on('click', '#mm-scan-library-btn', function(e){
+				e.preventDefault();
+				var btn = $(this);
+				var result = $('#mm-scan-result');
+				btn.prop('disabled', true).text('<?php echo esc_js( __( 'Scanning…', 'metamanager' ) ); ?>');
+				result.text('');
+				$.post(ajaxurl, {
+					action: 'mm_scan_library',
+					nonce:  '<?php echo esc_js( wp_create_nonce( 'mm_scan_library' ) ); ?>'
+				}, function(resp){
+					btn.prop('disabled', false).text('<?php echo esc_js( __( 'Scan Existing Library', 'metamanager' ) ); ?>');
+					if (resp.success) {
+						result.css('color','#00a32a').text(
+							'<?php echo esc_js( __( 'Done — scanned', 'metamanager' ) ); ?> ' +
+							resp.data.count +
+							' <?php echo esc_js( __( 'image(s).', 'metamanager' ) ); ?>'
+						);
+					} else {
+						result.css('color','#d63638').text('<?php echo esc_js( __( 'Scan failed.', 'metamanager' ) ); ?>');
+					}
+				}, 'json');
+			});
+
 			$(document).on('click', '#mm-clear-history-btn', function(e){
 				e.preventDefault();
 				if (!confirm('<?php echo esc_js( __( 'Clear entire job history? This cannot be undone.', 'metamanager' ) ); ?>')) return;
@@ -681,6 +772,39 @@ class MM_Admin {
 		}
 		MM_DB::clear_history();
 		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Import metadata for every image attachment that has not yet been
+	 * scanned by Metamanager (mm_meta_synced not set).
+	 */
+	public static function ajax_scan_library(): void {
+		check_ajax_referer( 'mm_scan_library', 'nonce' );
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error( 'Permission denied.' );
+		}
+
+		$unsynced = get_posts( [
+			'post_type'      => 'attachment',
+			'post_mime_type' => 'image',
+			'post_status'    => 'inherit',
+			'numberposts'    => -1,
+			'fields'         => 'ids',
+			'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery
+				[
+					'key'     => MM_Metadata::META_SYNCED,
+					'compare' => 'NOT EXISTS',
+				],
+			],
+		] );
+
+		$count = 0;
+		foreach ( $unsynced as $id ) {
+			MM_Metadata::import_from_file( (int) $id );
+			++$count;
+		}
+
+		wp_send_json_success( [ 'count' => $count ] );
 	}
 
 	// -----------------------------------------------------------------------
