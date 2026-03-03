@@ -341,13 +341,18 @@ wp metamanager stats
 
 ## REST API
 
-All endpoints are under the `metamanager/v1` namespace. Every request requires an authenticated user with `upload_files` capability — include a `X-WP-Nonce` header or use cookie authentication.
+All endpoints are under the `metamanager/v1` namespace. Include a `X-WP-Nonce` header or use cookie authentication. Endpoints follow standard WordPress capability rules — the required capability matches what each operation actually does:
+
+| Required capability | Held by | Applies to |
+|---|---|---|
+| `upload_files` | Author+ | Read-only status checks |
+| `edit_others_posts` | Editor+ | Site-wide data and write operations |
 
 **Base URL:** `https://yoursite.com/wp-json/metamanager/v1`
 
 ---
 
-### `GET /stats`
+### `GET /stats` — requires `edit_others_posts`
 
 Aggregate job statistics across the full history.
 
@@ -364,7 +369,7 @@ Aggregate job statistics across the full history.
 
 ---
 
-### `GET /jobs`
+### `GET /jobs` — requires `edit_others_posts`
 
 Paginated, filterable job history. Pagination totals in `X-WP-Total` and `X-WP-TotalPages` response headers.
 
@@ -378,15 +383,15 @@ Paginated, filterable job history. Pagination totals in `X-WP-Total` and `X-WP-T
 
 ---
 
-### `GET /jobs/{id}`
+### `GET /jobs/{id}` — requires `edit_others_posts`
 
 Single job record by database ID. Returns `404` if not found.
 
 ---
 
-### `GET /attachment/{id}/status`
+### `GET /attachment/{id}/status` — requires `upload_files`
 
-Compression and metadata sync status for one attachment.
+Compression and metadata sync status for one attachment. Read-only; available to any uploader.
 
 ```json
 {
@@ -398,7 +403,7 @@ Compression and metadata sync status for one attachment.
 
 ---
 
-### `POST /attachment/{id}/compress`
+### `POST /attachment/{id}/compress` — requires `edit_others_posts`
 
 Queue lossless compression for one attachment.
 
@@ -416,9 +421,9 @@ Queue lossless compression for one attachment.
 
 ---
 
-### `POST /compression-status`
+### `POST /compression-status` — requires `upload_files`
 
-Batch compression status query used by the Media Library column. Request body: `{ "ids": [1, 2, 3] }`. Returns a map of attachment ID → status string.
+Batch compression status query used by the Media Library column. Read-only; available to any uploader. Request body: `{ "ids": [1, 2, 3] }`. Returns a map of attachment ID → status string.
 
 ---
 

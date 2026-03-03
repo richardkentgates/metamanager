@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.3] — 2026-03-03
+
+### Fixed
+- **WordPress permission model alignment** — all capability checks have been updated to match what each operation actually does, rather than using a single broad `upload_files` gate throughout.
+  - **Menu pages & admin pages** (`Metamanager` job dashboard, `Bulk Edit Metadata`): `upload_files` → `edit_others_posts`. Both pages display and operate on all media site-wide, which is an Editor-level concern.
+  - **Bulk actions** (`handle_bulk_actions()`): `upload_files` → `edit_others_posts`. Compress Lossless, Inject Site Info, and Import Metadata act on the full media library, not just the current user's uploads.
+  - **REST API split into two tiers:**
+    - Read-only status endpoints (`POST /compression-status`, `GET /attachment/{id}/status`) keep `upload_files` — informational checks appropriate for any uploader.
+    - Dashboard and write endpoints (`GET /jobs`, `GET /jobs/{id}`, `POST /attachment/{id}/compress`, `GET /stats`) now require `edit_others_posts` — they expose site-wide data or trigger write operations.
+  - **AJAX handlers** (`ajax_jobs_refresh`, `ajax_requeue_job`, `ajax_scan_library`): `upload_files` → `edit_others_posts` for the same reason as the admin pages above.
+  - **Per-attachment AJAX handlers** (`ajax_recompress`, `ajax_save_bulk_meta_row`): `upload_files` → `current_user_can('edit_post', $id)`. This is the correct WordPress ownership gate — Authors can act on their own files without being granted site-wide access.
+
+---
+
 ## [1.5.2] — 2026-03-03
 
 ### Fixed

@@ -71,7 +71,7 @@
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
           "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); and Open Graph tags — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "1.5.2",
+          "softwareVersion": "1.5.3",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -824,7 +824,7 @@ Metadata daemon: running</code></pre>
 <section class="section section-alt" id="rest-api">
     <div class="container">
         <h2 class="section-title">REST API</h2>
-        <p class="section-subtitle">Every operation is available via the WordPress REST API. Requires <code>upload_files</code> capability and a valid <code>X-WP-Nonce</code>.</p>
+        <p class="section-subtitle">Every operation is available via the WordPress REST API. Authentication uses a <code>X-WP-Nonce</code> header or cookie. Endpoints follow standard WordPress capability rules: read-only status checks require <code>upload_files</code> (Author+); site-wide data and write operations require <code>edit_others_posts</code> (Editor+).</p>
 
         <p style="text-align:center;margin-bottom:2rem;"><strong>Base URL:</strong> <code>https://yoursite.com/wp-json/metamanager/v1</code></p>
 
@@ -835,6 +835,7 @@ Metadata daemon: running</code></pre>
                         <th>Method</th>
                         <th>Endpoint</th>
                         <th>Description</th>
+                        <th>Requires</th>
                         <th>Key parameters</th>
                     </tr>
                 </thead>
@@ -843,36 +844,42 @@ Metadata daemon: running</code></pre>
                         <td><code class="method-get">GET</code></td>
                         <td><code>/stats</code></td>
                         <td>Aggregate compression statistics (total jobs, completed, failed, bytes saved).</td>
+                        <td><code>edit_others_posts</code></td>
                         <td>&mdash;</td>
                     </tr>
                     <tr>
                         <td><code class="method-get">GET</code></td>
                         <td><code>/jobs</code></td>
                         <td>Paginated job history. Pagination totals in <code>X-WP-Total</code> and <code>X-WP-TotalPages</code> headers.</td>
+                        <td><code>edit_others_posts</code></td>
                         <td><code>search</code>, <code>orderby</code>, <code>order</code>, <code>per_page</code>, <code>page</code></td>
                     </tr>
                     <tr>
                         <td><code class="method-get">GET</code></td>
                         <td><code>/jobs/{id}</code></td>
                         <td>Single job record by database ID. Returns <code>404</code> if not found.</td>
+                        <td><code>edit_others_posts</code></td>
                         <td>&mdash;</td>
                     </tr>
                     <tr>
                         <td><code class="method-get">GET</code></td>
                         <td><code>/attachment/{id}/status</code></td>
-                        <td>Compression and metadata sync status for one attachment.</td>
+                        <td>Compression and metadata sync status for one attachment. Read-only.</td>
+                        <td><code>upload_files</code></td>
                         <td>&mdash;</td>
                     </tr>
                     <tr>
                         <td><code class="method-post">POST</code></td>
                         <td><code>/attachment/{id}/compress</code></td>
                         <td>Queue lossless compression. Images → all sizes recompressed. Video → lossless remux. Audio/PDF → <code>422</code>.</td>
+                        <td><code>edit_others_posts</code></td>
                         <td><code>force</code> (boolean)</td>
                     </tr>
                     <tr>
                         <td><code class="method-post">POST</code></td>
                         <td><code>/compression-status</code></td>
-                        <td>Batch status query used by the Media Library column. Returns a map of ID&nbsp;→&nbsp;status string.</td>
+                        <td>Batch status query used by the Media Library column. Returns a map of ID&nbsp;→&nbsp;status string. Read-only.</td>
+                        <td><code>upload_files</code></td>
                         <td><code>ids</code> (array)</td>
                     </tr>
                 </tbody>

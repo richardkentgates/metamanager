@@ -90,7 +90,8 @@ class MM_Admin {
 				'content' =>
 					'<h2>' . esc_html__( 'Metamanager Job Dashboard', 'metamanager' ) . '</h2>' .
 					'<p>' . esc_html__( 'This page shows everything Metamanager is doing or has done. The top section is the live queue — jobs waiting to be processed by the OS daemons. The bottom section is the history of completed and failed jobs pulled from the database.', 'metamanager' ) . '</p>' .
-					'<p>' . esc_html__( 'Both sections refresh automatically every 5 seconds. You do not need to reload the page.', 'metamanager' ) . '</p>',
+					'<p>' . esc_html__( 'Both sections refresh automatically every 5 seconds. You do not need to reload the page.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Access to this dashboard and all write operations (bulk actions, re-queue, library scan) requires the Editor role or higher (edit_others_posts capability). Per-attachment actions such as recompressing or saving metadata on a single file respect normal WordPress ownership — Authors can act on their own uploads.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [
