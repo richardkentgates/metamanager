@@ -108,7 +108,7 @@ class MM_CLI extends \WP_CLI_Command {
 
 			if ( MM_Metadata::is_video_mime( $mime ) ) {
 				// Video: single lossless remux job.
-				MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'cli', 'is_remux' => true ] );
+				MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'cli' ] );
 			} else {
 				// Image: queue all registered sizes.
 				$meta = wp_get_attachment_metadata( $id ) ?: [];

@@ -76,8 +76,9 @@ class MM_DB {
 	 *   status, submitted_at, completed_at, details (optional array).
 	 *
 	 * @param array $job Associative array of job data.
+	 * @return bool True on successful insert, false on failure.
 	 */
-	public static function log_job( array $job ): void {
+	public static function log_job( array $job ): bool {
 		global $wpdb;
 
 		$table = self::table_name();
@@ -108,7 +109,8 @@ class MM_DB {
 			$formats[]           = '%d';
 		}
 
-		$wpdb->insert( $table, $data, $formats ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return (bool) $wpdb->insert( $table, $data, $formats );
 	}
 
 	/**

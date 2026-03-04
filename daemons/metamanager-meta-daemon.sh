@@ -14,7 +14,7 @@
 #   Copyright   → EXIF:Copyright,    IPTC:CopyrightNotice,   XMP:Rights
 #   Owner       → XMP:Owner,         EXIF:OwnerName
 #   Publisher   → IPTC:Source,       XMP:Publisher
-#   Website     → XMP:WebStatement,  IPTC:Source
+#   Website     → XMP:WebStatement
 #
 # metamanager-install.sh patches JOB_ROOT to match the actual WP_CONTENT_DIR on this server.
 # =============================================================================
@@ -34,6 +34,10 @@ JOB_DONE="${JOB_ROOT}/completed"
 JOB_FAILED="${JOB_ROOT}/failed"
 LOG_FILE="/var/log/metamanager-meta.log"
 PID_FILE="/tmp/metamanager-meta-daemon.pid"
+
+# Maximum simultaneous job subshells. Tune to available CPU cores.
+# Raising this too high on a loaded server will saturate disk I/O.
+MAX_CONCURRENT=4
 
 EXIFTOOL="/usr/bin/exiftool"
 
@@ -145,8 +149,7 @@ process_job() {
         v=$(get_val "Owner");       append_tag "EXIF:OwnerName"          "${v}"
                                      append_tag "XMP:Owner"               "${v}"
 
-        v=$(get_val "Publisher");   append_tag "IPTC:Source"             "${v}"
-                                     append_tag "XMP:Publisher"           "${v}"
+        v=$(get_val "Publisher");   append_tag "XMP:Publisher"           "${v}"
 
         v=$(get_val "Website");     append_tag "XMP:WebStatement"        "${v}"
         v=$(get_val "Headline");    append_tag "IPTC:Headline"            "${v}"
@@ -226,7 +229,7 @@ process_job() {
         v=$(get_val "Description"); append_tag "Description"             "${v}"
         v=$(get_val "Publisher");   append_tag "Organization"            "${v}"
         v=$(get_val "DateCreated"); append_tag "Date"                    "${v}"
-        v=$(get_val "Headline");    append_tag "Title"                   "${v}"
+        v=$(get_val "Headline");    append_tag "XMP:Headline"            "${v}"
         IFS='; ' read -ra _kw_arr <<< "$(get_val 'Keywords')"
         for _kw in "${_kw_arr[@]}"; do
             [[ -n "${_kw}" ]] && exif_args+=( "-Genre+=${_kw}" )
@@ -313,6 +316,10 @@ write_result() {
 inotifywait -m -e close_write --format '%w%f' "${JOB_DIR}" 2>/dev/null \
 | while IFS= read -r jobfile; do
     if [[ "${jobfile}" == *.json ]]; then
+        # Throttle: block until a subshell slot is free before spawning another.
+        while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
+            wait -n 2>/dev/null || true
+        done
         process_job "${jobfile}" &
     fi
 done

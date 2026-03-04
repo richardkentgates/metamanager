@@ -71,7 +71,7 @@
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
           "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); and Open Graph tags — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "1.5.4",
+          "softwareVersion": "1.5.5",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -622,7 +622,7 @@ updates history table</code></pre>
                         <td><strong>Website</strong></td>
                         <td><span class="badge badge-site">Site URL (auto)</span></td>
                         <td>—</td>
-                        <td><code>Source</code></td>
+                        <td>—</td>
                         <td><code>WebStatement</code></td>
                     </tr>
                 </tbody>
@@ -633,7 +633,7 @@ updates history table</code></pre>
             Only <span class="badge badge-site">Site auto</span> fields (Publisher + Website) can be injected in bulk — neutral provenance, not an ownership claim.
             <span class="badge badge-gps">GPS Auto</span> fields are imported from the camera at upload time and are never editable in the UI.
         </p>        <p class="table-note" style="margin-top:.75rem;">
-            <strong>Video, audio, and PDF</strong> share the same WordPress field names and edit UI. The metadata daemon writes to each format's native tag system: QuickTime atoms (MP4/MOV/M4A), ID3 (MP3), Vorbis comments (OGG/FLAC), XMP-only (AVI/WAV/WMV/WMA/PDF). MKV, WebM, and OGV are read-only at this time.
+            <strong>Video, audio, and PDF</strong> share the same WordPress field names and edit UI. The metadata daemon writes to each format's native tag system: QuickTime atoms (MP4/MOV/M4A), ID3 (MP3), Vorbis comments (OGG/FLAC — Headline uses <code>XMP:Headline</code> since there is no standard Vorbis HEADLINE field), XMP-only (AVI/WAV/WMV/WMA/PDF). MKV, WebM, and OGV are read-only at this time.
         </p>    </div>
 </section>
 

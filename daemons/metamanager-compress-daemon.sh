@@ -28,6 +28,10 @@ JOB_FAILED="${JOB_ROOT}/failed"
 LOG_FILE="/var/log/metamanager-compress.log"
 PID_FILE="/tmp/metamanager-compress-daemon.pid"
 
+# Maximum simultaneous job subshells. Tune to available CPU cores.
+# Raising this too high on a loaded server will saturate disk I/O.
+MAX_CONCURRENT=4
+
 JPEGTRAN="/usr/bin/jpegtran"
 OPTIPNG="/usr/bin/optipng"
 CWEBP="/usr/bin/cwebp"
@@ -264,6 +268,10 @@ write_result() {
 inotifywait -m -e close_write --format '%w%f' "${JOB_DIR}" 2>/dev/null \
 | while IFS= read -r jobfile; do
     if [[ "${jobfile}" == *.json ]]; then
+        # Throttle: block until a subshell slot is free before spawning another.
+        while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
+            wait -n 2>/dev/null || true
+        done
         process_job "${jobfile}" &
     fi
 done

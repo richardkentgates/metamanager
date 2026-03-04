@@ -347,7 +347,7 @@ class MM_Admin {
 					. esc_attr__( 'Metadata imported from file', 'metamanager' ) . '"></span>';
 			} else {
 				echo '<span class="dashicons dashicons-warning" style="color:#dba617;" title="'
-					. esc_attr__( 'Not yet synced — use Bulk Action: Import Metadata from Files', 'metamanager' ) . '"></span>';
+					. esc_attr__( 'Not yet synced — use Library Scan (Media → Metamanager)', 'metamanager' ) . '"></span>';
 			}
 		}
 	}
@@ -509,9 +509,8 @@ class MM_Admin {
 	 * @return array
 	 */
 	public static function register_bulk_actions( array $actions ): array {
-		$actions['mm_bulk_compress']      = esc_html__( 'Compress Lossless (Metamanager)', 'metamanager' );
-		$actions['mm_bulk_site_info']     = esc_html__( 'Inject Site Info into Metadata (Metamanager)', 'metamanager' );
-		$actions['mm_bulk_import_meta']   = esc_html__( 'Import Metadata from Files (Metamanager)', 'metamanager' );
+		$actions['mm_bulk_compress']  = esc_html__( 'Compress Lossless (Metamanager)', 'metamanager' );
+		$actions['mm_bulk_site_info'] = esc_html__( 'Inject Site Info into Metadata (Metamanager)', 'metamanager' );
 		return $actions;
 	}
 
@@ -534,10 +533,6 @@ class MM_Admin {
 			case 'mm_bulk_site_info':
 				$count = self::do_bulk_inject_site_info( $post_ids );
 				return add_query_arg( 'mm_bulk_site_info', $count, $redirect_to );
-
-			case 'mm_bulk_import_meta':
-				$count = self::do_bulk_import_meta( $post_ids );
-				return add_query_arg( 'mm_bulk_import_meta', $count, $redirect_to );
 		}
 
 		return $redirect_to;
@@ -663,16 +658,6 @@ class MM_Admin {
 				)
 				. '</p></div>';
 		}
-		if ( isset( $_REQUEST['mm_bulk_import_meta'] ) ) {
-			$n = absint( $_REQUEST['mm_bulk_import_meta'] );
-			echo '<div class="notice notice-success is-dismissible"><p>'
-				. sprintf(
-					/* translators: %d: number of media files */
-					esc_html__( 'Metamanager: Metadata imported from %d media file(s).', 'metamanager' ),
-					$n
-				)
-				. '</p></div>';
-		}
 		// phpcs:enable
 	}
 
@@ -703,7 +688,7 @@ class MM_Admin {
 			if ( $is_video ) {
 				$file = get_attached_file( $id );
 				if ( $file && file_exists( $file ) && ! MM_Status::is_compressed( $id, 'full' ) ) {
-					MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'bulk', 'is_remux' => true ] );
+					MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'bulk' ] );
 					++$count;
 				}
 				continue;
@@ -749,28 +734,6 @@ class MM_Admin {
 	 * @param int[] $post_ids Attachment IDs.
 	 * @return int Number of attachments processed.
 	 */
-	/**
-	 * Import embedded file metadata into WordPress fields for selected images.
-	 * Calls MM_Metadata::import_from_file() which preserves existing user values
-	 * and sets the mm_meta_synced flag when done.
-	 *
-	 * @param int[] $post_ids Attachment IDs.
-	 * @return int Number of attachments processed.
-	 */
-	private static function do_bulk_import_meta( array $post_ids ): int {
-		$count = 0;
-		foreach ( $post_ids as $id ) {
-			$id   = (int) $id;
-			$mime = (string) get_post_mime_type( $id );
-			if ( ! wp_attachment_is_image( $id ) && ! MM_Metadata::is_av_mime( $mime ) && ! MM_Metadata::is_pdf_mime( $mime ) ) {
-				continue;
-			}
-			MM_Metadata::import_from_file( $id );
-			++$count;
-		}
-		return $count;
-	}
-
 	private static function do_bulk_inject_site_info( array $post_ids ): int {
 		$count = 0;
 		foreach ( $post_ids as $id ) {
@@ -1032,7 +995,7 @@ class MM_Admin {
 
 		if ( $is_video ) {
 			$file = get_attached_file( $id );
-			MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'rest_api', 'is_remux' => true ] );
+			MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'rest_api' ] );
 		} else {
 			MM_Job_Queue::enqueue_all_sizes( $id, [], 'compression', [ 'trigger' => 'rest_api' ] );
 		}
@@ -1186,12 +1149,13 @@ class MM_Admin {
 				var totalScanned = 0;
 				var nonce = '<?php echo esc_js( wp_create_nonce( 'mm_scan_library' ) ); ?>';
 
-				function runBatch(offset) {
+				function runBatch(offset, total) {
 					$.post(ajaxurl, {
 						action:     'mm_scan_library',
 						nonce:      nonce,
 						offset:     offset,
 						batch_size: 50,
+						total:      total || 0,
 					}, function(resp){
 						if (!resp.success) {
 							btn.prop('disabled', false).text('<?php echo esc_js( __( 'Scan Existing Library', 'metamanager' ) ); ?>');
@@ -1207,7 +1171,7 @@ class MM_Admin {
 							' / ' + resp.data.total + ' <?php echo esc_js( __( 'media file(s)…', 'metamanager' ) ); ?>'
 						);
 						if (!resp.data.done) {
-							runBatch(resp.data.offset);
+							runBatch(resp.data.offset, resp.data.total);
 						} else {
 							btn.prop('disabled', false).text('<?php echo esc_js( __( 'Scan Existing Library', 'metamanager' ) ); ?>');
 							result.css('color','#00a32a').text(
@@ -1218,7 +1182,7 @@ class MM_Admin {
 						}
 					}, 'json');
 				}
-				runBatch(0);
+				runBatch(0, 0);
 			});
 
 			$(document).on('click', '#mm-clear-history-btn', function(e){
@@ -1308,9 +1272,16 @@ class MM_Admin {
 			],
 		];
 
-		// Total un-synced count (only queried on first call to set progress bar max).
-		$total_ids = get_posts( array_merge( $base_query, [ 'numberposts' => -1 ] ) );
-		$total     = count( $total_ids );
+		// Total un-synced count: accept the client's cached value on all calls
+		// after the first to avoid a full library scan on every batch.
+		// On the first call (posted total is 0 or absent) run the count query.
+		$posted_total = max( 0, (int) ( $_POST['total'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		if ( $posted_total > 0 && $offset > 0 ) {
+			$total = $posted_total;
+		} else {
+			$total_ids = get_posts( array_merge( $base_query, [ 'numberposts' => -1 ] ) );
+			$total     = count( $total_ids );
+		}
 
 		// Fetch this batch.
 		$batch = get_posts( array_merge( $base_query, [
@@ -1366,7 +1337,7 @@ class MM_Admin {
 			if ( ! $file || ! file_exists( $file ) ) {
 				wp_send_json_error( __( 'File not found.', 'metamanager' ) );
 			}
-			MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'manual', 'is_remux' => true ] );
+			MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'manual' ] );
 		} else {
 			MM_Job_Queue::enqueue_all_sizes( $id, $meta, 'compression', [ 'trigger' => 'manual' ] );
 		}

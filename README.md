@@ -172,7 +172,7 @@ History table updated
 
 ## Metadata Fields
 
-> **Format-aware tag writing:** Images write EXIF, IPTC, and XMP simultaneously. MP3 uses ID3 tags; MP4/MOV/M4A use QuickTime atoms; OGG/FLAC use Vorbis comments; AVI/WAV/WMV/WMA and PDF use XMP-only. MKV/WebM/OGV are read-only at this time. All fields below apply to images; video, audio, and PDF share the same WordPress field names but write to the appropriate native tag system.
+> **Format-aware tag writing:** Images write EXIF, IPTC, and XMP simultaneously. MP3 uses ID3 tags; MP4/MOV/M4A use QuickTime atoms; OGG/FLAC use Vorbis comments (Headline is written as `XMP:Headline` since there is no standard Vorbis HEADLINE field); AVI/WAV/WMV/WMA and PDF use XMP-only. MKV/WebM/OGV are read-only at this time. All fields below apply to images; video, audio, and PDF share the same WordPress field names but write to the appropriate native tag system.
 
 ### Attribution & Rights *(per-image only — never bulk)*
 
@@ -227,7 +227,7 @@ History table updated
 | Field | Source | IPTC | XMP |
 |-------|--------|------|-----|
 | Publisher | Site name | Source | Publisher |
-| Website | Site URL | Source | WebStatement |
+| Website | Site URL | — | WebStatement |
 
 **Creator, Copyright, Owner, and all per-image fields are never set by bulk actions.** Bulk operations only ever inject Publisher and Website.
 
@@ -504,7 +504,7 @@ DELETE FROM wp_options WHERE option_name IN
 DELETE FROM wp_postmeta WHERE meta_key IN
   ('mm_creator','mm_copyright','mm_owner','mm_headline','mm_credit','mm_keywords',
    'mm_date_created','mm_location_city','mm_location_state','mm_location_country',
-   'mm_rating','mm_gps_lat','mm_gps_lon','mm_gps_alt','mm_meta_synced','_mm_compressed_full');
+   'mm_rating','mm_gps_lat','mm_gps_lon','mm_gps_alt','mm_meta_synced');
 DELETE FROM wp_postmeta WHERE meta_key LIKE '_mm_compressed_%';
 ```
 

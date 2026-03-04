@@ -342,7 +342,7 @@ class MM_Job_Queue {
 
 		// Queue video remux (container repack, lossless) — audio and PDF have no remux.
 		if ( $is_video ) {
-			self::write_job( 'compression', $attachment_id, $file, 'full', [ 'trigger' => 'upload', 'is_remux' => true ] );
+			self::write_job( 'compression', $attachment_id, $file, 'full', [ 'trigger' => 'upload' ] );
 		}
 
 		return $metadata;

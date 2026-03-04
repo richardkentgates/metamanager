@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.5] — 2026-03-04
+
+### Fixed
+- **Vorbis Headline writes to XMP:Headline** — for OGG/FLAC files the Headline field was mapped to a Vorbis `TITLE` comment, silently overwriting the file's title. It now writes `XMP:Headline` instead, which ExifTool embeds in the XMP block within the container. No Vorbis standard exists for a HEADLINE field.
+- **IPTC:Source written twice for images** — the image branch of the metadata daemon wrote `IPTC:Source` inline for the Publisher field and then the reconciliation block at the bottom wrote it again. The inline write is removed; the reconciliation block is now the sole writer. No behavioural change on clean files; eliminates a redundant ExifTool argument.
+- **Website field incorrectly documented as writing IPTC:Source** — README.md and docs/index.html both showed `Source` in the IPTC column for the Website row of the Site Provenance mapping table. Website maps only to `XMP:WebStatement`; only Publisher maps to `IPTC:Source`. Documentation corrected.
+- **`is_remux` dead flag removed** — `'is_remux' => true` was written into job JSON by five PHP call sites but was never read by the compression daemon (routing is by file extension). The key is removed from all `write_job()` calls.
+- **"Import Metadata from Files" bulk action removed** — this bulk action ran `shell_exec exiftool` per selected file synchronously inside an HTTP request, making it vulnerable to PHP timeout on large selections. Replaced by directing users to the existing batched Library Scan tool (Media → Metamanager). The admin column tooltip for un-synced files is updated accordingly.
+- **Library Scan re-queried full attachment count on every batch** — `ajax_scan_library()` ran `get_posts(numberposts=-1)` on every 50-file batch rather than once. The batch response now includes the total and the JS passes it back on subsequent calls, eliminating redundant database queries.
+- **Daemon concurrency unbounded** — both daemons could spawn an unlimited number of background subshells when many job files arrived simultaneously. Both now respect `MAX_CONCURRENT=4` using a `wait -n` throttle loop before each `process_job &`.
+- **Cron importer: silent data loss on DB insert failure** — `mm_import_completed_jobs()` deleted the result JSON file regardless of whether `MM_DB::log_job()` succeeded. `log_job()` now returns `bool` and the result file is only deleted after a confirmed insert; on failure an error is logged and the file is left in place for the next cron run.
+- **`uninstall.php` incomplete cleanup** — the `mm_upload_batch` transient (used by the upload receipt batching system) and the `mm_send_upload_receipt` WP-Cron event were not cleared on uninstall. Both are now removed. The redundant explicit `_mm_compressed_full` entry in the meta key list is also removed (it was already covered by the `LIKE '_mm_compressed_%'` wildcard query directly below).
+
+---
+
 ## [1.5.4] — 2026-03-03
 
 ### Fixed

@@ -43,8 +43,9 @@ function _mm_uninstall_site(): void {
 		delete_option( $option );
 	}
 
-	// Transient used by the GitHub updater.
+	// Transients used by the plugin.
 	delete_transient( 'mm_github_latest_release' );
+	delete_transient( 'mm_upload_batch' );
 
 	// Exact post meta keys.
 	$meta_keys = [
@@ -63,7 +64,6 @@ function _mm_uninstall_site(): void {
 		'mm_gps_lon',
 		'mm_gps_alt',
 		'mm_meta_synced',
-		'_mm_compressed_full',
 	];
 	foreach ( $meta_keys as $key ) {
 		delete_post_meta_by_key( $key );
@@ -152,3 +152,4 @@ _mm_rmdir_recursive( $job_root );
 // ---------------------------------------------------------------------------
 
 wp_clear_scheduled_hook( 'mm_import_completed_jobs' );
+wp_clear_scheduled_hook( 'mm_send_upload_receipt' );

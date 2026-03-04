@@ -3,7 +3,7 @@
  * Plugin Name:  Metamanager
  * Plugin URI:   https://github.com/richardkentgates/metamanager
  * Description:  [BETA — untested in production] Lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) via OS-level daemons. Expands the WordPress Media Library with native metadata editing, bulk operations, and a real-time job dashboard.
- * Version:      1.5.4
+ * Version:      1.5.5
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:       Richard Kent Gates
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 // Plugin constants
 // ---------------------------------------------------------------------------
 
-define( 'MM_VERSION',     '1.5.4' );
+define( 'MM_VERSION',     '1.5.5' );
 define( 'MM_PLUGIN_FILE', __FILE__ );
 define( 'MM_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'MM_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -234,7 +234,17 @@ function mm_import_completed_jobs(): void {
 
 			if ( is_array( $job ) ) {
 				$job['status'] = $status;
-				MM_DB::log_job( $job );
+
+				// Only delete the result file and act on the outcome once the DB
+				// record is confirmed written. If the insert fails the file is
+				// left in place so the next cron run can retry it.
+				if ( ! MM_DB::log_job( $job ) ) {
+					error_log( sprintf(
+						'[Metamanager] DB insert failed for result file: %s — will retry on next cron run.',
+						$filepath
+					) );
+					continue;
+				}
 
 				// Mark the attachment size as compressed so the Media Library
 				// column and bulk-compress skip logic reflect the real state.
