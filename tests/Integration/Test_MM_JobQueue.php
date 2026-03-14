@@ -189,7 +189,7 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	public function test_on_upload_fresh_image_queues_both_job_types(): void {
 		[ $attachment_id ] = $this->create_tmp_attachment( 'image/jpeg' );
 
-		// META_SYNCED is NOT set → treated as a fresh upload.
+		// No completed jobs in DB → treated as a fresh upload.
 		MM_Job_Queue::on_upload( [], $attachment_id );
 
 		$this->assertSame( 1, $this->count_jobs( MM_JOB_COMPRESS ),
@@ -201,8 +201,18 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	public function test_on_upload_regeneration_queues_only_compression(): void {
 		[ $attachment_id ] = $this->create_tmp_attachment( 'image/jpeg' );
 
-		// Mark as already synced to simulate thumbnail regeneration.
-		update_post_meta( $attachment_id, MM_Metadata::META_SYNCED, 1 );
+		// Insert a completed DB row to simulate a previous run (thumbnail regen).
+		MM_DB::log_job( [
+			'attachment_id' => $attachment_id,
+			'image_name'    => 'test.jpg',
+			'job_type'      => 'compression',
+			'file_path'     => '/tmp/test.jpg',
+			'size'          => 'full',
+			'dimensions'    => '',
+			'status'        => 'completed',
+			'submitted_at'  => current_time( 'mysql' ),
+			'completed_at'  => current_time( 'mysql' ),
+		] );
 
 		MM_Job_Queue::on_upload( [], $attachment_id );
 

@@ -164,6 +164,7 @@ class MM_Job_Queue {
 		$fs = self::get_filesystem();
 		if ( $fs ) {
 			$fs->put_contents( $filename, (string) wp_json_encode( $job ), FS_CHMOD_FILE );
+			MM_DB::log_pending_job( $job );
 		}
 
 		return ! empty( $pending ) ? 'queued' : 'written';
@@ -288,10 +289,10 @@ class MM_Job_Queue {
 	/**
 	 * wp_generate_attachment_metadata hook: enqueue both job types on upload.
 	 *
-	 * On a fresh upload (mm_meta_synced not yet set) both metadata import and
-	 * compression are queued. On thumbnail regeneration (mm_meta_synced already
-	 * set) only compression is re-queued for sizes that have changed; metadata
-	 * import is skipped to avoid overwriting user edits.
+	 * Fresh upload (no completed jobs in DB): reads embedded metadata into WP,
+	 * then queues both compression and metadata-embedding jobs.
+	 * Thumbnail regeneration (completed jobs exist in DB): skips metadata import
+	 * (preserves user edits) and queues only compression for changed sizes.
 	 *
 	 * @param array $metadata      WordPress-generated metadata.
 	 * @param int   $attachment_id Attachment ID.
@@ -308,17 +309,11 @@ class MM_Job_Queue {
 			return $metadata;
 		}
 
-		$is_regeneration = '1' === get_post_meta( $attachment_id, MM_Metadata::META_SYNCED, true );
+		$is_regeneration = MM_DB::has_any_completed_job( $attachment_id );
 
 		if ( $is_image ) {
 			// ---- Images: existing regen-aware logic ----
 			if ( $is_regeneration ) {
-				delete_post_meta( $attachment_id, '_mm_compressed_full' );
-				if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
-					foreach ( array_keys( $metadata['sizes'] ) as $size ) {
-						delete_post_meta( $attachment_id, '_mm_compressed_' . $size );
-					}
-				}
 				self::enqueue_all_sizes( $attachment_id, $metadata, 'compression', [ 'trigger' => 'thumbnail_regen' ] );
 			} else {
 				MM_Metadata::import_from_file( $attachment_id );
@@ -363,15 +358,6 @@ class MM_Job_Queue {
 			}
 			foreach ( glob( $dir . $attachment_id . '-*.json' ) ?: [] as $file ) {
 				wp_delete_file( $file );
-			}
-		}
-
-		// Remove compression status post meta.
-		$meta = wp_get_attachment_metadata( $attachment_id );
-		delete_post_meta( $attachment_id, '_mm_compressed_full' );
-		if ( ! empty( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
-			foreach ( array_keys( $meta['sizes'] ) as $size ) {
-				delete_post_meta( $attachment_id, '_mm_compressed_' . $size );
 			}
 		}
 

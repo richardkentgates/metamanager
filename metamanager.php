@@ -258,20 +258,6 @@ function mm_import_completed_jobs(): void {
 					continue;
 				}
 
-				// Mark the attachment size as compressed so the Media Library
-				// column and bulk-compress skip logic reflect the real state.
-				if ( 'completed' === $status && ! empty( $job['attachment_id'] ) ) {
-					if ( 'compression' === ( $job['job_type'] ?? '' ) ) {
-						MM_Status::mark_compressed(
-							(int) $job['attachment_id'],
-							(string) ( $job['size'] ?? 'full' )
-						);
-					} elseif ( 'metadata' === ( $job['job_type'] ?? '' ) ) {
-						// Mark metadata as embedded so the library column reflects reality.
-						update_post_meta( (int) $job['attachment_id'], MM_Metadata::META_SYNCED, 1 );
-					}
-				}
-
 				if ( 'failed' === $status ) {
 					$failed_jobs[] = $job;
 				}

@@ -350,10 +350,6 @@ class MM_Metadata {
 
 		$embedded = self::read_embedded( $file );
 
-		// Mark as synced regardless of whether the file contained any metadata.
-		// The scan ran — don't re-run it unnecessarily.
-		update_post_meta( $attachment_id, self::META_SYNCED, 1 );
-
 		if ( empty( $embedded ) ) {
 			return;
 		}

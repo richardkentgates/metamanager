@@ -196,7 +196,7 @@ class MM_Status {
 	 * @param string $size          Size slug (e.g. 'full', 'thumbnail').
 	 */
 	public static function mark_compressed( int $attachment_id, string $size ): void {
-		update_post_meta( $attachment_id, '_mm_compressed_' . $size, '1' );
+		// Status is now tracked exclusively in the job history table via MM_DB::log_job().
 	}
 
 	/**
@@ -207,7 +207,7 @@ class MM_Status {
 	 * @return bool
 	 */
 	public static function is_compressed( int $attachment_id, string $size ): bool {
-		return '1' === get_post_meta( $attachment_id, '_mm_compressed_' . $size, true );
+		return MM_DB::has_completed_compression( $attachment_id, $size );
 	}
 
 	/**

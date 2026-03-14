@@ -262,19 +262,15 @@ class MM_CLI extends \WP_CLI_Command {
 			MM_Metadata::PDF_MIME_TYPES
 		);
 
-		$ids = get_posts( [
+		$all_ids  = get_posts( [
 			'post_type'      => 'attachment',
 			'post_mime_type' => $supported_mimes,
 			'post_status'    => 'inherit',
 			'numberposts'    => -1,
 			'fields'         => 'ids',
-			'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery
-				[
-					'key'     => MM_Metadata::META_SYNCED,
-					'compare' => 'NOT EXISTS',
-				],
-			],
 		] );
+		$done_ids = MM_DB::get_ids_with_completed_job( 'metadata' );
+		$ids      = array_values( array_diff( array_map( 'intval', $all_ids ), $done_ids ) );
 
 		if ( empty( $ids ) ) {
 			\WP_CLI::success( 'All supported files already scanned — nothing to do.' );

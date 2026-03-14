@@ -248,6 +248,116 @@ class MM_DB {
 	}
 
 	/**
+	 * Check whether a completed compression job exists for this attachment + size.
+	 * Single source of truth for the library compression column.
+	 *
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $size          Size slug (e.g. 'full', 'thumbnail').
+	 * @return bool
+	 */
+	public static function has_completed_compression( int $attachment_id, string $size ): bool {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$table} WHERE attachment_id = %d AND job_type = 'compression' AND size = %s AND status = 'completed'",
+			$attachment_id,
+			$size
+		) );
+	}
+
+	/**
+	 * Check whether any completed metadata embedding job exists for this attachment.
+	 * Single source of truth for the library metadata column.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool
+	 */
+	public static function has_any_completed_metadata( int $attachment_id ): bool {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$table} WHERE attachment_id = %d AND job_type = 'metadata' AND status = 'completed'",
+			$attachment_id
+		) );
+	}
+
+	/**
+	 * Write a 'pending' row when a job is queued.
+	 * Same upsert as log_job, so each (attachment_id, job_type, size) always has
+	 * exactly one row and its status reflects current state: pending → completed/failed.
+	 *
+	 * @param array $job Job data (same keys that write_job builds).
+	 */
+	public static function log_pending_job( array $job ): void {
+		global $wpdb;
+		$table = self::table_name();
+
+		$attachment_id = absint( $job['attachment_id'] ?? 0 );
+		$job_type      = sanitize_key( $job['job_type'] ?? 'unknown' );
+		$size          = sanitize_key( $job['size'] ?? '' );
+
+		if ( $attachment_id > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->delete( $table, [ 'attachment_id' => $attachment_id, 'job_type' => $job_type, 'size' => $size ], [ '%d', '%s', '%s' ] );
+		}
+
+		// completed_at is omitted so it defaults to NULL in the schema.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->insert(
+			$table,
+			[
+				'attachment_id' => $attachment_id,
+				'image_name'    => sanitize_text_field( $job['image_name'] ?? '' ),
+				'job_type'      => $job_type,
+				'file_path'     => sanitize_text_field( $job['file_path'] ?? '' ),
+				'size'          => $size,
+				'dimensions'    => sanitize_text_field( $job['dimensions'] ?? '' ),
+				'status'        => 'pending',
+				'submitted_at'  => sanitize_text_field( $job['submitted_at'] ?? current_time( 'mysql' ) ),
+				'details'       => wp_json_encode( [] ),
+			],
+			[ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+		);
+	}
+
+	/**
+	 * Return true if any completed job exists for this attachment.
+	 * Used to distinguish a fresh upload from a thumbnail regeneration.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool
+	 */
+	public static function has_any_completed_job( int $attachment_id ): bool {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$table} WHERE attachment_id = %d AND status = 'completed'",
+			$attachment_id
+		) );
+	}
+
+	/**
+	 * Return attachment IDs that have at least one completed job of the given type.
+	 * Used by library scan to find unprocessed attachments without post_meta queries.
+	 *
+	 * @param string $job_type 'compression' or 'metadata'.
+	 * @return int[]
+	 */
+	public static function get_ids_with_completed_job( string $job_type ): array {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT DISTINCT attachment_id FROM {$table} WHERE job_type = %s AND status = 'completed'",
+			$job_type
+		) );
+		return $ids ? array_map( 'intval', $ids ) : [];
+	}
+
+	/**
 	 * Truncate the entire jobs history table.
 	 */
 	public static function clear_history(): void {

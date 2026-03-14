@@ -339,13 +339,12 @@ class MM_Admin {
 			if ( ! wp_attachment_is_image( $attachment_id ) && ! MM_Metadata::is_av_mime( $mime ) && ! MM_Metadata::is_pdf_mime( $mime ) ) {
 				return;
 			}
-			$synced = (string) get_post_meta( $attachment_id, MM_Metadata::META_SYNCED, true );
-			if ( '1' === $synced ) {
+			if ( MM_DB::has_any_completed_metadata( $attachment_id ) ) {
 				echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a;" title="'
-					. esc_attr__( 'Metadata imported from file', 'metamanager' ) . '"></span>';
+					. esc_attr__( 'Metadata embedded by daemon', 'metamanager' ) . '"></span>';
 			} else {
 				echo '<span class="dashicons dashicons-warning" style="color:#dba617;" title="'
-					. esc_attr__( 'Not yet synced — use Library Scan (Media → Metamanager)', 'metamanager' ) . '"></span>';
+					. esc_attr__( 'Not yet embedded — use Library Scan (Media → Metamanager)', 'metamanager' ) . '"></span>';
 			}
 		}
 	}
@@ -958,7 +957,7 @@ class MM_Admin {
 		return rest_ensure_response( [
 			'id'          => $id,
 			'compression' => MM_Status::compression_status( $id ),
-			'meta_synced' => '1' === get_post_meta( $id, MM_Metadata::META_SYNCED, true ),
+			'meta_synced' => MM_DB::has_any_completed_metadata( $id ),
 		] );
 	}
 
@@ -982,20 +981,6 @@ class MM_Admin {
 				? __( 'Audio files and PDFs do not have a compression step. Use the metadata import endpoint instead.', 'metamanager' )
 				: __( 'Attachment type is not supported for compression.', 'metamanager' );
 			return new \WP_Error( 'not_compressible', $detail, [ 'status' => 422 ] );
-		}
-
-		if ( $force ) {
-			// force=true: clear existing compression markers so the file is treated
-			// as uncompressed and the daemon result will always update status.
-			delete_post_meta( $id, '_mm_compressed_full' );
-			if ( $is_image ) {
-				$meta = wp_get_attachment_metadata( $id ) ?: [];
-				if ( ! empty( $meta['sizes'] ) ) {
-					foreach ( array_keys( $meta['sizes'] ) as $size ) {
-						delete_post_meta( $id, '_mm_compressed_' . $size );
-					}
-				}
-			}
 		}
 
 		if ( $is_video ) {
@@ -1251,35 +1236,22 @@ class MM_Admin {
 			MM_Metadata::PDF_MIME_TYPES
 		);
 
-		$base_query = [
+		// Build the list of IDs that have no completed metadata job — history table
+		// is the single source of truth; no post_meta queries needed.
+		$all_ids     = get_posts( [
 			'post_type'      => 'attachment',
 			'post_mime_type' => $all_mime_types,
 			'post_status'    => 'inherit',
+			'numberposts'    => -1,
 			'fields'         => 'ids',
-			'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery
-				[
-					'key'     => MM_Metadata::META_SYNCED,
-					'compare' => 'NOT EXISTS',
-				],
-			],
-		];
+			'orderby'        => 'ID',
+			'order'          => 'ASC',
+		] );
+		$done_ids    = MM_DB::get_ids_with_completed_job( 'metadata' );
+		$pending_ids = array_values( array_diff( array_map( 'intval', $all_ids ), $done_ids ) );
 
-		// Total un-synced count: accept the client's cached value on all calls
-		// after the first to avoid a full library scan on every batch.
-		// On the first call (posted total is 0 or absent) run the count query.
-		$posted_total = max( 0, (int) ( $_POST['total'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification
-		if ( $posted_total > 0 && $offset > 0 ) {
-			$total = $posted_total;
-		} else {
-			$total_ids = get_posts( array_merge( $base_query, [ 'numberposts' => -1 ] ) );
-			$total     = count( $total_ids );
-		}
-
-		// Fetch this batch.
-		$batch = get_posts( array_merge( $base_query, [
-			'numberposts' => $batch_size,
-			'offset'      => $offset,
-		] ) );
+		$total = count( $pending_ids );
+		$batch = array_slice( $pending_ids, $offset, $batch_size );
 
 		$count = 0;
 		foreach ( $batch as $id ) {
@@ -1338,14 +1310,7 @@ class MM_Admin {
 			wp_send_json_error( __( 'Invalid or unsupported attachment.', 'metamanager' ) );
 		}
 
-		// Clear existing compression flags so every size gets re-processed.
-		delete_post_meta( $id, '_mm_compressed_full' );
 		$meta = wp_get_attachment_metadata( $id ) ?: [];
-		if ( ! empty( $meta['sizes'] ) ) {
-			foreach ( array_keys( $meta['sizes'] ) as $size ) {
-				delete_post_meta( $id, '_mm_compressed_' . $size );
-			}
-		}
 
 		if ( MM_Metadata::is_video_mime( $mime ) ) {
 			$file = get_attached_file( $id );
