@@ -88,7 +88,7 @@ fi
 # =============================================================================
 
 find_wp() {
-    # Common locations to probe
+    # Common locations to probe — prefer dirs that have both wp-config.php and wp-content/
     local candidates=(
         "/var/www/html"
         "/srv/www/wordpress"
@@ -96,15 +96,37 @@ find_wp() {
         "/opt/bitnami/wordpress"
     )
     for c in "${candidates[@]}"; do
-        if [[ -f "${c}/wp-config.php" ]]; then
+        if [[ -d "${c}/wp-content" ]]; then
             echo "${c}"
             return
         fi
     done
-    # Deeper search (slower but thorough)
-    find /var/www /srv/www /opt -name "wp-config.php" -maxdepth 6 2>/dev/null \
+    # Deeper search: find wp-content directories (more reliable than wp-config.php
+    # which may be stored one level above the WordPress root as a hardening technique)
+    find /var/www /srv/www /opt -type d -name "wp-content" -maxdepth 7 2>/dev/null \
         | head -1 \
         | xargs -I{} dirname {}
+}
+
+# Resolve the actual WordPress root from a path that may be the wp-config.php
+# parent (one directory above the real root — a common hardening technique).
+# Accepts: any directory; returns: the dir that contains wp-content/.
+resolve_wp_root() {
+    local p="$1"
+    # Given path already has wp-content — use it directly
+    if [[ -d "${p}/wp-content" ]]; then
+        echo "${p}"
+        return
+    fi
+    # wp-config.php is one level above; look for a subdir with wp-content
+    for sub in "${p}"/*/; do
+        if [[ -d "${sub}wp-content" ]]; then
+            echo "${sub%/}"
+            return
+        fi
+    done
+    # Fall back — caller will catch the missing wp-content error
+    echo "${p}"
 }
 
 if [[ -z "${WP_PATH}" ]]; then
@@ -112,7 +134,11 @@ if [[ -z "${WP_PATH}" ]]; then
     WP_PATH=$(find_wp)
 fi
 
-if [[ -z "${WP_PATH}" || ! -f "${WP_PATH}/wp-config.php" ]]; then
+# If the user supplied (or detection returned) a dir whose wp-config.php lives
+# one level above the actual WordPress files, resolve to the real root.
+WP_PATH=$(resolve_wp_root "${WP_PATH}")
+
+if [[ -z "${WP_PATH}" || ! -d "${WP_PATH}/wp-content" ]]; then
     error "Could not find WordPress. Use --wp-path /path/to/wordpress"
 fi
 
