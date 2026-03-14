@@ -350,6 +350,14 @@ done
 info "Reloading systemd and starting daemons..."
 systemctl daemon-reload
 
+# Pre-create log files owned by www-data so the daemons can write to them.
+# /var/log is root-owned; www-data cannot create new files there without this.
+for log_file in /var/log/metamanager-compress.log /var/log/metamanager-meta.log; do
+    touch "${log_file}"
+    chown www-data:www-data "${log_file}"
+    chmod 644 "${log_file}"
+done
+
 for svc in metamanager-compress-daemon metamanager-meta-daemon; do
     systemctl enable "${svc}.service"
     systemctl restart "${svc}.service"
@@ -390,7 +398,12 @@ fi
 
 echo ""
 echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN}  Metamanager ${UPDATE_ONLY:+update }${UPDATE_ONLY:-installation }complete!${NC}"
+if [[ "${UPDATE_ONLY}" == true ]]; then
+    _mode="update"
+else
+    _mode="installation"
+fi
+echo -e "${GREEN}  Metamanager ${_mode} complete!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
 echo "  WordPress path:  ${WP_PATH}"
