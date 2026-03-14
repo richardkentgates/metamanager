@@ -19,6 +19,11 @@ if ( ! getenv( 'WP_PHPUNIT__TESTS_CONFIG' ) ) {
 	putenv( 'WP_PHPUNIT__TESTS_CONFIG=' . __DIR__ . '/wp-tests-config.php' );
 }
 
+// Tell the WP bootstrap where to find the PHPUnit Polyfills library.
+if ( ! defined( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH' ) ) {
+	define( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH', dirname( __DIR__ ) . '/vendor/yoast/phpunit-polyfills' );
+}
+
 $_wp_phpunit_bootstrap = dirname( __DIR__ ) . '/vendor/wp-phpunit/wp-phpunit/includes/bootstrap.php';
 if ( ! file_exists( $_wp_phpunit_bootstrap ) ) {
 	echo PHP_EOL;

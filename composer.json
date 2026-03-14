@@ -12,7 +12,8 @@
         "php-stubs/wordpress-stubs": "^6.0",
         "php-stubs/wp-cli-stubs": "^2.12",
         "phpunit/phpunit": "^10.5 || ^11.0",
-        "wp-phpunit/wp-phpunit": "^6.5"
+        "wp-phpunit/wp-phpunit": "^6.5",
+        "yoast/phpunit-polyfills": "^3.0"
     },
     "config": {
         "allow-plugins": {
