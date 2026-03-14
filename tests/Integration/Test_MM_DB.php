@@ -107,13 +107,15 @@ class Test_MM_DB extends WP_UnitTestCase {
 		$this->assertCount( 2, $data['jobs'] );
 	}
 
-	public function test_log_job_orphan_rows_are_appended_not_upserted(): void {
-		// attachment_id = 0 (orphan) should never be de-duped.
-		MM_DB::log_job( $this->make_job( [ 'attachment_id' => 0 ] ) );
-		MM_DB::log_job( $this->make_job( [ 'attachment_id' => 0 ] ) );
+	public function test_log_job_upserts_orphan_rows(): void {
+		// attachment_id = 0 (orphan): the UNIQUE KEY still applies, so the second
+		// call replaces the first — exactly one row per (0, job_type, size).
+		MM_DB::log_job( $this->make_job( [ 'attachment_id' => 0, 'bytes_after' => 100000 ] ) );
+		MM_DB::log_job( $this->make_job( [ 'attachment_id' => 0, 'bytes_after' => 90000 ] ) );
 
 		$data = MM_DB::get_jobs();
-		$this->assertCount( 2, $data['jobs'] );
+		$this->assertCount( 1, $data['jobs'] );
+		$this->assertSame( '90000', $data['jobs'][0]->bytes_after );
 	}
 
 	// -----------------------------------------------------------------------

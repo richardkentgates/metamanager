@@ -16,6 +16,11 @@ defined( 'ABSPATH' ) || exit;
 class MM_DB {
 
 	/**
+	 * Prevents the one-time dedup migration from running more than once per request.
+	 */
+	private static bool $dedup_done = false;
+
+	/**
 	 * Full (prefixed) table name.
 	 */
 	public static function table_name(): string {
@@ -45,6 +50,8 @@ class MM_DB {
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
+		self::maybe_deduplicate();
+
 		$sql = "CREATE TABLE {$table} (
 			id            BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			attachment_id BIGINT(20) UNSIGNED NOT NULL,
@@ -60,12 +67,51 @@ class MM_DB {
 			completed_at  DATETIME                     DEFAULT NULL,
 			details       LONGTEXT                     DEFAULT NULL,
 			PRIMARY KEY  (id),
+			UNIQUE KEY uniq_job (attachment_id, job_type, size),
 			KEY idx_attachment (attachment_id),
 			KEY idx_job_type   (job_type),
 			KEY idx_status     (status)
 		) {$charset_collate};";
 
 		dbDelta( $sql );
+	}
+
+	/**
+	 * One-time migration: removes duplicate rows (same attachment_id + job_type + size)
+	 * before dbDelta adds the UNIQUE KEY that enforces the one-row-per-triple invariant.
+	 * Runs at most once per request and skips immediately once the key exists.
+	 */
+	public static function maybe_deduplicate(): void {
+		if ( self::$dedup_done ) {
+			return;
+		}
+		self::$dedup_done = true;
+
+		global $wpdb;
+		$table = self::table_name();
+
+		// Skip on a fresh install — the table doesn't exist yet and dbDelta will
+		// create it with the UNIQUE KEY already in place.
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+			return;
+		}
+
+		// Once the UNIQUE KEY is present there is nothing left to clean up.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $wpdb->get_var( "SHOW INDEX FROM {$table} WHERE Key_name = 'uniq_job'" ) ) {
+			return;
+		}
+
+		// Keep only the latest row per (attachment_id, job_type, size).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			"DELETE t1 FROM {$table} t1
+			 INNER JOIN {$table} t2
+			    ON  t1.attachment_id = t2.attachment_id
+			    AND t1.job_type      = t2.job_type
+			    AND t1.size          = t2.size
+			    AND t1.id            < t2.id"
+		);
 	}
 
 	/**
@@ -90,18 +136,6 @@ class MM_DB {
 		$job_type      = sanitize_key( $job['job_type'] ?? 'unknown' );
 		$size          = sanitize_key( $job['size'] ?? '' );
 
-		// Enforce one record per (attachment_id, job_type, size): drop the stale row
-		// before inserting so history always reflects the latest run only.
-		// If attachment_id is 0 (orphan job) we skip the delete and just append.
-		if ( $attachment_id > 0 ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$wpdb->delete(
-				$table,
-				[ 'attachment_id' => $attachment_id, 'job_type' => $job_type, 'size' => $size ],
-				[ '%d', '%s', '%s' ]
-			);
-		}
-
 		$data    = [
 			'attachment_id' => $attachment_id,
 			'image_name'    => sanitize_text_field( $job['image_name'] ?? '' ),
@@ -125,8 +159,10 @@ class MM_DB {
 			$formats[]          = '%d';
 		}
 
+		// REPLACE INTO atomically enforces the UNIQUE KEY (attachment_id, job_type, size),
+		// removing any stale row for the same triple before writing the new state.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		return (bool) $wpdb->insert( $table, $data, $formats );
+		return (bool) $wpdb->replace( $table, $data, $formats );
 	}
 
 	/**
@@ -298,14 +334,9 @@ class MM_DB {
 		$job_type      = sanitize_key( $job['job_type'] ?? 'unknown' );
 		$size          = sanitize_key( $job['size'] ?? '' );
 
-		if ( $attachment_id > 0 ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$wpdb->delete( $table, [ 'attachment_id' => $attachment_id, 'job_type' => $job_type, 'size' => $size ], [ '%d', '%s', '%s' ] );
-		}
-
 		// completed_at is omitted so it defaults to NULL in the schema.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$wpdb->insert(
+		$wpdb->replace(
 			$table,
 			[
 				'attachment_id' => $attachment_id,
