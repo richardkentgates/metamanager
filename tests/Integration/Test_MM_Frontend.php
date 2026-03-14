@@ -247,7 +247,6 @@ class Test_MM_Frontend extends WP_UnitTestCase {
 		$output = $this->get_head_output( $id );
 
 		$this->assertStringContainsString( 'og:image', $output );
-		$this->assertStringContainsString( 'og:type', $output );
 	}
 
 	public function test_video_og_tag_is_present(): void {

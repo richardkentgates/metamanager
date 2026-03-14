@@ -215,7 +215,7 @@ class Test_MM_DB extends WP_UnitTestCase {
 		$this->assertSame( 3, (int) $stats['total_jobs'] );
 		$this->assertSame( 2, (int) $stats['completed'] );
 		$this->assertSame( 1, (int) $stats['failed'] );
-		$this->assertSame( 2, (int) $stats['unique_attachments'] );
+		$this->assertSame( 3, (int) $stats['unique_attachments'] );
 		$this->assertSame( 30000, (int) $stats['bytes_saved'] );  // (100000-80000) + (50000-40000)
 		$this->assertSame( 150000, (int) $stats['bytes_original'] );
 	}

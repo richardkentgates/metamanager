@@ -46,6 +46,16 @@ if ( ! getenv( 'WP_PHPUNIT__TESTS_CONFIG' ) && ! file_exists( $_tests_config ) )
 // and installs a fresh test DB that is wiped per-test).
 require_once $_wp_phpunit_bootstrap;
 
+// Define filesystem constants that WP normally sets via wp-admin/includes/file.php.
+// The WP test bootstrap does not load the admin includes, so job-queue code
+// that writes .htaccess files needs these to be present.
+if ( ! defined( 'FS_CHMOD_FILE' ) ) {
+	define( 'FS_CHMOD_FILE', 0644 );
+}
+if ( ! defined( 'FS_CHMOD_DIR' ) ) {
+	define( 'FS_CHMOD_DIR', 0755 );
+}
+
 // ---------------------------------------------------------------------------
 // Bootstrap the plugin
 // ---------------------------------------------------------------------------
