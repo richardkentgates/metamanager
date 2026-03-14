@@ -158,6 +158,13 @@ fi
 WP_CONTENT_DIR="${WP_PATH}/wp-content"
 PLUGIN_DEST="${WP_CONTENT_DIR}/plugins/metamanager"
 
+# Detect the user that owns wp-content — this is the web server / PHP-FPM user
+# on this system. Falls back to www-data for Debian/Ubuntu.
+WP_OWNER=$(stat -c '%U' "${WP_CONTENT_DIR}" 2>/dev/null || echo 'www-data')
+if ! id "${WP_OWNER}" &>/dev/null; then
+    WP_OWNER='www-data'
+fi
+
 success "WordPress found at: ${WP_PATH}"
 info "WP content dir: ${WP_CONTENT_DIR}"
 
@@ -178,14 +185,23 @@ install_deps() {
 
     elif command -v dnf &>/dev/null; then
         info "Detected dnf. Installing dependencies..."
-        # EPEL for exiftool and optipng on RHEL-based systems
+        # EPEL is required for most packages on RHEL-based systems.
         dnf install -y epel-release 2>/dev/null || true
-        dnf install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools ffmpeg || true
+        # CRB (CodeReady Builder / PowerTools) provides dependencies for some
+        # EPEL packages (e.g. perl-Image-ExifTool, optipng) on RHEL 9+.
+        dnf config-manager --set-enabled crb 2>/dev/null || \
+            dnf config-manager --set-enabled powertools 2>/dev/null || true
+        # ffmpeg is NOT in EPEL 9 — it requires RPM Fusion or manual install.
+        # Install it separately so a missing ffmpeg does not block the others.
+        dnf install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools || true
+        dnf install -y ffmpeg 2>/dev/null || true
 
     elif command -v yum &>/dev/null; then
         info "Detected yum. Installing dependencies..."
         yum install -y epel-release 2>/dev/null || true
-        yum install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools ffmpeg || true
+        yum-config-manager --enable epel 2>/dev/null || true
+        yum install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools || true
+        yum install -y ffmpeg 2>/dev/null || true
 
     else
         warn "No known package manager found. Install these manually:"
@@ -288,7 +304,7 @@ else
 fi
 
 # Fix permissions.
-chown -R www-data:www-data "${PLUGIN_DEST}"
+chown -R "${WP_OWNER}:${WP_OWNER}" "${PLUGIN_DEST}"
 find "${PLUGIN_DEST}" -type f -name "*.php" -exec chmod 644 {} \;
 find "${PLUGIN_DEST}" -type f -name "*.sh"  -exec chmod 755 {} \;
 
@@ -298,13 +314,13 @@ if [[ "${UPDATE_ONLY}" == false ]]; then
     # =============================================================================
 
     mkdir -p "${WP_CONTENT_DIR}/metamanager-jobs"
-    chown www-data:www-data "${WP_CONTENT_DIR}/metamanager-jobs"
+    chown "${WP_OWNER}:${WP_OWNER}" "${WP_CONTENT_DIR}/metamanager-jobs"
     chmod 750 "${WP_CONTENT_DIR}/metamanager-jobs"
 
     for subdir in compress meta completed failed; do
         dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
         mkdir -p "${dir}"
-        chown www-data:www-data "${dir}"
+        chown "${WP_OWNER}:${WP_OWNER}" "${dir}"
         chmod 750 "${dir}"
         # Prevent direct HTTP access.
         echo "Deny from all" > "${dir}/.htaccess"
@@ -361,11 +377,11 @@ done
 info "Reloading systemd and starting daemons..."
 systemctl daemon-reload
 
-# Pre-create log files owned by www-data so the daemons can write to them.
-# /var/log is root-owned; www-data cannot create new files there without this.
+# Pre-create log files owned by ${WP_OWNER} so the daemons can write to them.
+# /var/log is root-owned; the daemon user cannot create new files there without this.
 for log_file in /var/log/metamanager-compress.log /var/log/metamanager-meta.log; do
     touch "${log_file}"
-    chown www-data:www-data "${log_file}"
+    chown "${WP_OWNER}:${WP_OWNER}" "${log_file}"
     chmod 644 "${log_file}"
 done
 
@@ -387,11 +403,8 @@ fi # end UPDATE_ONLY == false
 # =============================================================================
 
 if command -v wp &>/dev/null; then
-    # Detect the user that owns wp-content (the effective web server user).
-    # Falls back to www-data so the script still works on Debian/Ubuntu.
-    WP_OWNER=$(stat -c '%U' "${WP_CONTENT_DIR}" 2>/dev/null || echo 'www-data')
-    # If the owner doesn't exist as a login shell (e.g. nologin) or we're
-    # already that user, run wp directly; otherwise sudo.
+    # WP_OWNER was detected early in the script from the wp-content directory owner.
+    # If we're already that user, run wp directly; otherwise sudo.
     if [[ "$(id -un)" == "${WP_OWNER}" ]] || ! id "${WP_OWNER}" &>/dev/null; then
         WP_CMD=(wp)
     else
