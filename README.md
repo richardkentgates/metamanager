@@ -74,7 +74,7 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 | jpegtran | any | `libjpeg-turbo-progs` (apt) or `libjpeg-turbo-utils` (dnf) |
 | optipng | any | `optipng` — in EPEL 9 for RHEL-based systems |
 | cwebp | any | `webp` (apt) or `libwebp-tools` (dnf via CRB) — for lossless WebP compression |
-| ffmpeg | any | `ffmpeg` (apt/Ubuntu) — for video container remux. **Not in EPEL 9** — requires [RPM Fusion](https://rpmfusion.org/) on RHEL / AlmaLinux. All other features work without it. |
+| ffmpeg | any | `ffmpeg` (apt/Ubuntu) or via RPM Fusion (dnf/RHEL/AlmaLinux) — installed automatically by the installer on supported distros. Required for video container remux; all other features work without it. |
 | inotify-tools | any | `inotify-tools` — in EPEL 9 for RHEL-based systems |
 | jq | any | JSON parsing in daemon scripts — in base repos on all tested distros |
 | systemd | v232+ | Minimum for `ProtectSystem=strict` and `ReadWritePaths=` used in service units |

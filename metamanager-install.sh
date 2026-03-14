@@ -188,20 +188,22 @@ install_deps() {
         # EPEL is required for most packages on RHEL-based systems.
         dnf install -y epel-release 2>/dev/null || true
         # CRB (CodeReady Builder / PowerTools) provides dependencies for some
-        # EPEL packages (e.g. perl-Image-ExifTool, optipng) on RHEL 9+.
+        # EPEL packages (e.g. perl-Image-ExifTool, optipng, libwebp-tools) on RHEL 9+.
         dnf config-manager --set-enabled crb 2>/dev/null || \
             dnf config-manager --set-enabled powertools 2>/dev/null || true
-        # ffmpeg is NOT in EPEL 9 — it requires RPM Fusion or manual install.
-        # Install it separately so a missing ffmpeg does not block the others.
-        dnf install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools || true
-        dnf install -y ffmpeg 2>/dev/null || true
+        # RPM Fusion free provides ffmpeg on RHEL/AlmaLinux/Rocky (not in EPEL 9).
+        # Detect the OS major version to pick the right release URL.
+        _el_ver=$(rpm -E '%{rhel}' 2>/dev/null || echo '9')
+        dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${_el_ver}.noarch.rpm" 2>/dev/null || true
+        dnf install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools ffmpeg || true
 
     elif command -v yum &>/dev/null; then
         info "Detected yum. Installing dependencies..."
         yum install -y epel-release 2>/dev/null || true
         yum-config-manager --enable epel 2>/dev/null || true
-        yum install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools || true
-        yum install -y ffmpeg 2>/dev/null || true
+        _el_ver=$(rpm -E '%{rhel}' 2>/dev/null || echo '8')
+        yum install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${_el_ver}.noarch.rpm" 2>/dev/null || true
+        yum install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools ffmpeg || true
 
     else
         warn "No known package manager found. Install these manually:"
