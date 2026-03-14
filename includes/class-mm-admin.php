@@ -63,8 +63,8 @@ class MM_Admin {
 		// AJAX: re-compress a single attachment from its edit screen.
 		add_action( 'wp_ajax_mm_recompress', [ __CLASS__, 'ajax_recompress' ] );
 
-		// AJAX: save a single row on the bulk metadata edit page.
-		add_action( 'wp_ajax_mm_save_bulk_meta_row', [ __CLASS__, 'ajax_save_bulk_meta_row' ] );
+// AJAX: apply shared metadata values to a batch of selected images.
+			add_action( 'wp_ajax_mm_apply_bulk_meta', [ __CLASS__, 'ajax_apply_bulk_meta' ] );
 
 		// Bulk spinner (lightweight UX touch on the Media Library).
 		add_action( 'admin_footer-upload.php', [ __CLASS__, 'bulk_spinner_markup' ] );
@@ -143,22 +143,22 @@ class MM_Admin {
 					'<tr><td style="padding:4px 8px;">Description</td><td style="padding:4px 8px;">WP Post Content</td><td style="padding:4px 8px;">No</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Caption</td><td style="padding:4px 8px;">WP Excerpt</td><td style="padding:4px 8px;">No</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Alt Text</td><td style="padding:4px 8px;">WP Alt Field</td><td style="padding:4px 8px;">No</td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Creator</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;"><strong style="color:#e54c3c;">Never</strong></td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Copyright</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;"><strong style="color:#e54c3c;">Never</strong></td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Owner</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;"><strong style="color:#e54c3c;">Never</strong></td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Creator</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Copyright</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Owner</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Publisher</td><td style="padding:4px 8px;">Site name (auto)</td><td style="padding:4px 8px;">Yes — Inject Site Info</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Website</td><td style="padding:4px 8px;">Site URL (auto)</td><td style="padding:4px 8px;">Yes — Inject Site Info</td></tr>' .				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Editorial</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Headline</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">No</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Credit</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">No</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Headline</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Credit</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
 				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Classification</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Keywords</td><td style="padding:4px 8px;">Per-image field (semicolon-separated)</td><td style="padding:4px 8px;">No</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Date Created</td><td style="padding:4px 8px;">Per-image field (YYYY-MM-DD)</td><td style="padding:4px 8px;">No</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Rating</td><td style="padding:4px 8px;">Per-image field (0–5 stars)</td><td style="padding:4px 8px;">No</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Keywords</td><td style="padding:4px 8px;">Per-image field (semicolon-separated)</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Date Created</td><td style="padding:4px 8px;">Per-image field (YYYY-MM-DD)</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Rating</td><td style="padding:4px 8px;">Per-image field (0–5 stars)</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
 				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Location (IPTC Photo Metadata Standard)</td></tr>' .
-				'<tr><td style="padding:4px 8px;">City</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">No</td></tr>' .
-				'<tr><td style="padding:4px 8px;">State / Province</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">No</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Country</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">No</td></tr>' .					'</table>' .
-					'<p style="margin-top:.75em;">' . esc_html__( 'Creator, Copyright, and Owner carry rights and attribution meaning. They are intentionally unavailable as bulk actions and must be set per file.', 'metamanager' ) . '</p>',
+				'<tr><td style="padding:4px 8px;">City</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">State / Province</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Country</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .					'</table>' .
+					'<p style="margin-top:.75em;">' . esc_html__( 'All per-image fields can be stamped across multiple images at once from the Bulk Apply Metadata page. Leave any field blank to leave it unchanged on the selected images.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [
@@ -261,8 +261,8 @@ class MM_Admin {
 		);
 		add_submenu_page(
 			'upload.php',
-			esc_html__( 'Bulk Edit Metadata', 'metamanager' ),
-			esc_html__( 'Bulk Edit Metadata', 'metamanager' ),
+			esc_html__( 'Bulk Apply Metadata', 'metamanager' ),
+			esc_html__( 'Bulk Apply Metadata', 'metamanager' ),
 			'edit_others_posts',
 			'metamanager-bulk-meta',
 			[ __CLASS__, 'render_bulk_meta_page' ]
@@ -1329,22 +1329,27 @@ class MM_Admin {
 	/**
 	 * AJAX: Save a single row's metadata fields from the bulk edit page.
 	 */
-	public static function ajax_save_bulk_meta_row(): void {
-		check_ajax_referer( 'mm_bulk_meta_save', 'nonce' );
+	/**
+	 * Apply a shared set of metadata fields to a batch of selected attachment IDs.
+	 *
+	 * Only non-empty values are written — a blank field means "leave unchanged".
+	 * Queues a metadata-embedding daemon job for each touched image.
+	 */
+	public static function ajax_apply_bulk_meta(): void {
+		check_ajax_referer( 'mm_bulk_meta_apply', 'nonce' );
 
-		$id     = absint( $_POST['id'] ?? 0 );
-		$fields = $_POST['fields'] ?? [];
-
-		if ( ! $id || ! get_post( $id ) ) {
-			wp_send_json_error( __( 'Attachment not found.', 'metamanager' ) );
-		}
-
-		if ( ! current_user_can( 'edit_post', $id ) ) {
+		if ( ! current_user_can( 'edit_others_posts' ) ) {
 			wp_send_json_error( 'Permission denied.' );
 		}
 
-		// Allowed bulk-editable fields (no rights/attribution fields).
-		$allowed = [
+		$raw_ids      = (array) ( $_POST['ids'] ?? [] );
+		$raw_fields   = (array) ( $_POST['fields'] ?? [] );
+		$also_compress = ! empty( $_POST['also_compress'] );
+
+		$allowed_fields = [
+			MM_Metadata::META_CREATOR,
+			MM_Metadata::META_COPYRIGHT,
+			MM_Metadata::META_OWNER,
 			MM_Metadata::META_HEADLINE,
 			MM_Metadata::META_CREDIT,
 			MM_Metadata::META_KEYWORDS,
@@ -1352,19 +1357,47 @@ class MM_Admin {
 			MM_Metadata::META_CITY,
 			MM_Metadata::META_STATE,
 			MM_Metadata::META_COUNTRY,
+			MM_Metadata::META_RATING,
 		];
 
-		foreach ( $allowed as $key ) {
-			if ( isset( $fields[ $key ] ) ) {
-				update_post_meta( $id, $key, sanitize_text_field( (string) $fields[ $key ] ) );
+		// Build sanitized field map — skip empty values (blank = leave unchanged).
+		$fields = [];
+		foreach ( $allowed_fields as $key ) {
+			if ( isset( $raw_fields[ $key ] ) && $raw_fields[ $key ] !== '' ) {
+				if ( MM_Metadata::META_RATING === $key ) {
+					$fields[ $key ] = min( 5, max( 0, (int) $raw_fields[ $key ] ) );
+				} else {
+					$fields[ $key ] = sanitize_text_field( (string) $raw_fields[ $key ] );
+				}
 			}
 		}
 
-		// Queue a metadata embedding job for the changed image.
-		MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'bulk_meta_edit' ] );
+		$count = 0;
+		foreach ( $raw_ids as $raw_id ) {
+			$id = absint( $raw_id );
+			if ( ! $id || ! get_post( $id ) ) {
+				continue;
+			}
+			if ( ! current_user_can( 'edit_post', $id ) ) {
+				continue;
+			}
 
-		$notices = self::get_and_clear_queue_notices();
-		wp_send_json_success( [ 'notices' => self::format_notices_for_ajax( $notices ) ] );
+			foreach ( $fields as $key => $val ) {
+				update_post_meta( $id, $key, $val );
+			}
+
+			if ( ! empty( $fields ) && $also_compress ) {
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'both', [ 'trigger' => 'bulk_apply' ] );
+			} elseif ( ! empty( $fields ) ) {
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'bulk_apply' ] );
+			} elseif ( $also_compress ) {
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'compression', [ 'trigger' => 'bulk_apply' ] );
+			}
+
+			++$count;
+		}
+
+		wp_send_json_success( [ 'count' => $count ] );
 	}
 
 	// -----------------------------------------------------------------------
@@ -1558,7 +1591,11 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Render the dedicated Bulk Edit Metadata page.
+	 * Render the Bulk Apply Metadata page.
+	 *
+	 * Left panel: field form where the user fills in values to stamp across selected images.
+	 * Right panel: paginated thumbnail grid with checkboxes for image selection.
+	 * Apply button fires a single AJAX call with all selected IDs + non-empty field values.
 	 *
 	 * Shows a paginated table of images with inline-editable fields for the
 	 * "safe" bulk-edit fields.  Creator/Copyright/Owner are intentionally
@@ -1571,10 +1608,10 @@ class MM_Admin {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification
-		$paged    = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
-		$search   = sanitize_text_field( $_GET['s'] ?? '' );
+		$paged  = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
+		$search = sanitize_text_field( $_GET['s'] ?? '' );
 		// phpcs:enable
-		$per_page = 25;
+		$per_page = 24;
 
 		$query_args = [
 			'post_type'      => 'attachment',
@@ -1589,211 +1626,277 @@ class MM_Admin {
 		}
 		$ids = get_posts( $query_args );
 
-		// Total count.
-		$count_args          = $query_args;
+		$count_args                = $query_args;
 		$count_args['fields']      = 'ids';
 		$count_args['numberposts'] = -1;
 		unset( $count_args['offset'] );
-		$all_ids     = get_posts( $count_args );
-		$total       = count( $all_ids );
+		$total       = count( get_posts( $count_args ) );
 		$total_pages = (int) ceil( $total / $per_page );
 
-		$nonce = wp_create_nonce( 'mm_bulk_meta_save' );
+		$nonce = wp_create_nonce( 'mm_bulk_meta_apply' );
 
-		$safe_fields = [
-			MM_Metadata::META_HEADLINE => __( 'Headline', 'metamanager' ),
-			MM_Metadata::META_CREDIT   => __( 'Credit', 'metamanager' ),
-			MM_Metadata::META_KEYWORDS => __( 'Keywords', 'metamanager' ),
-			MM_Metadata::META_DATE     => __( 'Date Created', 'metamanager' ),
-			MM_Metadata::META_CITY     => __( 'City', 'metamanager' ),
-			MM_Metadata::META_STATE    => __( 'State', 'metamanager' ),
-			MM_Metadata::META_COUNTRY  => __( 'Country', 'metamanager' ),
+		// All user-editable fields with their UI config.
+		$all_fields = [
+			MM_Metadata::META_CREATOR   => [ 'label' => __( 'Creator', 'metamanager' ),        'placeholder' => '' ],
+			MM_Metadata::META_COPYRIGHT => [ 'label' => __( 'Copyright', 'metamanager' ),      'placeholder' => '' ],
+			MM_Metadata::META_OWNER     => [ 'label' => __( 'Owner', 'metamanager' ),          'placeholder' => '' ],
+			MM_Metadata::META_HEADLINE  => [ 'label' => __( 'Headline', 'metamanager' ),       'placeholder' => '' ],
+			MM_Metadata::META_CREDIT    => [ 'label' => __( 'Credit', 'metamanager' ),         'placeholder' => '' ],
+			MM_Metadata::META_KEYWORDS  => [ 'label' => __( 'Keywords', 'metamanager' ),       'placeholder' => 'tag1; tag2; tag3' ],
+			MM_Metadata::META_DATE      => [ 'label' => __( 'Date Created', 'metamanager' ),   'placeholder' => 'YYYY-MM-DD' ],
+			MM_Metadata::META_CITY      => [ 'label' => __( 'City', 'metamanager' ),           'placeholder' => '' ],
+			MM_Metadata::META_STATE     => [ 'label' => __( 'State / Province', 'metamanager' ), 'placeholder' => '' ],
+			MM_Metadata::META_COUNTRY   => [ 'label' => __( 'Country', 'metamanager' ),        'placeholder' => '' ],
 		];
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Bulk Edit Metadata', 'metamanager' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Bulk Apply Metadata', 'metamanager' ); ?></h1>
 			<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-jobs' ) ); ?>" class="page-title-action">
 				<?php esc_html_e( '← Job Dashboard', 'metamanager' ); ?>
 			</a>
 			<hr class="wp-header-end">
 
-			<p class="description">
-				<?php esc_html_e(
-					'Edit shared metadata fields for multiple images at once. ' .
-					'Save individual rows with the row button, or use Save All to write all visible changes at once. ' .
-					'Creator, Copyright, and Owner are intentionally excluded — they must be set per image.',
-					'metamanager'
-				); ?>
-			</p>
+			<div style="display:flex;gap:24px;align-items:flex-start;margin-top:16px;">
 
-			<!-- Search form -->
-			<form method="get" action="<?php echo esc_url( admin_url( 'upload.php' ) ); ?>" style="margin:1em 0;">
-				<input type="hidden" name="page" value="metamanager-bulk-meta">
-				<input type="search" name="s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Search images…', 'metamanager' ); ?>" class="regular-text">
-				<button class="button"><?php esc_html_e( 'Search', 'metamanager' ); ?></button>
-				<?php if ( $search ) : ?>
-					<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-bulk-meta' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'metamanager' ); ?></a>
-				<?php endif; ?>
-			</form>
+				<!-- ===== Left: Apply Values Panel ===== -->
+				<div style="min-width:240px;width:260px;flex-shrink:0;background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px;box-shadow:0 1px 1px rgba(0,0,0,.04);">
+					<h3 style="margin:0 0 4px;font-size:14px;"><?php esc_html_e( 'Values to Apply', 'metamanager' ); ?></h3>
+					<p style="margin:0 0 12px;font-size:12px;color:#50575e;"><?php esc_html_e( 'Fill in the fields you want to overwrite. Leave a field blank to leave it unchanged on the selected images.', 'metamanager' ); ?></p>
 
-			<?php if ( empty( $ids ) ) : ?>
-				<p><?php esc_html_e( 'No images found.', 'metamanager' ); ?></p>
-			<?php else : ?>
-				<div id="mm-bulk-meta-status" style="min-height:1.5em;font-size:13px;margin-bottom:.5em;"></div>
-
-				<table class="widefat striped mm-bulk-meta-table" style="font-size:13px;">
-					<thead>
-						<tr>
-							<th style="width:80px;"><?php esc_html_e( 'Image', 'metamanager' ); ?></th>
-							<th><?php esc_html_e( 'Title', 'metamanager' ); ?></th>
-							<?php foreach ( $safe_fields as $key => $label ) : ?>
-								<th><?php echo esc_html( $label ); ?></th>
-							<?php endforeach; ?>
-							<th><?php esc_html_e( 'Action', 'metamanager' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-					<?php foreach ( $ids as $id ) :
-						$id      = (int) $id;
-						$src     = wp_get_attachment_image_url( $id, 'thumbnail' ) ?: '';
-						$title   = get_the_title( $id );
-						$edit_url = get_edit_post_link( $id );
-						?>
-						<tr data-id="<?php echo esc_attr( (string) $id ); ?>">
-							<td>
-								<?php if ( $src ) : ?>
-									<img src="<?php echo esc_url( $src ); ?>" style="width:60px;height:60px;object-fit:cover;border-radius:3px;">
-								<?php endif; ?>
-							</td>
-							<td>
-								<?php if ( $edit_url ) : ?>
-									<a href="<?php echo esc_url( $edit_url ); ?>" target="_blank"><?php echo esc_html( $title ); ?></a>
-								<?php else : ?>
-									<?php echo esc_html( $title ); ?>
-								<?php endif; ?>
-								<br><small style="color:#888;">#<?php echo esc_html( (string) $id ); ?></small>
-							</td>
-							<?php foreach ( $safe_fields as $key => $label ) :
-								$val = (string) get_post_meta( $id, $key, true );
-								?>
-								<td>
-									<input type="text"
-										   class="mm-bm-field"
-										   data-key="<?php echo esc_attr( $key ); ?>"
-										   value="<?php echo esc_attr( $val ); ?>"
-										   placeholder="<?php echo esc_attr( $label ); ?>"
-										   style="width:100%;min-width:80px;">
-								</td>
-							<?php endforeach; ?>
-							<td>
-								<button class="button button-small mm-bm-save-row" data-id="<?php echo esc_attr( (string) $id ); ?>">
-									<?php esc_html_e( 'Save', 'metamanager' ); ?>
-								</button>
-								<span class="mm-bm-row-status" style="font-size:11px;margin-left:4px;"></span>
-							</td>
-						</tr>
+					<?php foreach ( $all_fields as $key => $cfg ) : ?>
+					<div style="margin-bottom:8px;">
+						<label style="display:block;font-size:12px;font-weight:600;margin-bottom:2px;"><?php echo esc_html( $cfg['label'] ); ?></label>
+						<input type="text"
+							   class="mm-apply-field"
+							   data-key="<?php echo esc_attr( $key ); ?>"
+							   placeholder="<?php echo esc_attr( $cfg['placeholder'] ?: $cfg['label'] ); ?>"
+							   value=""
+							   style="width:100%;box-sizing:border-box;">
+					</div>
 					<?php endforeach; ?>
-					</tbody>
-				</table>
 
-				<div style="margin-top:10px;display:flex;align-items:center;gap:12px;">
-					<button id="mm-bm-save-all" class="button button-primary">
-						<?php esc_html_e( 'Save All on This Page', 'metamanager' ); ?>
+					<div style="margin-bottom:8px;">
+						<label style="display:block;font-size:12px;font-weight:600;margin-bottom:2px;"><?php esc_html_e( 'Rating', 'metamanager' ); ?></label>
+						<select class="mm-apply-field" data-key="<?php echo esc_attr( MM_Metadata::META_RATING ); ?>" style="width:100%;">
+							<option value=""><?php esc_html_e( '— leave unchanged —', 'metamanager' ); ?></option>
+							<option value="0"><?php esc_html_e( 'Unrated (0)', 'metamanager' ); ?></option>
+							<option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; 1</option>
+							<option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; 2</option>
+							<option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; 3</option>
+							<option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; 4</option>
+							<option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; 5</option>
+						</select>
+					</div>
+
+					<hr style="margin:12px 0;border:none;border-top:1px solid #e0e0e0;">
+
+					<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:12px;cursor:pointer;">
+						<input type="checkbox" id="mm-apply-compress">
+						<?php esc_html_e( 'Also queue lossless compression', 'metamanager' ); ?>
+					</label>
+
+					<button id="mm-apply-btn" class="button button-primary" style="width:100%;" disabled>
+						<?php esc_html_e( 'Apply to Selected', 'metamanager' ); ?>
 					</button>
-					<span id="mm-bm-save-all-status" style="font-size:13px;"></span>
+
+					<div id="mm-apply-status" style="margin-top:8px;font-size:12px;min-height:18px;"></div>
+					<div id="mm-selection-count" style="margin-top:4px;font-size:11px;color:#50575e;"></div>
 				</div>
 
-				<!-- Pagination -->
-				<?php if ( $total_pages > 1 ) : ?>
-				<div class="tablenav bottom" style="margin-top:1em;">
-					<div class="tablenav-pages">
-						<span class="displaying-num"><?php
-							printf(
-								/* translators: %d: total */
-								esc_html__( '%d images', 'metamanager' ),
-								$total
-							);
-						?></span>
-						<span class="pagination-links">
-							<?php for ( $i = 1; $i <= $total_pages; $i++ ) :
-								$url = add_query_arg( [ 'paged' => $i, 's' => $search, 'page' => 'metamanager-bulk-meta' ], admin_url( 'upload.php' ) );
-								?>
-								<?php if ( $i === $paged ) : ?>
-									<span class="tablenav-pages-navspan button disabled" aria-current="page"><?php echo esc_html( (string) $i ); ?></span>
-								<?php else : ?>
-									<a class="button" href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( (string) $i ); ?></a>
-								<?php endif; ?>
-							<?php endfor; ?>
+				<!-- ===== Right: Image Grid ===== -->
+				<div style="flex:1;min-width:0;">
+
+					<!-- Controls row -->
+					<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+						<form method="get" action="<?php echo esc_url( admin_url( 'upload.php' ) ); ?>" style="display:contents;">
+							<input type="hidden" name="page" value="metamanager-bulk-meta">
+							<input type="search" name="s" value="<?php echo esc_attr( $search ); ?>"
+								   placeholder="<?php esc_attr_e( 'Search by title…', 'metamanager' ); ?>"
+								   style="width:180px;">
+							<button class="button"><?php esc_html_e( 'Search', 'metamanager' ); ?></button>
+							<?php if ( $search ) : ?>
+								<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-bulk-meta' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'metamanager' ); ?></a>
+							<?php endif; ?>
+						</form>
+						<button id="mm-select-all" class="button button-small"><?php esc_html_e( 'Select All', 'metamanager' ); ?></button>
+						<button id="mm-select-none" class="button button-small"><?php esc_html_e( 'Deselect All', 'metamanager' ); ?></button>
+						<span style="font-size:12px;color:#50575e;margin-left:4px;">
+							<?php
+							/* translators: %d: total image count */
+							printf( esc_html__( '%d images', 'metamanager' ), $total );
+							?>
 						</span>
 					</div>
+
+					<?php if ( empty( $ids ) ) : ?>
+						<p><?php esc_html_e( 'No images found.', 'metamanager' ); ?></p>
+					<?php else : ?>
+
+						<!-- Thumbnail grid -->
+						<div id="mm-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;">
+							<?php foreach ( $ids as $id ) :
+								$id       = (int) $id;
+								$src      = wp_get_attachment_image_url( $id, 'thumbnail' ) ?: '';
+								$title    = get_the_title( $id );
+								$edit_url = get_edit_post_link( $id );
+								$creator  = (string) get_post_meta( $id, MM_Metadata::META_CREATOR, true );
+								$city     = (string) get_post_meta( $id, MM_Metadata::META_CITY, true );
+								$country  = (string) get_post_meta( $id, MM_Metadata::META_COUNTRY, true );
+								$rating   = (int) get_post_meta( $id, MM_Metadata::META_RATING, true );
+								$loc      = implode( ', ', array_filter( [ $city, $country ] ) );
+								?>
+								<div class="mm-grid-item"
+									 data-id="<?php echo esc_attr( (string) $id ); ?>"
+									 style="background:#fff;border:2px solid #c3c4c7;border-radius:4px;padding:8px;cursor:pointer;position:relative;">
+									<input type="checkbox"
+										   class="mm-cb"
+										   value="<?php echo esc_attr( (string) $id ); ?>"
+										   style="position:absolute;top:10px;left:10px;z-index:2;width:16px;height:16px;">
+									<?php if ( $src ) : ?>
+										<img src="<?php echo esc_url( $src ); ?>"
+											 style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:2px;display:block;margin-bottom:6px;">
+									<?php else : ?>
+										<div style="width:100%;aspect-ratio:1/1;background:#f0f0f1;border-radius:2px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;font-size:28px;color:#c3c4c7;">&#128444;</div>
+									<?php endif; ?>
+									<div style="font-size:11px;font-weight:600;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;" title="<?php echo esc_attr( $title ); ?>">
+										<?php if ( $edit_url ) : ?>
+											<a href="<?php echo esc_url( $edit_url ); ?>" target="_blank" style="color:inherit;text-decoration:none;"><?php echo esc_html( $title ); ?></a>
+										<?php else : ?>
+											<?php echo esc_html( $title ); ?>
+										<?php endif; ?>
+									</div>
+									<?php if ( $creator ) : ?>
+										<div style="font-size:10px;color:#50575e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;" title="<?php echo esc_attr( $creator ); ?>"><?php echo esc_html( $creator ); ?></div>
+									<?php endif; ?>
+									<?php if ( $loc ) : ?>
+										<div style="font-size:10px;color:#50575e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo esc_html( $loc ); ?></div>
+									<?php endif; ?>
+									<?php if ( $rating > 0 ) : ?>
+										<div style="font-size:10px;color:#dba617;letter-spacing:1px;">
+											<?php echo esc_html( str_repeat( '★', $rating ) . str_repeat( '☆', 5 - $rating ) ); ?>
+										</div>
+									<?php endif; ?>
+									<div class="mm-card-status" style="font-size:10px;min-height:13px;margin-top:3px;"></div>
+								</div>
+							<?php endforeach; ?>
+						</div>
+
+						<!-- Pagination -->
+						<?php if ( $total_pages > 1 ) : ?>
+						<div class="tablenav bottom" style="margin-top:1em;">
+							<div class="tablenav-pages">
+								<span class="displaying-num">
+									<?php
+									/* translators: %d: total image count */
+									printf( esc_html__( '%d images', 'metamanager' ), $total );
+									?>
+								</span>
+								<span class="pagination-links">
+									<?php for ( $i = 1; $i <= $total_pages; $i++ ) :
+										$url = add_query_arg(
+											[ 'paged' => $i, 's' => $search, 'page' => 'metamanager-bulk-meta' ],
+											admin_url( 'upload.php' )
+										);
+										?>
+										<?php if ( $i === $paged ) : ?>
+											<span class="tablenav-pages-navspan button disabled" aria-current="page"><?php echo esc_html( (string) $i ); ?></span>
+										<?php else : ?>
+											<a class="button" href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( (string) $i ); ?></a>
+										<?php endif; ?>
+									<?php endfor; ?>
+								</span>
+							</div>
+						</div>
+						<?php endif; ?>
+
+					<?php endif; ?>
 				</div>
-				<?php endif; ?>
-			<?php endif; ?>
+			</div>
 		</div>
+
+		<style>
+		.mm-grid-item { transition: border-color .12s, box-shadow .12s; }
+		.mm-grid-item.mm-selected { border-color: #2271b1 !important; box-shadow: 0 0 0 1px #2271b1; }
+		</style>
 
 		<script>
 		jQuery(function($){
 			var nonce = '<?php echo esc_js( $nonce ); ?>';
 
-			function saveRow(row, btn, statusEl) {
-				var id     = row.data('id');
-				var fields = {};
-				row.find('.mm-bm-field').each(function(){
-					fields[$(this).data('key')] = $(this).val();
+			function syncState() {
+				var n = $('.mm-cb:checked').length;
+				$('#mm-selection-count').text( n > 0 ? n + ' <?php echo esc_js( __( 'image(s) selected', 'metamanager' ) ); ?>' : '' );
+				$('#mm-apply-btn').prop( 'disabled', n === 0 );
+				$('.mm-grid-item').each(function(){
+					$(this).toggleClass( 'mm-selected', $(this).find('.mm-cb').is(':checked') );
 				});
-				btn.prop('disabled', true);
-				$.post(ajaxurl, {
-					action: 'mm_save_bulk_meta_row',
-					nonce:  nonce,
-					id:     id,
-					fields: fields,
-				}, function(resp){
-					btn.prop('disabled', false);
-					if (resp.success) {
-						statusEl.css('color','#00a32a').text('✔');
-						setTimeout(function(){ statusEl.text(''); }, 3000);
-						if (resp.data && resp.data.notices && resp.data.notices.length) {
-							var $status = $('#mm-bulk-meta-status');
-							var html = resp.data.notices.map(function(n){
-								return '<div class="notice notice-info inline" style="margin:.25em 0;padding:.4em .75em;"><p>' + n + '</p></div>';
-							}).join('');
-							$status.html(html);
-							setTimeout(function(){ $status.html(''); }, 8000);
-						}
-					} else {
-						statusEl.css('color','#d63638').text('✘ ' + (resp.data || '<?php echo esc_js( __( 'Error', 'metamanager' ) ); ?>'));
-					}
-				}, 'json');
 			}
 
-			$(document).on('click', '.mm-bm-save-row', function(){
-				var btn  = $(this);
-				var row  = btn.closest('tr');
-				saveRow(row, btn, btn.siblings('.mm-bm-row-status'));
+			// Click card body = toggle selection (but let edit links through).
+			$(document).on('click', '.mm-grid-item', function(e){
+				if ( $(e.target).is('a') ) { return; }
+				var cb = $(this).find('.mm-cb');
+				cb.prop('checked', !cb.prop('checked'));
+				syncState();
 			});
 
-			$('#mm-bm-save-all').on('click', function(){
-				var btn    = $(this);
-				var status = $('#mm-bm-save-all-status');
-				var rows   = $('.mm-bulk-meta-table tbody tr');
-				var total  = rows.length;
-				var done   = 0;
-				btn.prop('disabled', true);
-				status.css('color','#50575e').text('0 / ' + total);
+			$(document).on('change', '.mm-cb', syncState );
 
-				rows.each(function(){
-					var row = $(this);
-					var rowBtn = row.find('.mm-bm-save-row');
-					saveRow(row, rowBtn, row.find('.mm-bm-row-status'));
-					// Track completion via row count (simple approach).
-					done++;
-					if (done === total) {
-						status.css('color','#00a32a').text('<?php echo esc_js( __( 'All saved.', 'metamanager' ) ); ?>');
-						btn.prop('disabled', false);
-						setTimeout(function(){ status.text(''); }, 4000);
-					}
+			$('#mm-select-all').on('click', function(){
+				$('.mm-cb').prop('checked', true);
+				syncState();
+			});
+			$('#mm-select-none').on('click', function(){
+				$('.mm-cb').prop('checked', false);
+				syncState();
+			});
+
+			$('#mm-apply-btn').on('click', function(){
+				var ids = [];
+				$('.mm-cb:checked').each(function(){ ids.push( $(this).val() ); });
+				if ( ! ids.length ) { return; }
+
+				var fields = {};
+				$('.mm-apply-field').each(function(){
+					var v = $.trim( $(this).val() );
+					if ( v !== '' ) { fields[ $(this).data('key') ] = v; }
 				});
+
+				var alsoCompress = $('#mm-apply-compress').is(':checked');
+
+				if ( ! Object.keys(fields).length && ! alsoCompress ) {
+					$('#mm-apply-status').css('color','#d63638').text('<?php echo esc_js( __( 'Fill in at least one field, or check the compression option.', 'metamanager' ) ); ?>');
+					return;
+				}
+
+				var $btn = $(this).prop('disabled', true).text('<?php echo esc_js( __( 'Applying…', 'metamanager' ) ); ?>');
+				$('#mm-apply-status').css('color','#50575e').text('<?php echo esc_js( __( 'Working…', 'metamanager' ) ); ?>');
+
+				$.post(ajaxurl, {
+					action:        'mm_apply_bulk_meta',
+					nonce:         nonce,
+					ids:           ids,
+					fields:        fields,
+					also_compress: alsoCompress ? 1 : 0,
+				}, function(resp){
+					$btn.prop('disabled', false).text('<?php echo esc_js( __( 'Apply to Selected', 'metamanager' ) ); ?>');
+					if ( resp.success ) {
+						var count = resp.data.count || 0;
+						var msg   = count + ' <?php echo esc_js( __( 'image(s) updated', 'metamanager' ) ); ?>';
+						$('#mm-apply-status').css('color','#00a32a').text('✔ ' + msg );
+						ids.forEach(function(id){
+							var $card = $('.mm-grid-item[data-id="' + id + '"]');
+							$card.find('.mm-card-status').css('color','#00a32a').text('✔ updated');
+							setTimeout(function(){ $card.find('.mm-card-status').text(''); }, 5000);
+						});
+						setTimeout(function(){ $('#mm-apply-status').text(''); }, 6000);
+					} else {
+						$('#mm-apply-status').css('color','#d63638').text('✘ ' + ( resp.data || '<?php echo esc_js( __( 'Error', 'metamanager' ) ); ?>' ));
+					}
+				}, 'json');
 			});
+
+			syncState();
 		});
 		</script>
 		<?php
