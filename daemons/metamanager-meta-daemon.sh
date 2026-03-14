@@ -116,7 +116,9 @@ process_job() {
 
     append_tag() {
         local tag="$1" value="$2"
-        [[ -n "${value}" ]] && exif_args+=( "-${tag}=${value}" )
+        if [[ -n "${value}" ]]; then
+            exif_args+=( "-${tag}=${value}" )
+        fi
     }
 
     local v
@@ -313,19 +315,44 @@ write_result() {
 }
 
 # --- Drain any jobs that were queued while the daemon was offline ---
+# Also recover any .json.processing orphans left behind by a previous crash.
 log "Startup scan: processing any pre-existing jobs in ${JOB_DIR}"
-for jobfile in "${JOB_DIR}"/*.json; do
-    [[ -e "${jobfile}" ]] || continue
-    while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
-        wait -n 2>/dev/null || true
-    done
-    process_job "${jobfile}" &
+for orphan in "${JOB_DIR}"/*.json.processing; do
+    [[ -e "${orphan}" ]] || continue
+    recovered="${orphan%.processing}"
+    mv "${orphan}" "${recovered}" 2>/dev/null || true
+    log "Recovered orphaned job: $(basename "${recovered}")"
 done
-wait  # Ensure all startup jobs finish before entering the inotifywait loop.
+# Loop until the queue is empty.  Concurrent jobs may get LOCKED (e.g. by the
+# compress daemon) and re-queue themselves back as *.json.  Those files land
+# before inotifywait starts, so they would never be picked up without this loop.
+_pass=0
+_max_passes=30
+while (( _pass < _max_passes )); do
+    _pending=()
+    for _f in "${JOB_DIR}"/*.json; do
+        [[ -e "${_f}" ]] && _pending+=( "${_f}" )
+    done
+    [[ ${#_pending[@]} -eq 0 ]] && break
+    (( ++_pass ))
+    log "Startup scan pass ${_pass}: ${#_pending[@]} job(s)"
+    for jobfile in "${_pending[@]}"; do
+        while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
+            wait -n 2>/dev/null || true
+        done
+        process_job "${jobfile}" &
+    done
+    wait
+    # Brief pause between passes so lock-contention with other daemons can clear.
+    sleep 2
+done
+unset _pass _max_passes _pending _f
 log "Startup scan complete."
 
 # --- Main loop ---
-inotifywait -m -e close_write --format '%w%f' "${JOB_DIR}" 2>/dev/null \
+# close_write: new job written by PHP
+# moved_to:    LOCKED re-queue — daemon renames .processing back to .json via mv
+inotifywait -m -e close_write,moved_to --format '%w%f' "${JOB_DIR}" 2>/dev/null \
 | while IFS= read -r jobfile; do
     if [[ "${jobfile}" == *.json ]]; then
         # Throttle: block until a subshell slot is free before spawning another.

@@ -413,7 +413,14 @@ class MM_Job_Queue {
 			'compression' => MM_JOB_COMPRESS,
 			'metadata'    => MM_JOB_META,
 		] as $type => $dir ) {
-			foreach ( glob( $dir . '*.json' ) ?: [] as $file ) {
+			// Include both pending (.json) and in-progress (.json.processing) files
+			// so that daemon-locked jobs are visible in the dashboard rather than
+			// silently disappearing from the queue count.
+			$files = array_merge(
+				glob( $dir . '*.json' ) ?: [],
+				glob( $dir . '*.json.processing' ) ?: []
+			);
+			foreach ( $files as $file ) {
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 				$job = json_decode( file_get_contents( $file ), true );
 				if ( ! is_array( $job ) ) {
