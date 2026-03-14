@@ -56,6 +56,10 @@ if ( ! defined( 'FS_CHMOD_DIR' ) ) {
 	define( 'FS_CHMOD_DIR', 0755 );
 }
 
+// Force WP_Filesystem to use direct I/O in tests so job-queue .htaccess writes
+// don't try to use FTP (which may be configured in the live WP options table).
+add_filter( 'filesystem_method', fn() => 'direct' );
+
 // ---------------------------------------------------------------------------
 // Bootstrap the plugin
 // ---------------------------------------------------------------------------
