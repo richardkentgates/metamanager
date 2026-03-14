@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.2] — 2026-07-13
+
+### Fixed
+
+- **`ajax_scan_library()` never queued daemon jobs** — the Scan Existing Library tool called `import_from_file()` to bootstrap WordPress fields from embedded tags but did not write any job files to the daemon queue. Compression and metadata embedding were therefore never performed on scanned attachments. `ajax_scan_library()` now mirrors the upload path exactly: after `import_from_file()`, images queue both compression and metadata jobs via `enqueue_all_sizes('both')`; video queues a metadata job plus a compression job; audio and PDF queue a metadata job when `can_write_meta()` returns true. The `trigger` field in each job JSON is set to `'scan'` for log traceability.
+
+---
+
 ## [1.6.1] — 2026-03-14
 
 ### Fixed

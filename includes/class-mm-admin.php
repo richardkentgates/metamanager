@@ -100,7 +100,7 @@ class MM_Admin {
 				'title'   => __( 'Job Queue', 'metamanager' ),
 				'content' =>
 					'<h2>' . esc_html__( 'Job Queue', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'Jobs enter the queue when you upload a media file, save metadata fields on an attachment edit screen, or trigger a bulk action from the Media Library.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Jobs enter the queue when you upload a media file, save metadata fields on an attachment edit screen, run Scan Existing Library from this dashboard, or trigger a bulk action from the Media Library.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'Each job is written as a small JSON file to one of two directories inside wp-content/metamanager-jobs/: compress/ for image compression jobs, and meta/ for metadata embedding jobs.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'The OS daemons watch these directories with inotifywait and process jobs immediately — no polling delay. Jobs disappear from this view as soon as a daemon processes them.', 'metamanager' ) . '</p>',
 			] );

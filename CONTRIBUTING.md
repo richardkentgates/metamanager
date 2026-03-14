@@ -18,7 +18,7 @@ Thank you for your interest in contributing. This document explains how to get i
 
 ### Requirements
 
-- Linux (Ubuntu 22.04+ or equivalent)
+- Linux (Ubuntu 22.04+ / Debian 12+ or RHEL 9+ / AlmaLinux 9+ / Rocky 9+)
 - PHP 8.0+, WordPress 6.0+ (local install)
 - `jpegtran`, `optipng`, `cwebp`, `ffmpeg`, `exiftool`, `inotifywait`, `jq`
 - `bash` 5+
@@ -33,8 +33,11 @@ cd metamanager
 # Symlink or copy the plugin into a local WordPress install
 ln -s "$(pwd)" /path/to/wordpress/wp-content/plugins/metamanager
 
-# Install daemon dependencies
+# Install daemon dependencies — Ubuntu / Debian
 sudo apt install libjpeg-turbo-progs optipng webp ffmpeg libimage-exiftool-perl inotify-tools jq
+
+# Install daemon dependencies — RHEL 9+ / AlmaLinux 9+ / Rocky 9+
+sudo dnf install libjpeg-turbo-utils optipng libwebp-tools ffmpeg perl-Image-ExifTool inotify-tools jq
 
 # Run metamanager-install.sh to set up daemons
 sudo bash metamanager-install.sh --wp-path /path/to/wordpress
@@ -83,8 +86,8 @@ Expected output on a clean run:
 
 ```
 PHPUnit 9.6 by Sebastian Bergmann and contributors.
-......................................................
-OK (58 tests, 106 assertions)
+..............................................................
+OK (62 tests, 114 assertions)
 ```
 
 ### What the tests cover
@@ -92,9 +95,9 @@ OK (58 tests, 106 assertions)
 | Class | Tests | What it exercises |
 |-------|-------|-------------------|
 | `Test_MM_DB` | 18 | Schema install, CRUD on the job queue table, stats, attachment cascade-delete |
-| `Test_MM_Settings` | 14 | Options read/write, API key generation, IP allowlist, defaults |
-| `Test_MM_Frontend` | 16 | Meta tag output for images, audio, video, and paginated content |
-| `Test_MM_JobQueue` | 5 | Job write, duplicate detection, delete-on-attachment-removal |
+| `Test_MM_Settings` | 17 | Options read/write, API key generation, IP allowlist, sitemap toggles, defaults |
+| `Test_MM_Frontend` | 18 | Meta tag output for images, audio, video, PDF, and paginated content |
+| `Test_MM_JobQueue` | 9 | Job write, duplicate detection, upload/scan/edit trigger paths, delete-on-attachment-removal |
 
 ### CI
 

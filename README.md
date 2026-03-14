@@ -149,8 +149,12 @@ sudo bash /path/to/wordpress/wp-content/plugins/metamanager/metamanager-install.
 ```
 WordPress (PHP)                     OS (Bash daemons)
 ─────────────────                   ──────────────────────────────────────
-Upload / edit media file
+Upload / scan / edit media file
 (image, video, audio, PDF)
+       │
+       ├── On upload or scan: import_from_file() reads embedded
+       │   tags into empty WordPress fields (EXIF/IPTC/XMP,
+       │   ID3, QuickTime, Vorbis, GPS) — never overwrites.
        │
        ▼
 Write job JSON to                   inotifywait detects new file

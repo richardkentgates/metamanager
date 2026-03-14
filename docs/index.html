@@ -71,7 +71,7 @@
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
           "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); Open Graph tags; and XML media and video sitemaps — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "1.6.1",
+          "softwareVersion": "1.6.2",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -384,8 +384,8 @@
             <div class="flow-step">
                 <div class="flow-number">1</div>
                 <div class="flow-content">
-                    <h4>Upload or Edit</h4>
-                    <p>On upload, embedded metadata is read from the file into WordPress fields. On edit, changed fields are queued for writing back to the file.</p>
+                    <h4>Upload, Scan, or Edit</h4>
+                    <p>On upload or library scan, embedded metadata tags are read from the file into empty WordPress fields. On edit, changed fields are queued for writing back to the file. All three paths write job files — no operation is ever lost.</p>
                 </div>
             </div>
             <div class="flow-arrow">→</div>
@@ -417,13 +417,13 @@
         <div class="arch-diagram">
 <pre><code>WordPress (PHP)                  OS (Bash Daemons)
 ────────────────                 ──────────────────────────────────
-Upload media file
+Upload, scan, or edit media file
 (image/video/audio/PDF)
         │
-        ▼
-import_from_file()         ◄── ExifTool reads embedded tags
-  populates empty WP fields         (EXIF/IPTC/XMP, ID3, QuickTime,
-        │                            Vorbis, GPS)
+        ├─ On upload or scan:
+        │    import_from_file()  ◄── ExifTool reads embedded tags
+        │    populates empty WP fields       (EXIF/IPTC/XMP, ID3, QuickTime,
+        │                                    Vorbis, GPS)
         ▼
 Write job JSON to          ◄── inotifywait detects new file
   metamanager-jobs/                      │
@@ -998,7 +998,7 @@ X-WP-Nonce: &lt;nonce&gt;
                 <li>Installs <code>jpegtran</code>, <code>optipng</code>, <code>cwebp</code>, <code>ffmpeg</code>, <code>exiftool</code>, <code>inotify-tools</code>, and <code>jq</code> via apt or dnf</li>
                 <li>Copies the plugin into <code>wp-content/plugins/metamanager/</code></li>
                 <li>Patches daemon scripts with your actual <code>WP_CONTENT_DIR</code> — no hardcoded paths</li>
-                <li>Installs and starts both systemd daemons as <code>www-data</code></li>
+                <li>Installs and starts both systemd daemons as the detected web-server user (e.g. <code>www-data</code> on Debian/Ubuntu, <code>wordpress</code> or <code>apache</code> on RHEL/AlmaLinux)</li>
                 <li>Activates the plugin via WP-CLI if available</li>
             </ol>
         </div>
