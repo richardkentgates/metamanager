@@ -106,8 +106,9 @@ find_wp() {
         fi
     done
     # Deeper search: find proper WordPress roots (must have both wp-content and
-    # wp-includes so we don't mistake a default Apache docroot for WordPress)
-    find /var/www /srv/www /opt -type d -name "wp-includes" -maxdepth 7 2>/dev/null \
+    # wp-includes so we don't mistake a default Apache docroot for WordPress).
+    # Also search /home for cPanel/DirectAdmin/shared-hosting layouts.
+    find /var/www /srv/www /opt /home -type d -name "wp-includes" -maxdepth 7 2>/dev/null \
         | while read -r inc; do
             root="$(dirname "${inc}")"
             if [[ -d "${root}/wp-content" ]]; then
@@ -384,15 +385,29 @@ fi # end UPDATE_ONLY == false
 # =============================================================================
 
 if command -v wp &>/dev/null; then
+    # Detect the user that owns wp-content (the effective web server user).
+    # Falls back to www-data so the script still works on Debian/Ubuntu.
+    WP_OWNER=$(stat -c '%U' "${WP_CONTENT_DIR}" 2>/dev/null || echo 'www-data')
+    # If the owner doesn't exist as a login shell (e.g. nologin) or we're
+    # already that user, run wp directly; otherwise sudo.
+    if [[ "$(id -un)" == "${WP_OWNER}" ]] || ! id "${WP_OWNER}" &>/dev/null; then
+        WP_CMD=(wp)
+    else
+        WP_CMD=(sudo -u "${WP_OWNER}" wp)
+    fi
+
     if [[ "${UPDATE_ONLY}" == true ]]; then
         info "WP-CLI found. Flushing cache..."
-        sudo -u www-data wp cache flush --path="${WP_PATH}" 2>/dev/null && \
-            success "WordPress object cache flushed." || true
+        if "${WP_CMD[@]}" cache flush --path="${WP_PATH}" 2>/dev/null; then
+            success "WordPress object cache flushed."
+        fi
     else
         info "WP-CLI found. Activating plugin..."
-        sudo -u www-data wp plugin activate metamanager --path="${WP_PATH}" 2>&1 && \
-            success "Plugin activated via WP-CLI." || \
+        if "${WP_CMD[@]}" plugin activate metamanager --path="${WP_PATH}" --skip-plugins 2>&1; then
+            success "Plugin activated via WP-CLI."
+        else
             warn "WP-CLI activation failed. Activate the plugin manually in WordPress Admin → Plugins."
+        fi
     fi
 else
     if [[ "${UPDATE_ONLY}" == false ]]; then
