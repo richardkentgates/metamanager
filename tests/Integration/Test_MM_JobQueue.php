@@ -22,6 +22,8 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 
 	public static function set_up_before_class(): void {
 		parent::set_up_before_class();
+		// Create the jobs table (Test_MM_DB drops it after its own class runs).
+		MM_DB::create_or_update_table();
 		// Ensure all queue directories exist for the test run.
 		foreach ( [ MM_JOB_COMPRESS, MM_JOB_META, MM_JOB_DONE, MM_JOB_FAILED ] as $dir ) {
 			if ( ! is_dir( $dir ) ) {
@@ -46,6 +48,7 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	}
 
 	public static function tear_down_after_class(): void {
+		MM_DB::drop_table();
 		// Remove the test job queue root directory tree.
 		if ( is_dir( MM_JOB_ROOT ) ) {
 			$items = new RecursiveIteratorIterator(
