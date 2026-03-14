@@ -321,6 +321,10 @@ add_filter( 'attachment_fields_to_edit', [ 'MM_Metadata', 'register_fields' ], 1
 // Clean up when an attachment is deleted.
 add_action( 'delete_attachment', [ 'MM_Job_Queue', 'on_delete_attachment' ] );
 
+// REST routes must register for all request types (not just admin pages).
+// REST requests are not is_admin() context, so registering here is required.
+add_action( 'rest_api_init', [ 'MM_Admin', 'register_rest_routes' ] );
+
 // ---------------------------------------------------------------------------
 // Boot admin
 // ---------------------------------------------------------------------------

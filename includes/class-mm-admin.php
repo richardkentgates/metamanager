@@ -50,8 +50,9 @@ class MM_Admin {
 		// AJAX: live job dashboard.
 		add_action( 'wp_ajax_mm_jobs_refresh', [ __CLASS__, 'ajax_jobs_refresh' ] );
 
-		// REST: real-time compression status for Media Library column.
-		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_routes' ] );
+		// Note: rest_api_init for register_rest_routes is registered unconditionally
+		// in metamanager.php so REST requests (which are not is_admin() context)
+		// also have the routes available.
 
 		// AJAX: re-queue a failed job.
 		add_action( 'wp_ajax_mm_requeue_job', [ __CLASS__, 'ajax_requeue_job' ] );
