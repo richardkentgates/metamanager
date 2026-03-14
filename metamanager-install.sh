@@ -290,6 +290,10 @@ if [[ "${UPDATE_ONLY}" == false ]]; then
     # Create job queue directories
     # =============================================================================
 
+    mkdir -p "${WP_CONTENT_DIR}/metamanager-jobs"
+    chown www-data:www-data "${WP_CONTENT_DIR}/metamanager-jobs"
+    chmod 750 "${WP_CONTENT_DIR}/metamanager-jobs"
+
     for subdir in compress meta completed failed; do
         dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
         mkdir -p "${dir}"
