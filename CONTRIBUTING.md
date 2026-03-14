@@ -42,6 +42,66 @@ sudo bash metamanager-install.sh --wp-path /path/to/wordpress
 
 ---
 
+## Running Tests
+
+Metamanager has a PHPUnit integration test suite that runs against a real WordPress install and a real MySQL database. No mocking — the tests exercise the actual plugin code end-to-end.
+
+### Prerequisites
+
+- PHP 8.0+
+- MySQL / MariaDB
+- A WordPress installation on disk (doesn't need to be running — just the files)
+- Composer dev dependencies installed: `composer install`
+
+### Set up the test environment
+
+```bash
+# Create the test database and write tests/wp-tests-config.php
+bash bin/install-wp-tests.sh wordpress_test <db-user> <db-pass> localhost /path/to/wordpress
+```
+
+The script accepts these arguments (all positional):
+
+| Position | Argument       | Default            | Example                  |
+|----------|----------------|--------------------|--------------------------|
+| 1        | db-name        | `wordpress_test`   | `wordpress_test`         |
+| 2        | db-user        | `root`             | `wordpress`              |
+| 3        | db-pass        | *(empty)*          | `secret`                 |
+| 4        | db-host        | `localhost`        | `127.0.0.1`              |
+| 5        | wp-path        | `/tmp/wordpress`   | `/srv/www/wordpress`     |
+| 6        | skip-db-create | `false`            | `true` (if DB exists)    |
+
+The generated `tests/wp-tests-config.php` is gitignored — it stays local to your machine.
+
+### Run the suite
+
+```bash
+vendor/bin/phpunit
+```
+
+Expected output on a clean run:
+
+```
+PHPUnit 9.6 by Sebastian Bergmann and contributors.
+......................................................
+OK (58 tests, 106 assertions)
+```
+
+### What the tests cover
+
+| Class | Tests | What it exercises |
+|-------|-------|-------------------|
+| `Test_MM_DB` | 18 | Schema install, CRUD on the job queue table, stats, attachment cascade-delete |
+| `Test_MM_Settings` | 14 | Options read/write, API key generation, IP allowlist, defaults |
+| `Test_MM_Frontend` | 16 | Meta tag output for images, audio, video, and paginated content |
+| `Test_MM_JobQueue` | 5 | Job write, duplicate detection, delete-on-attachment-removal |
+
+### CI
+
+The same suite runs automatically on every push and pull request via the `PHPUnit Integration Tests` job in `.github/workflows/codeql.yml`. CI uses a fresh WordPress download and a MySQL 8.0 service container, so it validates the plugin works on a pristine environment with no pre-existing data.
+
+---
+
 ## Code Standards
 
 ### PHP
