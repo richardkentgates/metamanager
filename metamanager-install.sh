@@ -88,7 +88,8 @@ fi
 # =============================================================================
 
 find_wp() {
-    # Common locations to probe — prefer dirs that have both wp-config.php and wp-content/
+    # Common locations to probe — require wp-content/ AND wp-includes/ so a
+    # bare Apache default dir with an empty wp-content folder doesn't match.
     local candidates=(
         "/var/www/html"
         "/srv/www/wordpress"
@@ -96,16 +97,22 @@ find_wp() {
         "/opt/bitnami/wordpress"
     )
     for c in "${candidates[@]}"; do
-        if [[ -d "${c}/wp-content" ]]; then
+        if [[ -d "${c}/wp-content" && -d "${c}/wp-includes" ]]; then
             echo "${c}"
             return
         fi
     done
-    # Deeper search: find wp-content directories (more reliable than wp-config.php
-    # which may be stored one level above the WordPress root as a hardening technique)
-    find /var/www /srv/www /opt -type d -name "wp-content" -maxdepth 7 2>/dev/null \
-        | head -1 \
-        | xargs -I{} dirname {}
+    # Deeper search: find proper WordPress roots (must have both wp-content and
+    # wp-includes so we don't mistake a default Apache docroot for WordPress)
+    find /var/www /srv/www /opt -type d -name "wp-includes" -maxdepth 7 2>/dev/null \
+        | while read -r inc; do
+            root="$(dirname "${inc}")"
+            if [[ -d "${root}/wp-content" ]]; then
+                echo "${root}"
+                return
+            fi
+        done \
+        | head -1
 }
 
 # Resolve the actual WordPress root from a path that may be the wp-config.php
@@ -212,11 +219,23 @@ if [[ "${UPDATE_ONLY}" == true ]]; then
         cp -r "${SCRIPT_DIR}/." "${TMP_UPDATE}/"
         success "Update source: ${SCRIPT_DIR}"
     else
-        if ! command -v git &>/dev/null; then
-            error "git not found. Install git or run from a cloned directory."
-        fi
         info "Fetching latest from GitHub..."
-        git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${TMP_UPDATE}"
+        if command -v git &>/dev/null; then
+            git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${TMP_UPDATE}"
+        else
+            TMP_ZIP=$(mktemp --suffix=.zip)
+            wget -qO "${TMP_ZIP}" https://github.com/richardkentgates/metamanager/archive/refs/heads/main.zip
+            unzip -q "${TMP_ZIP}" -d "${TMP_UPDATE}"
+            # GitHub zip extracts to a subdirectory — flatten it
+            shopt -s nullglob
+            inner=("${TMP_UPDATE}"/metamanager-*/)
+            if [[ ${#inner[@]} -gt 0 ]]; then
+                mv "${inner[0]}"* "${TMP_UPDATE}/" 2>/dev/null || true
+                rmdir "${inner[0]}" 2>/dev/null || true
+            fi
+            shopt -u nullglob
+            rm -f "${TMP_ZIP}"
+        fi
         success "Latest code fetched."
     fi
 
@@ -240,12 +259,24 @@ else
         cp -r "${SCRIPT_DIR}/." "${PLUGIN_DEST}/"
         success "Plugin files copied from ${SCRIPT_DIR}"
     else
-        if ! command -v git &>/dev/null; then
-            error "git not found. Install git or clone the repository manually first."
-        fi
         info "Cloning from GitHub..."
-        git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${PLUGIN_DEST}"
-        success "Plugin cloned."
+        if command -v git &>/dev/null; then
+            git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${PLUGIN_DEST}"
+        else
+            TMP_ZIP=$(mktemp --suffix=.zip)
+            wget -qO "${TMP_ZIP}" https://github.com/richardkentgates/metamanager/archive/refs/heads/main.zip
+            unzip -q "${TMP_ZIP}" -d "${PLUGIN_DEST}"
+            # GitHub zip extracts to a subdirectory — flatten into PLUGIN_DEST
+            shopt -s nullglob
+            inner=("${PLUGIN_DEST}"/metamanager-*/)
+            if [[ ${#inner[@]} -gt 0 ]]; then
+                mv "${inner[0]}"* "${PLUGIN_DEST}/" 2>/dev/null || true
+                rmdir "${inner[0]}" 2>/dev/null || true
+            fi
+            shopt -u nullglob
+            rm -f "${TMP_ZIP}"
+        fi
+        success "Plugin installed."
     fi
 fi
 
