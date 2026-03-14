@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.0] — 2026-03-14
+
+### Added
+- **Media sitemaps** — two new XML sitemap endpoints served directly by WordPress rewrite rules:
+  - `/sitemap-media.xml` — all Media Library images with `<image:image>` extension nodes; video attachments additionally include `<video:video>` nodes with title, description, duration, rating, and publication date.
+  - `/sitemap-video.xml` — scans all published post content for embedded video. Covers self-hosted `<video>` tags, YouTube `<iframe>` embeds, and Vimeo `<iframe>` embeds. YouTube and Vimeo metadata is resolved via oEmbed and cached as a 24-hour transient.
+- **Sitemap settings section** added to `Media → MM Settings` — six independent toggles (media sitemap, image nodes, video sitemap, YouTube, Vimeo, self-hosted) with live URLs linking directly to each sitemap endpoint.
+- **Contextual help tab** on the MM Settings screen explaining both sitemap URLs, what each one contains, and step-by-step Google Search Console submission instructions.
+- **`MM_Metadata::META_DURATION`** constant (`mm_duration`) — integer post meta populated by the metadata daemon via `ffprobe`; consumed by the video sitemap `<video:duration>` node.
+- **Sitemap cleanup on uninstall** — all six sitemap options and all `mm_oembed_*` transients are removed when the plugin is deleted with data removal opted in.
+
+---
+
 ## [1.5.5] — 2026-03-04
 
 ### Fixed

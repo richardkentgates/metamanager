@@ -16,6 +16,14 @@
  *   mm_upload_notify_enabled    — Whether to send receipt emails when images are uploaded.
  *   mm_upload_notify_extra_email — Additional CC address(es) for upload receipts, comma-separated.
  *
+ * Sitemap options (managed by MM_Sitemap::register_settings()):
+ *   mm_sitemap_media            — Serve /sitemap-media.xml (bool, default true).
+ *   mm_sitemap_images           — Include <image:image> nodes in media sitemap (bool, default true).
+ *   mm_sitemap_video            — Serve /sitemap-video.xml (bool, default true).
+ *   mm_sitemap_video_youtube    — Extract YouTube embeds for video sitemap (bool, default true).
+ *   mm_sitemap_video_vimeo      — Extract Vimeo embeds for video sitemap (bool, default true).
+ *   mm_sitemap_video_selfhosted — Extract self-hosted <video> tags for video sitemap (bool, default true).
+ *
  * @package Metamanager
  */
 

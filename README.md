@@ -275,6 +275,68 @@ On every attachment page and single post/page with a featured image, Metamanager
 
 ---
 
+## Media Sitemaps
+
+Metamanager generates two XML sitemap endpoints served directly by WordPress without any static files:
+
+| Endpoint | Content |
+|----------|---------|
+| `/sitemap-media.xml` | All images and (optionally) videos uploaded to the Media Library |
+| `/sitemap-video.xml` | Videos sourced from self-hosted files, YouTube embeds, and Vimeo embeds in post content |
+
+### Media sitemap (`/sitemap-media.xml`)
+
+Each `<url>` entry contains an `<image:image>` extension node (when the Image Sitemap setting is enabled) and an `<video:video>` extension node for video attachments (when Video Sitemap is enabled). Fields populated from stored metadata:
+
+| Sitemap field | Source |
+|---------------|--------|
+| `<loc>` | Attachment permalink |
+| `<image:loc>` | File URL |
+| `<image:title>` | Post title |
+| `<image:caption>` | Post excerpt |
+| `<image:license>` | Copyright field (when a URL) |
+| `<video:title>` | Post title |
+| `<video:description>` | Post excerpt |
+| `<video:content_loc>` | File URL |
+| `<video:duration>` | Duration (seconds, from `ffprobe` via daemon) |
+| `<video:publication_date>` | Post date |
+| `<video:rating>` | Rating field (0–5, normalised to 0–1) |
+| `<video:family_friendly>` | Rating field (`yes` when rating ≤ 4) |
+
+### Video sitemap (`/sitemap-video.xml`)
+
+Scans all published posts for embedded video and emits one `<url>` per video found. Sources:
+
+- **Self-hosted** — `<video src="…">` tags in post content
+- **YouTube** — `<iframe>` embeds and WordPress oEmbed blocks (`youtu.be`, `youtube.com`)
+- **Vimeo** — `<iframe>` embeds and WordPress oEmbed blocks (`vimeo.com`)
+
+YouTube and Vimeo metadata is resolved via the oEmbed API and cached as transients for 24 hours.
+
+### Settings
+
+Sitemap settings are under **Media → MM Settings → Sitemaps**. Each source can be toggled independently:
+
+| Setting | Default | Effect |
+|---------|---------|--------|
+| Serve media sitemap | On | Enable/disable `/sitemap-media.xml` |
+| Include image nodes | On | Toggle `<image:image>` nodes |
+| Serve video sitemap | On | Enable/disable `/sitemap-video.xml` |
+| YouTube embeds | On | Include YouTube sources in video sitemap |
+| Vimeo embeds | On | Include Vimeo sources in video sitemap |
+| Self-hosted video | On | Include `<video>` tag sources |
+
+### Submitting to Google Search Console
+
+1. Open [Google Search Console](https://search.google.com/search-console) and select your property.
+2. Go to **Sitemaps** in the left sidebar.
+3. Enter `sitemap-media.xml` in the "Add a new sitemap" box and click **Submit**.
+4. Repeat for `sitemap-video.xml`.
+
+Both sitemaps refresh on every request — no manual resubmission is needed after new uploads.
+
+---
+
 ## WP-CLI
 
 Metamanager registers a `wp metamanager` command group. WP-CLI 2.0+ required.

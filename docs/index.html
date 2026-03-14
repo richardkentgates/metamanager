@@ -70,8 +70,8 @@
           "downloadUrl": "https://github.com/richardkentgates/metamanager",
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
-          "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); and Open Graph tags — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "1.5.5",
+          "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); Open Graph tags; and XML media and video sitemaps — all managed natively from the WordPress dashboard using OS-level daemons.",
+          "softwareVersion": "1.6.0",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -120,6 +120,7 @@
             <a href="#updating">Updating</a>
             <a href="#metadata">Metadata</a>
             <a href="#schema">Schema &amp; OG</a>
+            <a href="#sitemaps">Sitemaps</a>
             <a href="#cli">WP-CLI</a>
             <a href="#rest-api">REST API</a>
             <a href="#credits">Credits</a>
@@ -306,6 +307,11 @@
                 <div class="feature-icon">⚖️</div>
                 <h3>License Link</h3>
                 <p>When a copyright value is a URL (e.g. a Creative Commons URI), Metamanager emits <code>&lt;link rel="license"&gt;</code> in the page head. Plain-text copyright values emit <code>&lt;meta name="copyright"&gt;</code>. Both give crawlers and aggregators a machine-readable rights signal.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🗺</div>
+                <h3>XML Sitemaps</h3>
+                <p>Two dedicated sitemap endpoints — <code>/sitemap-media.xml</code> for all Media Library images and videos with full <code>&lt;image:image&gt;</code> and <code>&lt;video:video&gt;</code> extension nodes; <code>/sitemap-video.xml</code> crawling post content for YouTube, Vimeo, and self-hosted video embeds. Submit both to Google Search Console from <strong>Media → MM Settings → Sitemaps</strong>.</p>
             </div>
         </div>
 
@@ -760,6 +766,37 @@ updates history table</code></pre>
   "dateCreated": "2026-01-10",
   "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=71" }
 }</code></pre>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ SITEMAPS -->
+<section class="section" id="sitemaps">
+    <div class="container">
+        <h2 class="section-title">XML Sitemaps</h2>
+        <p class="section-subtitle">Two dedicated sitemap endpoints generated on every request — no static files, no cron jobs required.</p>
+
+        <div class="feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 2.5rem;">
+            <div class="feature-card">
+                <div class="feature-icon">🖼️</div>
+                <h3>Media Sitemap — <code>/sitemap-media.xml</code></h3>
+                <p>Covers every published image and video attachment. Images include <code>&lt;image:image&gt;</code> extension nodes with title, caption, and license URL. Videos include <code>&lt;video:video&gt;</code> nodes with title, description, duration (from <code>ffprobe</code>), rating, and publish date.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎬</div>
+                <h3>Video Sitemap — <code>/sitemap-video.xml</code></h3>
+                <p>Scans all published post content for embedded video: self-hosted <code>&lt;video&gt;</code> tags, YouTube iframes, and Vimeo iframes. YouTube and Vimeo titles and descriptions are fetched via oEmbed and cached as 24-hour transients — no extra API keys required.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚙️</div>
+                <h3>Granular Controls</h3>
+                <p>Six independent toggles under <strong>Media → MM Settings → Sitemaps</strong>: enable/disable each sitemap, include/exclude image nodes, and choose which video sources (YouTube, Vimeo, self-hosted) appear in the video sitemap. Live URLs link directly to each endpoint.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📡</div>
+                <h3>Google Search Console Ready</h3>
+                <p>Submit <code>/sitemap-media.xml</code> and <code>/sitemap-video.xml</code> directly to Google Search Console. Both sitemaps refresh automatically on every request — new uploads appear without any manual resubmission. Step-by-step instructions are available in the contextual help tab on the settings screen.</p>
+            </div>
         </div>
     </div>
 </section>

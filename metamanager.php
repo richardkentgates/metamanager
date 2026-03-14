@@ -3,7 +3,7 @@
  * Plugin Name:  Metamanager
  * Plugin URI:   https://github.com/richardkentgates/metamanager
  * Description:  [BETA — untested in production] Lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) via OS-level daemons. Expands the WordPress Media Library with native metadata editing, bulk operations, and a real-time job dashboard.
- * Version:      1.5.5
+ * Version:      1.6.0
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:       Richard Kent Gates
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 // Plugin constants
 // ---------------------------------------------------------------------------
 
-define( 'MM_VERSION',     '1.5.5' );
+define( 'MM_VERSION',     '1.6.0' );
 define( 'MM_PLUGIN_FILE', __FILE__ );
 define( 'MM_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'MM_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -60,6 +60,7 @@ require_once MM_PLUGIN_DIR . 'includes/class-mm-job-queue.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-metadata.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-status.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-settings.php';
+require_once MM_PLUGIN_DIR . 'includes/class-mm-sitemap.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-upload-notify.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-admin.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-updater.php';
@@ -71,6 +72,9 @@ if ( ! is_admin() ) {
 	MM_Frontend::init();
 }
 
+// Sitemaps: rewrite rules, template_redirect, and admin settings registration.
+MM_Sitemap::init();
+
 // ---------------------------------------------------------------------------
 // Activation / deactivation
 // ---------------------------------------------------------------------------
@@ -79,7 +83,8 @@ register_activation_hook( MM_PLUGIN_FILE, 'mm_activate' );
 register_deactivation_hook( MM_PLUGIN_FILE, 'mm_deactivate' );
 
 /**
- * Single-site activation routine: create DB table, job directories, schedule cron.
+ * Single-site activation routine: create DB table, job directories, schedule cron,
+ * and flush rewrite rules so sitemap URLs resolve immediately.
  */
 function mm_activate_single_site(): void {
 	MM_DB::create_or_update_table();
@@ -88,6 +93,9 @@ function mm_activate_single_site(): void {
 	if ( ! wp_next_scheduled( 'mm_import_completed_jobs' ) ) {
 		wp_schedule_event( time(), 'mm_every_minute', 'mm_import_completed_jobs' );
 	}
+
+	MM_Sitemap::add_rewrite_rules();
+	flush_rewrite_rules();
 }
 
 /**

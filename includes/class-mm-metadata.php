@@ -67,6 +67,12 @@ class MM_Metadata {
 	public const META_GPS_ALT  = 'mm_gps_alt';
 
 	/**
+	 * Media duration in seconds — written by the metadata daemon after an ffprobe
+	 * run on video and audio attachments. Integer, read-only from PHP.
+	 */
+	public const META_DURATION = 'mm_duration';
+
+	/**
 	 * Flag: ExifTool has run on this file at least once and populated WP fields.
 	 * Value is '1' when synced, unset (empty string) when never scanned.
 	 */
@@ -264,6 +270,17 @@ class MM_Metadata {
 		foreach ( $string_fields as $key => $description ) {
 			register_post_meta( 'attachment', $key, array_merge( $base, [ 'description' => $description ] ) );
 		}
+
+		// Duration — integer seconds, populated by the meta daemon via ffprobe.
+		register_post_meta( 'attachment', self::META_DURATION, [
+			'object_subtype'    => 'attachment',
+			'type'              => 'integer',
+			'description'       => __( 'Media duration in whole seconds (video/audio).', 'metamanager' ),
+			'single'            => true,
+			'sanitize_callback' => fn( $v ) => max( 0, (int) $v ),
+			'auth_callback'     => fn() => current_user_can( 'edit_posts' ),
+			'show_in_rest'      => true,
+		] );
 
 		// Rating is an integer (0 = unrated, 1-5 = stars).
 		register_post_meta( 'attachment', self::META_RATING, [
