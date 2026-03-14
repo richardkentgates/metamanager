@@ -14,9 +14,8 @@ Thumbs.db
 *.swp
 *.swo
 
-# Composer (if ever used)
+# Composer — commit the lock file so CI and deployments use exact versions
 /vendor/
-composer.lock
 
 # Node (if ever used for build tooling)
 node_modules/
