@@ -33,7 +33,7 @@ JOB_DIR="${JOB_ROOT}/meta"
 JOB_DONE="${JOB_ROOT}/completed"
 JOB_FAILED="${JOB_ROOT}/failed"
 LOG_FILE="/var/log/metamanager-meta.log"
-PID_FILE="/tmp/metamanager-meta-daemon.pid"
+PID_FILE="${JOB_ROOT}/meta-daemon.pid"
 
 # Maximum simultaneous job subshells. Tune to available CPU cores.
 # Raising this too high on a loaded server will saturate disk I/O.

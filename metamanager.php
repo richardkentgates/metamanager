@@ -45,11 +45,11 @@ define( 'MM_JOB_TABLE', 'metamanager_jobs' );
 
 /**
  * PID files written by the daemons on startup.
- * Using /tmp lets www-data read them without elevated privileges,
- * avoiding the need for shell_exec( 'systemctl ...' ).
+ * Stored in MM_JOB_ROOT so they are visible to PHP-FPM even when its
+ * systemd service has PrivateTmp=yes (which isolates /tmp per-service).
  */
-define( 'MM_PID_COMPRESS', '/tmp/metamanager-compress-daemon.pid' );
-define( 'MM_PID_META',     '/tmp/metamanager-meta-daemon.pid' );
+define( 'MM_PID_COMPRESS', MM_JOB_ROOT . '/compress-daemon.pid' );
+define( 'MM_PID_META',     MM_JOB_ROOT . '/meta-daemon.pid' );
 
 // ---------------------------------------------------------------------------
 // Autoload classes

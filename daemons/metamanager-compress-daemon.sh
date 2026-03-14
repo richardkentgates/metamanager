@@ -26,7 +26,7 @@ JOB_DIR="${JOB_ROOT}/compress"
 JOB_DONE="${JOB_ROOT}/completed"
 JOB_FAILED="${JOB_ROOT}/failed"
 LOG_FILE="/var/log/metamanager-compress.log"
-PID_FILE="/tmp/metamanager-compress-daemon.pid"
+PID_FILE="${JOB_ROOT}/compress-daemon.pid"
 
 # Maximum simultaneous job subshells. Tune to available CPU cores.
 # Raising this too high on a loaded server will saturate disk I/O.
