@@ -13,6 +13,9 @@
 
 class Test_MM_JobQueue extends WP_UnitTestCase {
 
+	/** Absolute paths of temporary media files created during a test. */
+	private array $tmp_files = [];
+
 	// -----------------------------------------------------------------------
 	// Setup / teardown
 	// -----------------------------------------------------------------------
@@ -34,6 +37,11 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 				wp_delete_file( $file );
 			}
 		}
+		// Remove temporary media files created by create_tmp_attachment().
+		foreach ( $this->tmp_files as $file ) {
+			wp_delete_file( $file );
+		}
+		$this->tmp_files = [];
 		parent::tear_down();
 	}
 
@@ -64,6 +72,44 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	 */
 	private function count_jobs( string $dir ): int {
 		return count( glob( $dir . '*.json' ) ?: [] );
+	}
+
+	/**
+	 * Create a real media file in the WP uploads dir and register it as a
+	 * WordPress attachment.  Using a real file means file_exists() passes
+	 * inside enqueue_all_sizes() and on_upload().
+	 *
+	 * @param  string $mime MIME type for the attachment (default image/jpeg).
+	 * @return array{ 0: int, 1: string } [attachment_id, absolute file path]
+	 */
+	private function create_tmp_attachment( string $mime = 'image/jpeg' ): array {
+		$ext = match ( $mime ) {
+			'image/jpeg', 'image/jpg' => 'jpg',
+			'image/png'               => 'png',
+			'image/gif'               => 'gif',
+			'video/mp4'               => 'mp4',
+			'audio/mpeg'              => 'mp3',
+			default                   => explode( '/', $mime )[1] ?? 'bin',
+		};
+
+		$upload_dir = wp_upload_dir();
+		wp_mkdir_p( $upload_dir['basedir'] );
+
+		$filename  = 'mm_test_' . uniqid() . '.' . $ext;
+		$file_path = $upload_dir['basedir'] . '/' . $filename;
+
+		// Write a minimal placeholder file so file_exists() passes.
+		file_put_contents( $file_path, str_repeat( "\x00", 64 ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+		$attachment_id = $this->factory->attachment->create( [ 'post_mime_type' => $mime ] );
+
+		// Override _wp_attached_file with the relative filename inside basedir so
+		// get_attached_file() resolves to the real file we just created.
+		update_post_meta( $attachment_id, '_wp_attached_file', $filename );
+
+		$this->tmp_files[] = $file_path;
+
+		return [ $attachment_id, $file_path ];
 	}
 
 	// -----------------------------------------------------------------------
@@ -130,5 +176,78 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 
 		$this->assertSame( 0, $this->count_jobs( MM_JOB_COMPRESS ) );
 		$this->assertSame( 0, $this->count_jobs( MM_JOB_META ) );
+	}
+
+	// -----------------------------------------------------------------------
+	// Upload hook — on_upload(): fresh upload vs. thumbnail regeneration
+	//
+	// Fresh upload:   reads embedded metadata into WP, then queues BOTH
+	//                 compression and metadata-embedding jobs.
+	// Regeneration:   skips metadata import (preserves user edits), queues
+	//                 only compression for the new/changed sizes.
+	// -----------------------------------------------------------------------
+
+	public function test_on_upload_fresh_image_queues_both_job_types(): void {
+		[ $attachment_id ] = $this->create_tmp_attachment( 'image/jpeg' );
+
+		// META_SYNCED is NOT set → treated as a fresh upload.
+		MM_Job_Queue::on_upload( [], $attachment_id );
+
+		$this->assertSame( 1, $this->count_jobs( MM_JOB_COMPRESS ),
+			'Fresh image upload must queue a compression job.' );
+		$this->assertSame( 1, $this->count_jobs( MM_JOB_META ),
+			'Fresh image upload must queue a metadata-embedding job.' );
+	}
+
+	public function test_on_upload_regeneration_queues_only_compression(): void {
+		[ $attachment_id ] = $this->create_tmp_attachment( 'image/jpeg' );
+
+		// Mark as already synced to simulate thumbnail regeneration.
+		update_post_meta( $attachment_id, MM_Metadata::META_SYNCED, 1 );
+
+		MM_Job_Queue::on_upload( [], $attachment_id );
+
+		$this->assertSame( 1, $this->count_jobs( MM_JOB_COMPRESS ),
+			'Thumbnail regeneration must re-queue compression.' );
+		$this->assertSame( 0, $this->count_jobs( MM_JOB_META ),
+			'Thumbnail regeneration must NOT queue metadata (preserves user edits).' );
+	}
+
+	// -----------------------------------------------------------------------
+	// Two-way sync: editing metadata in WP queues a metadata-embedding job
+	//
+	// When a user edits title/description/creator/copyright/etc. in the
+	// Media Library, on_fields_save() must queue a metadata-embedding job so
+	// the daemon writes the new values back into the image file.
+	// -----------------------------------------------------------------------
+
+	public function test_on_fields_save_queues_metadata_job_not_compression(): void {
+		[ $attachment_id ] = $this->create_tmp_attachment( 'image/jpeg' );
+
+		MM_Metadata::on_fields_save( [ 'ID' => $attachment_id ], [] );
+
+		$this->assertGreaterThan( 0, $this->count_jobs( MM_JOB_META ),
+			'Editing attachment fields must queue a metadata-embedding job.' );
+		$this->assertSame( 0, $this->count_jobs( MM_JOB_COMPRESS ),
+			'Editing attachment fields must NOT queue a compression job.' );
+	}
+
+	// -----------------------------------------------------------------------
+	// Scan path: enqueue_all_sizes with type='both' produces both job types
+	//
+	// ajax_scan_library() now calls enqueue_all_sizes('both') for each
+	// unsynced image — this test verifies that contract holds so scans and
+	// uploads follow the same full pipeline.
+	// -----------------------------------------------------------------------
+
+	public function test_scan_enqueues_both_job_types_for_image(): void {
+		[ $attachment_id ] = $this->create_tmp_attachment( 'image/jpeg' );
+
+		MM_Job_Queue::enqueue_all_sizes( $attachment_id, [], 'both', [ 'trigger' => 'scan' ] );
+
+		$this->assertSame( 1, $this->count_jobs( MM_JOB_COMPRESS ),
+			'Library scan must queue a compression job for an image.' );
+		$this->assertSame( 1, $this->count_jobs( MM_JOB_META ),
+			'Library scan must queue a metadata-embedding job for an image.' );
 	}
 }

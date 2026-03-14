@@ -1222,7 +1222,12 @@ class MM_Admin {
 	}
 
 	/**
-	 * AJAX: Import metadata in batches for un-synced library images.
+	 * AJAX: Scan un-synced library attachments in batches and enqueue daemon jobs.
+	 *
+	 * For each un-synced attachment:
+	 *   1. Bootstraps WP post_meta from any metadata already embedded in the file.
+	 *   2. Queues metadata-embedding and compression jobs for the daemon — mirrors
+	 *      the on_upload() path so every attachment goes through the full pipeline.
 	 *
 	 * Supports incremental calls: pass `offset` to pick up where the last
 	 * batch finished. JS calls this in a loop until `done` is true.
@@ -1278,7 +1283,30 @@ class MM_Admin {
 
 		$count = 0;
 		foreach ( $batch as $id ) {
-			MM_Metadata::import_from_file( (int) $id );
+			$id   = (int) $id;
+			$mime = (string) get_post_mime_type( $id );
+
+			// Bootstrap WP post_meta from any metadata already embedded in the file.
+			MM_Metadata::import_from_file( $id );
+
+			// Queue daemon jobs — mirrors the on_upload() path for unsynced attachments.
+			if ( wp_attachment_is_image( $id ) ) {
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'both', [ 'trigger' => 'scan' ] );
+			} elseif ( MM_Metadata::is_video_mime( $mime ) ) {
+				$file = get_attached_file( $id );
+				if ( $file && file_exists( $file ) ) {
+					MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'scan' ] );
+					MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'scan' ] );
+				}
+			} elseif ( MM_Metadata::is_audio_mime( $mime ) || MM_Metadata::is_pdf_mime( $mime ) ) {
+				if ( MM_Metadata::can_write_meta( $mime ) ) {
+					$file = get_attached_file( $id );
+					if ( $file && file_exists( $file ) ) {
+						MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'scan' ] );
+					}
+				}
+			}
+
 			++$count;
 		}
 
