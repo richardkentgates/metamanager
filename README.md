@@ -7,13 +7,12 @@
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-purple)](https://php.net)
 [![Code Scanning](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml/badge.svg)](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)
-![Status](https://img.shields.io/badge/status-beta%20%2F%20untested-orange)
+![Status](https://img.shields.io/badge/status-beta-yellow)
 
 📖 **[Full documentation → GitHub Wiki](https://github.com/richardkentgates/metamanager/wiki)**
 
 > [!WARNING]
-> **Beta software — working status unknown.**
-> This plugin has not been tested in a production environment. Functionality may be incomplete, unstable, or subject to breaking change without notice. Use at your own risk. [Bug reports and feedback](https://github.com/richardkentgates/metamanager/issues) are welcome.
+> **Beta software.** Functionality may be incomplete or subject to breaking change without notice. Use at your own risk. [Bug reports and feedback](https://github.com/richardkentgates/metamanager/issues) are welcome.
 
 ---
 
