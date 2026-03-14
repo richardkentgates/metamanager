@@ -218,10 +218,13 @@ class Test_MM_DB extends WP_UnitTestCase {
 		$this->assertSame( 2, (int) $stats['unique_attachments'] );
 		$this->assertSame( 30000, (int) $stats['bytes_saved'] );  // (100000-80000) + (50000-40000)
 		$this->assertSame( 150000, (int) $stats['bytes_original'] );
+	}
+
 	public function test_get_stats_returns_zeros_when_empty(): void {
 		$stats = MM_DB::get_stats();
 		$this->assertSame( 0, (int) $stats['total_jobs'] );
 		$this->assertSame( 0, (int) $stats['bytes_saved'] );
+	}
 
 	// -----------------------------------------------------------------------
 	// delete_jobs_for_attachment()
