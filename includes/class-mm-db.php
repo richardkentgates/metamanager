@@ -187,6 +187,7 @@ class MM_DB {
 
 		$defaults = [
 			'search'   => '',
+			'status'   => '',
 			'orderby'  => 'id',
 			'order'    => 'DESC',
 			'per_page' => 20,
@@ -200,15 +201,21 @@ class MM_DB {
 		$per_page        = max( 1, (int) $args['per_page'] );
 		$offset          = ( max( 1, (int) $args['paged'] ) - 1 ) * $per_page;
 
+		$conditions = [];
 		if ( ! empty( $args['search'] ) ) {
-			$like  = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$where = $wpdb->prepare(
-				'WHERE image_name LIKE %s OR job_type LIKE %s OR status LIKE %s',
-				$like, $like, $like
+			$like         = '%' . $wpdb->esc_like( $args['search'] ) . '%';
+			$conditions[] = $wpdb->prepare(
+				'(image_name LIKE %s OR job_type LIKE %s)',
+				$like, $like
 			);
-		} else {
-			$where = '';
 		}
+		$allowed_statuses = [ 'pending', 'completed', 'failed' ];
+		if ( ! empty( $args['status'] ) && in_array( $args['status'], $allowed_statuses, true ) ) {
+			$conditions[] = $wpdb->prepare( 'status = %s', $args['status'] );
+		} elseif ( ! empty( $args['status'] ) && 'not_pending' === $args['status'] ) {
+			$conditions[] = "status != 'pending'";
+		}
+		$where = $conditions ? 'WHERE ' . implode( ' AND ', $conditions ) : '';
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} {$where}" );

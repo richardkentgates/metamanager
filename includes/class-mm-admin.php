@@ -1406,88 +1406,44 @@ class MM_Admin {
 
 	public static function render_jobs_content(): void {
 		echo '<input type="hidden" class="mm-paged" value="' . esc_attr( (string) max( 1, (int) ( $_REQUEST['paged'] ?? 1 ) ) ) . '">'; // phpcs:ignore WordPress.Security.NonceVerification
-		self::render_queue_section();
 		self::render_history_section();
 	}
 
 	/**
-	 * Render the live queue section (reads from filesystem).
-	 */
-	private static function render_queue_section(): void {
-		$all_jobs  = MM_Job_Queue::get_pending_jobs();
-		$compress  = $all_jobs['compression'];
-		$meta      = $all_jobs['metadata'];
-		$total     = count( $compress ) + count( $meta );
-
-		echo '<div class="postbox mm-section">';
-		echo '<div class="postbox-header"><h2 class="hndle">'
-			. esc_html__( 'Queue', 'metamanager' )
-			. ' <span class="mm-queue-count">' . ( $total > 0
-				? sprintf( esc_html__( '%d waiting', 'metamanager' ), $total )
-				: esc_html__( 'empty', 'metamanager' ) )
-			. '</span>'
-			. '</h2></div><div class="inside">';
-
-		if ( $total === 0 ) {
-			echo '<p style="color:#50575e;margin:.5em 0;">' . esc_html__( 'No jobs pending.', 'metamanager' ) . '</p>';
-			echo '</div></div>';
-			return;
-		}
-
-		foreach ( [
-			'compression' => [ 'label' => __( 'Compression', 'metamanager' ), 'jobs' => $compress ],
-			'metadata'    => [ 'label' => __( 'Metadata', 'metamanager' ),    'jobs' => $meta ],
-		] as $group ) {
-			if ( empty( $group['jobs'] ) ) {
-				continue;
-			}
-			echo '<h4 style="margin:1em 0 .4em;">' . esc_html( $group['label'] ) . ' <span style="font-weight:400;color:#50575e;">(' . count( $group['jobs'] ) . ')</span></h4>';
-			echo '<table><thead><tr>'
-				. '<th>' . esc_html__( 'File', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Size', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Trigger', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Waiting', 'metamanager' ) . '</th>'
-				. '</tr></thead><tbody>';
-			foreach ( $group['jobs'] as $job ) {
-				$age     = human_time_diff( (int) ( $job['_queued_at'] ?? 0 ), time() );
-				$in_prog = str_ends_with( $job['_queue_file'] ?? '', '.processing' );
-				echo '<tr>'
-					. '<td><code>' . esc_html( $job['image_name'] ?? basename( $job['file_path'] ?? '' ) ) . '</code>'
-					. ( $in_prog ? ' <span style="color:#dba617;font-size:11px;">' . esc_html__( 'processing…', 'metamanager' ) . '</span>' : '' )
-					. '</td>'
-					. '<td>' . esc_html( $job['size'] ?? '' ) . '</td>'
-					. '<td>' . esc_html( $job['trigger'] ?? '' ) . '</td>'
-					. '<td><span style="color:#50575e;font-size:11px;">' . esc_html( $age ) . '</span></td>'
-					. '</tr>';
-			}
-			echo '</tbody></table>';
-		}
-
-		echo '</div></div>'; // .inside .postbox
-	}
-
-	/**
-	 * Render the history section (reads from database, paginated).
+	 * Render the unified jobs section: pending rows always at top, completed/failed paginated below.
 	 */
 	private static function render_history_section(): void {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$search   = sanitize_text_field( $_REQUEST['s'] ?? '' );
-		$paged    = max( 1, (int) ( $_REQUEST['paged'] ?? 1 ) );
+		$search = sanitize_text_field( $_REQUEST['s'] ?? '' );
+		$paged  = max( 1, (int) ( $_REQUEST['paged'] ?? 1 ) );
 		// phpcs:enable
 
-		$per_page    = 25;
-		$result      = MM_DB::get_jobs( [ 'search' => $search, 'paged' => $paged, 'per_page' => $per_page ] );
-		$jobs        = $result['jobs'];
-		$total       = $result['total'];
-		$total_pages = (int) ceil( $total / $per_page );
+		$per_page = 25;
+
+		// Pending jobs — always shown in full, never paginated.
+		$pending_result = MM_DB::get_jobs( [ 'search' => $search, 'status' => 'pending', 'per_page' => 500, 'orderby' => 'submitted_at', 'order' => 'ASC' ] );
+		$pending_jobs   = $pending_result['jobs'];
+
+		// Completed / failed — paginated.
+		$done_result = MM_DB::get_jobs( [ 'search' => $search, 'status' => 'not_pending', 'paged' => $paged, 'per_page' => $per_page ] );
+		$done_jobs   = $done_result['jobs'];
+		$done_total  = $done_result['total'];
+		$total_pages = (int) ceil( $done_total / $per_page );
 
 		echo '<div class="postbox mm-section">';
 		echo '<div class="postbox-header">'
-			. '<h2 class="hndle">' . esc_html__( 'History', 'metamanager' )
+			. '<h2 class="hndle">' . esc_html__( 'Jobs', 'metamanager' )
+			. ( ! empty( $pending_jobs )
+				? ' <span class="mm-tag-pending">' . sprintf(
+					/* translators: %d: pending count */
+					esc_html__( '%d pending', 'metamanager' ),
+					count( $pending_jobs )
+				) . '</span>'
+				: '' )
 			. ' <span>' . sprintf(
-				/* translators: %d: total job count */
-				esc_html__( '%d records', 'metamanager' ),
-				$total
+				/* translators: %d: completed/failed count */
+				esc_html__( '%d completed', 'metamanager' ),
+				$done_total
 			) . '</span>'
 			. '</h2>'
 			. '</div><div class="inside">';
@@ -1500,86 +1456,49 @@ class MM_Admin {
 			. ( $search ? ' <a class="button" href="' . esc_url( remove_query_arg( 's' ) ) . '">' . esc_html__( 'Clear', 'metamanager' ) . '</a>' : '' )
 			. '</form>';
 
-		if ( empty( $jobs ) ) {
-			echo '<p style="color:#50575e;">' . esc_html__( 'No history yet.', 'metamanager' ) . '</p>';
-		} else {
-			echo '<table><thead><tr>'
-				. '<th>' . esc_html__( 'File', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Size', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Type', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Result', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Status', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Completed', 'metamanager' ) . '</th>'
-				. '<th></th>'
-				. '</tr></thead><tbody>';
+		$table_header = '<table><thead><tr>'
+			. '<th>' . esc_html__( 'File', 'metamanager' ) . '</th>'
+			. '<th>' . esc_html__( 'Size', 'metamanager' ) . '</th>'
+			. '<th>' . esc_html__( 'Type', 'metamanager' ) . '</th>'
+			. '<th>' . esc_html__( 'Result', 'metamanager' ) . '</th>'
+			. '<th>' . esc_html__( 'Status', 'metamanager' ) . '</th>'
+			. '<th>' . esc_html__( 'Completed', 'metamanager' ) . '</th>'
+			. '<th></th>'
+			. '</tr></thead><tbody>';
 
-			foreach ( $jobs as $job ) {
-				$status_class = match ( $job->status ) {
-					'completed' => 'mm-tag-completed',
-					'failed'    => 'mm-tag-failed',
-					default     => 'mm-tag-pending',
-				};
+		// -- Pending rows --
+		if ( ! empty( $pending_jobs ) ) {
+			echo $table_header; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- assembled from escaped parts above
+			foreach ( $pending_jobs as $job ) {
+				echo self::render_job_row( $job );
+			}
+			echo '</tbody></table>';
+		}
 
-				// File cell — link to edit screen when attachment_id is available.
-				if ( ! empty( $job->attachment_id ) ) {
-					$edit_url = get_edit_post_link( (int) $job->attachment_id );
-					$file_cell = $edit_url
-						? '<a href="' . esc_url( $edit_url ) . '">' . esc_html( $job->image_name ) . '</a>'
-						: esc_html( $job->image_name );
-				} else {
-					$file_cell = esc_html( $job->image_name );
-				}
-
-				// Result cell.
-				$bytes_before = (int) ( $job->bytes_before ?? 0 );
-				$bytes_after  = (int) ( $job->bytes_after  ?? 0 );
-				if ( 'compression' === $job->job_type && $bytes_before > 0 && $bytes_after > 0 ) {
-					if ( $bytes_after < $bytes_before ) {
-						$saved        = $bytes_before - $bytes_after;
-						$pct          = round( $saved / $bytes_before * 100, 1 );
-						$result_html  = '<span style="color:#00a32a;">−' . esc_html( size_format( $saved ) ) . ' (' . esc_html( (string) $pct ) . '%)</span>';
-					} else {
-						$result_html = '<span style="color:#888;">' . esc_html__( 'already optimal', 'metamanager' ) . '</span>';
-					}
-				} elseif ( 'metadata' === $job->job_type ) {
-					$result_html = '<span style="color:#888;">—</span>';
-				} else {
-					$result_html = '<span style="color:#888;">—</span>';
-				}
-
-				// Actions.
-				$action_cell = ( 'failed' === $job->status )
-					? '<button class="button button-small mm-requeue-btn" data-job-id="' . esc_attr( (string) $job->id ) . '">'
-						. esc_html__( 'Re-queue', 'metamanager' ) . '</button>'
-					: '';
-
-				echo '<tr>'
-					. '<td>' . $file_cell . '</td>' // Escaped above.
-					. '<td>' . esc_html( $job->size ) . '</td>'
-					. '<td>' . esc_html( ucfirst( $job->job_type ) ) . '</td>'
-					. '<td>' . $result_html . '</td>' // Escaped above.
-					. '<td><span class="' . esc_attr( $status_class ) . '">' . esc_html( ucfirst( $job->status ) ) . '</span></td>'
-					. '<td style="white-space:nowrap;color:#50575e;font-size:12px;">' . esc_html( $job->completed_at ?? $job->submitted_at ) . '</td>'
-					. '<td>' . $action_cell . '</td>'
-					. '</tr>';
+		// -- Completed / failed rows --
+		if ( empty( $done_jobs ) && empty( $pending_jobs ) ) {
+			echo '<p style="color:#50575e;">' . esc_html__( 'No jobs recorded yet.', 'metamanager' ) . '</p>';
+		} elseif ( ! empty( $done_jobs ) ) {
+			if ( ! empty( $pending_jobs ) ) {
+				echo '<h4 style="margin:1.2em 0 .4em;color:#50575e;font-weight:400;">' . esc_html__( 'History', 'metamanager' ) . '</h4>';
+			}
+			echo $table_header; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- assembled from escaped parts above
+			foreach ( $done_jobs as $job ) {
+				echo self::render_job_row( $job );
 			}
 			echo '</tbody></table>';
 
-			// Pagination.
 			if ( $total_pages > 1 ) {
 				echo '<div class="tablenav bottom"><div class="tablenav-pages">'
 					. '<span class="displaying-num">' . sprintf(
-						/* translators: %d: total item count */
-						esc_html__( '%d items', 'metamanager' ), $total
-					) . '</span>'
-					. '<span class="pagination-links">';
+						/* translators: %d: item count */
+						esc_html__( '%d items', 'metamanager' ), $done_total
+					) . '</span><span class="pagination-links">';
 				for ( $i = 1; $i <= $total_pages; $i++ ) {
 					if ( $i === $paged ) {
-						echo '<span class="tablenav-pages-navspan button disabled" aria-current="page">'
-							. esc_html( (string) $i ) . '</span>';
+						echo '<span class="tablenav-pages-navspan button disabled" aria-current="page">' . esc_html( (string) $i ) . '</span>';
 					} else {
-						echo '<a class="mm-page-link button" data-paged="' . esc_attr( (string) $i ) . '" href="#">'
-							. esc_html( (string) $i ) . '</a>';
+						echo '<a class="mm-page-link button" data-paged="' . esc_attr( (string) $i ) . '" href="#">' . esc_html( (string) $i ) . '</a>';
 					}
 				}
 				echo '</span></div></div>';
@@ -1587,6 +1506,65 @@ class MM_Admin {
 		}
 
 		echo '</div></div>'; // .inside .postbox
+	}
+
+	/**
+	 * Render a single <tr> for a job row (shared by pending and done tables).
+	 *
+	 * @param object $job DB row object.
+	 * @return string Escaped HTML.
+	 */
+	private static function render_job_row( object $job ): string {
+		$status_class = match ( $job->status ) {
+			'completed' => 'mm-tag-completed',
+			'failed'    => 'mm-tag-failed',
+			default     => 'mm-tag-pending',
+		};
+
+		// File cell.
+		if ( ! empty( $job->attachment_id ) ) {
+			$edit_url  = get_edit_post_link( (int) $job->attachment_id );
+			$file_cell = $edit_url
+				? '<a href="' . esc_url( $edit_url ) . '">' . esc_html( $job->image_name ) . '</a>'
+				: esc_html( $job->image_name );
+		} else {
+			$file_cell = esc_html( $job->image_name );
+		}
+
+		// Result cell.
+		$bytes_before = (int) ( $job->bytes_before ?? 0 );
+		$bytes_after  = (int) ( $job->bytes_after  ?? 0 );
+		if ( 'compression' === $job->job_type && $bytes_before > 0 && $bytes_after > 0 ) {
+			if ( $bytes_after < $bytes_before ) {
+				$saved       = $bytes_before - $bytes_after;
+				$pct         = round( $saved / $bytes_before * 100, 1 );
+				$result_html = '<span style="color:#00a32a;">−' . esc_html( size_format( $saved ) ) . ' (' . esc_html( (string) $pct ) . '%)</span>';
+			} else {
+				$result_html = '<span style="color:#888;">' . esc_html__( 'already optimal', 'metamanager' ) . '</span>';
+			}
+		} else {
+			$result_html = '<span style="color:#888;">—</span>';
+		}
+
+		// Actions.
+		$action_cell = ( 'failed' === $job->status )
+			? '<button class="button button-small mm-requeue-btn" data-job-id="' . esc_attr( (string) $job->id ) . '">'
+				. esc_html__( 'Re-queue', 'metamanager' ) . '</button>'
+			: '';
+
+		$date = 'pending' === $job->status
+			? '<span style="color:#dba617;font-size:12px;">' . esc_html__( 'waiting…', 'metamanager' ) . '</span>'
+			: '<span style="white-space:nowrap;color:#50575e;font-size:12px;">' . esc_html( $job->completed_at ?? $job->submitted_at ) . '</span>';
+
+		return '<tr>'
+			. '<td>' . $file_cell . '</td>'
+			. '<td>' . esc_html( $job->size ) . '</td>'
+			. '<td>' . esc_html( ucfirst( $job->job_type ) ) . '</td>'
+			. '<td>' . $result_html . '</td>'
+			. '<td><span class="' . esc_attr( $status_class ) . '">' . esc_html( ucfirst( $job->status ) ) . '</span></td>'
+			. '<td>' . $date . '</td>'
+			. '<td>' . $action_cell . '</td>'
+			. '</tr>';
 	}
 
 	// -----------------------------------------------------------------------
