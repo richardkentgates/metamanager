@@ -209,12 +209,12 @@ class MM_Admin {
 				'title'   => __( 'REST API Access', 'metamanager' ),
 				'content' =>
 					'<h2>' . esc_html__( 'REST API Access Control', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'The REST API section lets you lock down the Metamanager REST endpoints at the plugin level, before any WordPress capability check runs.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'These settings control external access to the Metamanager REST endpoints. Logged-in WordPress users are never affected — the Media Library status column and job dashboard always work regardless of what is configured here.', 'metamanager' ) . '</p>' .
 					'<ul>' .
-					'<li><strong>' . esc_html__( 'Disable REST API', 'metamanager' ) . '</strong> — ' . esc_html__( 'When checked, every request to /wp-json/metamanager/v1/* returns 403 Forbidden regardless of the caller\'s WordPress role. Use this to lock down the API entirely.', 'metamanager' ) . '</li>' .
-					'<li><strong>' . esc_html__( 'Allowed IP Addresses', 'metamanager' ) . '</strong> — ' . esc_html__( 'Enter a comma-separated list of IPv4 or IPv6 addresses that are permitted to use the API. Leave blank to allow requests from any IP. If "Disable REST API" is checked this field has no effect.', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( 'Disable REST API', 'metamanager' ) . '</strong> — ' . esc_html__( 'Blocks all unauthenticated requests to /wp-json/metamanager/v1/*. Logged-in users are not blocked.', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( 'Allowed IP Addresses', 'metamanager' ) . '</strong> — ' . esc_html__( 'Restricts unauthenticated access to requests originating from the listed IPv4 or IPv6 addresses. Leave blank to allow requests from any IP. Logged-in users are not subject to this restriction.', 'metamanager' ) . '</li>' .
 					'</ul>' .
-					'<p>' . esc_html__( 'Normal WordPress authentication (X-WP-Nonce header or cookie) and capability checks still apply to all allowed requests.', 'metamanager' ) . '</p>',
+					'<p>' . esc_html__( 'Normal WordPress authentication (X-WP-Nonce header or cookie) and capability checks still apply to all requests.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [
@@ -788,8 +788,15 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	public static function register_rest_routes(): void {
-		// Shared API gate: checks disabled flag and IP allowlist before any capability check.
+		// Shared API gate: enforces the disabled flag and IP allowlist for
+		// unauthenticated / external callers only.  Requests from a logged-in
+		// WordPress user (e.g. the Media Library column or job dashboard
+		// polling with a valid wp_rest nonce) always pass through so that
+		// internal admin features are never affected by these settings.
 		$api_check = function (): bool {
+			if ( is_user_logged_in() ) {
+				return true;
+			}
 			if ( MM_Settings::get_api_disabled() ) {
 				return false;
 			}

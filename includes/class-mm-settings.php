@@ -201,7 +201,7 @@ class MM_Settings {
 		add_settings_section(
 			'mm_section_api',
 			esc_html__( 'REST API', 'metamanager' ),
-			fn() => esc_html_e( 'Control external access to the Metamanager REST API endpoints (/wp-json/metamanager/v1/). The API is used by the Media Library column polling and the job dashboard. Disabling or restricting it will break those features.', 'metamanager' ),
+			fn() => esc_html_e( 'Control external access to the Metamanager REST API endpoints (/wp-json/metamanager/v1/). These settings apply to unauthenticated and external callers only — logged-in WordPress users are never restricted, so the Media Library status column and job dashboard always work regardless of what is configured here.', 'metamanager' ),
 			'metamanager-settings'
 		);
 
@@ -316,7 +316,7 @@ class MM_Settings {
 			checked( $checked, true, false )
 		);
 		echo ' <label for="mm_api_disabled">' . esc_html__( 'Disable all Metamanager REST API routes', 'metamanager' ) . '</label>';
-		echo '<p class="description" style="color:#d63638;"><strong>' . esc_html__( 'Warning:', 'metamanager' ) . '</strong> ' . esc_html__( 'Disabling the API breaks the live compression status column and the job dashboard. Only enable this if you are intentionally blocking external API access.', 'metamanager' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Blocks unauthenticated external requests to /wp-json/metamanager/v1/*. Logged-in WordPress users are never blocked, so the compression status column and job dashboard continue to work normally.', 'metamanager' ) . '</p>';
 	}
 
 	public static function field_api_allowed_ips(): void {
