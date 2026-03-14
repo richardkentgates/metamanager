@@ -102,7 +102,7 @@ function _mm_uninstall_site(): void {
 
 	// Drop the plugin DB table.
 	$table = $wpdb->prefix . 'metamanager_jobs';
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	$wpdb->query( "DROP TABLE IF EXISTS `{$table}`" );
 }
 
@@ -158,11 +158,13 @@ function _mm_rmdir_recursive( string $dir ): void {
 	);
 	foreach ( $items as $item ) {
 		if ( $item->isDir() ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- WP_Filesystem has no recursive rmdir equivalent
 			rmdir( $item->getRealPath() );
 		} else {
 			wp_delete_file( $item->getRealPath() );
 		}
 	}
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- WP_Filesystem has no recursive rmdir equivalent
 	rmdir( $dir );
 }
 

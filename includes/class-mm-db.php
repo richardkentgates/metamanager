@@ -29,7 +29,7 @@ class MM_DB {
 	public static function drop_table(): void {
 		global $wpdb;
 		$table = self::table_name();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 	}
 
@@ -174,7 +174,7 @@ class MM_DB {
 			$where = '';
 		}
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} {$where}" );
 
 		$jobs = $wpdb->get_results(

@@ -275,11 +275,12 @@ class MM_Settings {
 				6       => esc_html__( '6 — High', 'metamanager' ),
 				default => esc_html__( '7 — Maximum (slowest)', 'metamanager' ),
 			};
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $i is an integer (%d); $label is pre-escaped via esc_html__()
 			printf(
 				'<option value="%d"%s>%s</option>',
 				$i,
 				selected( $value, $i, false ),
-				$label // Already escaped above.
+				$label
 			);
 		}
 		echo '</select>';
@@ -478,6 +479,6 @@ class MM_Settings {
 	 * @return string Empty string if not determinable.
 	 */
 	public static function get_current_ip(): string {
-		return sanitize_text_field( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+		return sanitize_text_field( wp_unslash( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ) );
 	}
 }

@@ -114,6 +114,7 @@ class MM_Job_Queue {
 			if ( 'compression' === $type ) {
 				// Do not write a duplicate compression job. Notify the user and stop.
 				self::push_queue_notice( 'skipped', 'compression', $attachment_id, $size );
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional operational log, not debug output
 				error_log( sprintf(
 					'[Metamanager] Compression job skipped — already pending: attachment %d, size %s.',
 					$attachment_id,
@@ -125,6 +126,7 @@ class MM_Job_Queue {
 			// Metadata: write the new job (runs in sequence after the existing one).
 			// Notify the user that their update is queued behind the current pending job.
 			self::push_queue_notice( 'queued', 'metadata', $attachment_id, $size );
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional operational log, not debug output
 			error_log( sprintf(
 				'[Metamanager] Metadata job queued behind existing pending job: attachment %d, size %s.',
 				$attachment_id,
@@ -360,8 +362,7 @@ class MM_Job_Queue {
 				continue;
 			}
 			foreach ( glob( $dir . $attachment_id . '-*.json' ) ?: [] as $file ) {
-				// phpcs:ignore WordPress.PHP.NoSilencedErrors
-				@unlink( $file );
+				wp_delete_file( $file );
 			}
 		}
 
