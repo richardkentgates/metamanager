@@ -8,7 +8,10 @@
 
     <testsuites>
         <testsuite name="Integration">
-            <directory suffix=".php">tests/Integration</directory>
+            <file>tests/Integration/class-test-mm-db.php</file>
+            <file>tests/Integration/class-test-mm-settings.php</file>
+            <file>tests/Integration/class-test-mm-frontend.php</file>
+            <file>tests/Integration/class-test-mm-job-queue.php</file>
         </testsuite>
     </testsuites>
 
