@@ -15,7 +15,7 @@ RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=false
 ProtectSystem=strict
-ReadWritePaths=__WP_CONTENT_DIR__/metamanager-jobs /tmp /var/log
+ReadWritePaths=__WP_CONTENT_DIR__/metamanager-jobs __WP_CONTENT_DIR__/uploads /tmp /var/log
 
 # Logging to journald (also appended to log file by the script itself)
 StandardOutput=journal

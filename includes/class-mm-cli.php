@@ -81,7 +81,6 @@ class MM_CLI extends \WP_CLI_Command {
 					? 'Audio files and PDFs have no compression step. Use `wp metamanager import` for metadata.'
 					: 'Attachment is not a compressible file type.';
 				\WP_CLI::error( $reason );
-				return;
 			}
 		}
 
@@ -177,7 +176,6 @@ class MM_CLI extends \WP_CLI_Command {
 				! MM_Metadata::is_pdf_mime( $mime )
 			) {
 				\WP_CLI::error( "Attachment {$ids[0]} is not a supported file type for metadata import." );
-				return;
 			}
 		}
 

@@ -123,7 +123,10 @@ class MM_DB {
 	 *   @type int    $per_page  Rows per page.
 	 *   @type int    $paged     Current page (1-based).
 	 * }
-	 * @return array { jobs: array, total: int }
+	 * @return array{
+	 *   jobs: list<object{id: int, attachment_id: int, image_name: string, job_type: string, file_path: string, size: string, dimensions: string, bytes_before: int, bytes_after: int, status: string, submitted_at: string, completed_at: string|null, error_message: string|null}>,
+	 *   total: int
+	 * }
 	 */
 	public static function get_jobs( array $args = [] ): array {
 		global $wpdb;

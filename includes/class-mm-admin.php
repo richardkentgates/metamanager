@@ -1247,8 +1247,7 @@ class MM_Admin {
 	 * Supports incremental calls: pass `offset` to pick up where the last
 	 * batch finished. JS calls this in a loop until `done` is true.
 	 *
-	 * @param int offset      From which index to start (default 0).
-	 * @param int batch_size  How many images to process per call (default 50).
+	 * Reads $_POST['offset'] (int, default 0) and $_POST['batch_size'] (int, default 50).
 	 */
 	public static function ajax_scan_library(): void {
 		check_ajax_referer( 'mm_scan_library', 'nonce' );

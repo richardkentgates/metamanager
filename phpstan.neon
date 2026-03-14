@@ -7,9 +7,22 @@ parameters:
         - metamanager.php
         - uninstall.php
         - includes/
-    excludePaths:
-        - vendor/
-        - node_modules/
-    # Suppress false positives from WordPress magic functions that linters cannot trace.
+    # PHPDoc types from WordPress stubs may report "always true/false" incorrectly.
+    treatPhpDocTypesAsCertain: false
+    scanFiles:
+        - vendor/php-stubs/wp-cli-stubs/wp-cli-stubs.php
+        - vendor/php-stubs/wp-cli-stubs/wp-cli-commands-stubs.php
+        - vendor/php-stubs/wp-cli-stubs/wp-cli-tools-stubs.php
+        - vendor/php-stubs/wp-cli-stubs/wp-cli-i18n-stubs.php
     ignoreErrors:
-        - '#Function (apply_filters|do_action|__)#'
+        # Plugin constants (MM_PLUGIN_URL, MM_PLUGIN_DIR) are defined at the top
+        # of metamanager.php via define(); PHPStan may analyse includes before the
+        # defining file and report them as missing.
+        - '#Constant MM_PLUGIN_(URL|DIR) not found#'
+        # WordPress's get_posts() stubs declare post_mime_type as string, but WP
+        # also accepts an array of MIME types at runtime — this is a stub limitation.
+        - '#\$args of function get_posts expects#'
+        # isset() checks on getimagesize() numeric offsets and field-map keys that
+        # PHPStan knows are always set — these guards are intentional defensive code.
+        - '#Offset (0|1) on array\{0: int.*in isset\(\) always exists#'
+        - '#Offset ''mm_(copyright|creator|credit|date_created|gps_alt|gps_lat|gps_lon|headline|keywords|location_city|location_country).*isset\(\) always exists#'

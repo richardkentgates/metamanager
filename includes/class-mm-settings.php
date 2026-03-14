@@ -273,8 +273,7 @@ class MM_Settings {
 				2       => esc_html__( '2 — Default (recommended)', 'metamanager' ),
 				3, 4, 5 => esc_html( (string) $i ),
 				6       => esc_html__( '6 — High', 'metamanager' ),
-				7       => esc_html__( '7 — Maximum (slowest)', 'metamanager' ),
-				default => esc_html( (string) $i ),
+				default => esc_html__( '7 — Maximum (slowest)', 'metamanager' ),
 			};
 			printf(
 				'<option value="%d"%s>%s</option>',

@@ -137,7 +137,7 @@ class MM_Updater {
 	 * If a newer version is available on GitHub, we add an entry to
 	 * $transient->response so the "Updates" badge appears in the admin menu.
 	 *
-	 * @param  object $transient The update_plugins site transient.
+	 * @param  \stdClass $transient The update_plugins site transient.
 	 * @return object            (possibly modified) transient.
 	 */
 	public function inject_update( object $transient ): object {

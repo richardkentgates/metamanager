@@ -264,6 +264,18 @@ write_result() {
     rm -f "${tmpfile}"
 }
 
+# --- Drain any jobs that were queued while the daemon was offline ---
+log "Startup scan: processing any pre-existing jobs in ${JOB_DIR}"
+for jobfile in "${JOB_DIR}"/*.json; do
+    [[ -e "${jobfile}" ]] || continue
+    while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
+        wait -n 2>/dev/null || true
+    done
+    process_job "${jobfile}" &
+done
+wait  # Ensure all startup jobs finish before entering the inotifywait loop.
+log "Startup scan complete."
+
 # --- Main loop: inotifywait for new JSON files ---
 inotifywait -m -e close_write --format '%w%f' "${JOB_DIR}" 2>/dev/null \
 | while IFS= read -r jobfile; do
