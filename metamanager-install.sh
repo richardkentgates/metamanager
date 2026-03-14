@@ -108,15 +108,17 @@ find_wp() {
     # Deeper search: find proper WordPress roots (must have both wp-content and
     # wp-includes so we don't mistake a default Apache docroot for WordPress).
     # Also search /home for cPanel/DirectAdmin/shared-hosting layouts.
-    find /var/www /srv/www /opt /home -type d -name "wp-includes" -maxdepth 7 2>/dev/null \
-        | while read -r inc; do
-            root="$(dirname "${inc}")"
-            if [[ -d "${root}/wp-content" ]]; then
-                echo "${root}"
-                return
-            fi
-        done \
-        | head -1
+    # Use process substitution (not a pipe) so the while loop runs in the
+    # current shell and `return` works correctly — piping to `while` runs it
+    # in a subshell where `return` raises an error with set -e active.
+    local inc root
+    while IFS= read -r inc; do
+        root="$(dirname "${inc}")"
+        if [[ -d "${root}/wp-content" ]]; then
+            echo "${root}"
+            return
+        fi
+    done < <(find /var/www /srv/www /opt /home -type d -name "wp-includes" -maxdepth 7 2>/dev/null)
 }
 
 # Resolve the actual WordPress root from a path that may be the wp-config.php
