@@ -212,19 +212,16 @@ class Test_MM_DB extends WP_UnitTestCase {
 
 		$stats = MM_DB::get_stats();
 
-		$this->assertSame( 3, (int) $stats->total_jobs );
-		$this->assertSame( 2, (int) $stats->completed );
-		$this->assertSame( 1, (int) $stats->failed );
-		$this->assertSame( 2, (int) $stats->unique_attachments );
-		$this->assertSame( 30000, (int) $stats->bytes_saved );  // (100000-80000) + (50000-40000)
-		$this->assertSame( 150000, (int) $stats->bytes_original );
-	}
-
+		$this->assertSame( 3, (int) $stats['total_jobs'] );
+		$this->assertSame( 2, (int) $stats['completed'] );
+		$this->assertSame( 1, (int) $stats['failed'] );
+		$this->assertSame( 2, (int) $stats['unique_attachments'] );
+		$this->assertSame( 30000, (int) $stats['bytes_saved'] );  // (100000-80000) + (50000-40000)
+		$this->assertSame( 150000, (int) $stats['bytes_original'] );
 	public function test_get_stats_returns_zeros_when_empty(): void {
 		$stats = MM_DB::get_stats();
-		$this->assertSame( 0, (int) $stats->total_jobs );
-		$this->assertSame( 0, (int) $stats->bytes_saved );
-	}
+		$this->assertSame( 0, (int) $stats['total_jobs'] );
+		$this->assertSame( 0, (int) $stats['bytes_saved'] );
 
 	// -----------------------------------------------------------------------
 	// delete_jobs_for_attachment()
@@ -243,6 +240,9 @@ class Test_MM_DB extends WP_UnitTestCase {
 	}
 
 	public function test_delete_jobs_for_attachment_is_called_on_delete_attachment_hook(): void {
+		// Register the hook the same way metamanager.php does at runtime.
+		add_action( 'delete_attachment', [ 'MM_DB', 'delete_jobs_for_attachment' ] );
+
 		$attachment_id = $this->factory->attachment->create();
 		MM_DB::log_job( $this->make_job( [ 'attachment_id' => $attachment_id, 'size' => 'full' ] ) );
 
@@ -252,5 +252,7 @@ class Test_MM_DB extends WP_UnitTestCase {
 		$data = MM_DB::get_jobs( [ 'search' => '' ] );
 		$ids  = array_column( $data['jobs'], 'attachment_id' );
 		$this->assertNotContains( (string) $attachment_id, $ids );
+
+		remove_action( 'delete_attachment', [ 'MM_DB', 'delete_jobs_for_attachment' ] );
 	}
 }

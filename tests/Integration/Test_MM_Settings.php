@@ -70,33 +70,35 @@ class Test_MM_Settings extends WP_UnitTestCase {
 	}
 
 	// -----------------------------------------------------------------------
-	// get_allowed_ips() / is_ip_allowed()
+	// get_api_allowed_ips() — allowlist parsing
 	// -----------------------------------------------------------------------
 
-	public function test_allowed_ips_empty_means_all_allowed(): void {
+	public function test_allowed_ips_empty_returns_empty_array(): void {
 		update_option( MM_Settings::OPTION_API_ALLOWED_IPS, '' );
-		$this->assertTrue( MM_Settings::is_ip_allowed( '1.2.3.4' ) );
-		$this->assertTrue( MM_Settings::is_ip_allowed( '::1' ) );
+		$this->assertSame( [], MM_Settings::get_api_allowed_ips() );
 	}
 
-	public function test_allowed_ips_single_ip_blocks_others(): void {
+	public function test_allowed_ips_single_ip_returns_one_entry(): void {
 		update_option( MM_Settings::OPTION_API_ALLOWED_IPS, '10.0.0.1' );
-		$this->assertTrue( MM_Settings::is_ip_allowed( '10.0.0.1' ) );
-		$this->assertFalse( MM_Settings::is_ip_allowed( '10.0.0.2' ) );
+		$ips = MM_Settings::get_api_allowed_ips();
+		$this->assertContains( '10.0.0.1', $ips );
+		$this->assertNotContains( '10.0.0.2', $ips );
 	}
 
 	public function test_allowed_ips_comma_separated_list(): void {
 		update_option( MM_Settings::OPTION_API_ALLOWED_IPS, '10.0.0.1, 192.168.1.5, ::1' );
-		$this->assertTrue( MM_Settings::is_ip_allowed( '192.168.1.5' ) );
-		$this->assertTrue( MM_Settings::is_ip_allowed( '::1' ) );
-		$this->assertFalse( MM_Settings::is_ip_allowed( '8.8.8.8' ) );
+		$ips = MM_Settings::get_api_allowed_ips();
+		$this->assertContains( '192.168.1.5', $ips );
+		$this->assertContains( '::1', $ips );
+		$this->assertNotContains( '8.8.8.8', $ips );
 	}
 
 	public function test_allowed_ips_newline_separated_list(): void {
 		update_option( MM_Settings::OPTION_API_ALLOWED_IPS, "10.0.0.1\n10.0.0.2" );
-		$this->assertTrue( MM_Settings::is_ip_allowed( '10.0.0.1' ) );
-		$this->assertTrue( MM_Settings::is_ip_allowed( '10.0.0.2' ) );
-		$this->assertFalse( MM_Settings::is_ip_allowed( '10.0.0.3' ) );
+		$ips = MM_Settings::get_api_allowed_ips();
+		$this->assertContains( '10.0.0.1', $ips );
+		$this->assertContains( '10.0.0.2', $ips );
+		$this->assertNotContains( '10.0.0.3', $ips );
 	}
 
 	// -----------------------------------------------------------------------

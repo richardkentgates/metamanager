@@ -3,8 +3,7 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="tests/bootstrap.php"
          colors="true"
-         backupGlobals="false"
-         cacheDirectory=".phpunit.cache">
+         backupGlobals="false">
 
     <testsuites>
         <testsuite name="Integration">
@@ -14,11 +13,5 @@
             <file>tests/Integration/Test_MM_JobQueue.php</file>
         </testsuite>
     </testsuites>
-
-    <source>
-        <include>
-            <directory>includes</directory>
-        </include>
-    </source>
 
 </phpunit>

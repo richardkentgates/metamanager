@@ -94,7 +94,7 @@ class Test_MM_Frontend extends WP_UnitTestCase {
 	 * @return string  Buffered HTML output.
 	 */
 	private function get_head_output( int $id ): string {
-		go_to( get_attachment_link( $id ) );
+		$this->go_to( get_attachment_link( $id ) );
 		// Ensure we are on an attachment page from WP's perspective.
 		global $wp_query;
 		$wp_query->is_attachment = true;

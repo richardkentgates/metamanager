@@ -73,7 +73,7 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	public function test_write_compression_job_creates_file(): void {
 		$attachment_id = $this->factory->attachment->create( [ 'post_mime_type' => 'image/jpeg' ] );
 
-		MM_JobQueue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
+		MM_Job_Queue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
 
 		$this->assertSame( 1, $this->count_jobs( MM_JOB_COMPRESS ) );
 	}
@@ -81,7 +81,7 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	public function test_write_metadata_job_creates_file(): void {
 		$attachment_id = $this->factory->attachment->create( [ 'post_mime_type' => 'image/jpeg' ] );
 
-		MM_JobQueue::write_job( 'metadata', $attachment_id, '/tmp/photo.jpg', 'full' );
+		MM_Job_Queue::write_job( 'metadata', $attachment_id, '/tmp/photo.jpg', 'full' );
 
 		$this->assertSame( 1, $this->count_jobs( MM_JOB_META ) );
 	}
@@ -93,8 +93,8 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	public function test_duplicate_compression_job_is_skipped(): void {
 		$attachment_id = $this->factory->attachment->create( [ 'post_mime_type' => 'image/jpeg' ] );
 
-		$result1 = MM_JobQueue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
-		$result2 = MM_JobQueue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
+		$result1 = MM_Job_Queue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
+		$result2 = MM_Job_Queue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
 
 		$this->assertSame( 'written', $result1 );
 		$this->assertSame( 'skipped', $result2 );
@@ -105,8 +105,8 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	public function test_different_sizes_are_not_duplicates(): void {
 		$attachment_id = $this->factory->attachment->create( [ 'post_mime_type' => 'image/jpeg' ] );
 
-		$result_full  = MM_JobQueue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
-		$result_thumb = MM_JobQueue::write_job( 'compression', $attachment_id, '/tmp/photo-thumb.jpg', 'thumbnail' );
+		$result_full  = MM_Job_Queue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
+		$result_thumb = MM_Job_Queue::write_job( 'compression', $attachment_id, '/tmp/photo-thumb.jpg', 'thumbnail' );
 
 		$this->assertSame( 'written', $result_full );
 		$this->assertSame( 'written', $result_thumb );
@@ -120,13 +120,13 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 	public function test_on_delete_attachment_removes_pending_jobs(): void {
 		$attachment_id = $this->factory->attachment->create( [ 'post_mime_type' => 'image/jpeg' ] );
 
-		MM_JobQueue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
-		MM_JobQueue::write_job( 'metadata',    $attachment_id, '/tmp/photo.jpg', 'full' );
+		MM_Job_Queue::write_job( 'compression', $attachment_id, '/tmp/photo.jpg', 'full' );
+		MM_Job_Queue::write_job( 'metadata',    $attachment_id, '/tmp/photo.jpg', 'full' );
 
 		$this->assertSame( 1, $this->count_jobs( MM_JOB_COMPRESS ) );
 		$this->assertSame( 1, $this->count_jobs( MM_JOB_META ) );
 
-		MM_JobQueue::on_delete_attachment( $attachment_id );
+		MM_Job_Queue::on_delete_attachment( $attachment_id );
 
 		$this->assertSame( 0, $this->count_jobs( MM_JOB_COMPRESS ) );
 		$this->assertSame( 0, $this->count_jobs( MM_JOB_META ) );
