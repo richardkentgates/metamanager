@@ -187,6 +187,20 @@ class MM_DB {
 	}
 
 	/**
+	 * Delete a single job record by ID.
+	 *
+	 * @param int $job_id
+	 * @return bool True if a row was deleted.
+	 */
+	public static function delete_job( int $job_id ): bool {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$result = $wpdb->delete( $table, [ 'id' => $job_id ], [ '%d' ] );
+		return false !== $result && $result > 0;
+	}
+
+	/**
 	 * Return aggregate statistics: total bytes saved, job counts by type and status.
 	 *
 	 * @return array<string, mixed>

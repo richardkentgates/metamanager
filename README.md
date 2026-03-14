@@ -335,6 +335,21 @@ Sitemap settings are under **Media → MM Settings → Sitemaps**. Each source c
 
 Both sitemaps refresh on every request — no manual resubmission is needed after new uploads.
 
+### Planned sitemap enhancements
+
+The following tags are not yet emitted but the underlying metadata is already stored by Metamanager and could be added in a future release:
+
+| Tag | Source |
+|-----|--------|
+| `<image:geo_location>` | `mm_gps_latitude` / `mm_gps_longitude` — emit as `"{lat},{lng}"` or reverse-geocoded city/country |
+| `<video:tag>` | `mm_keywords` — one element per keyword (Google supports up to 32 tags) |
+| `<video:uploader>` | `mm_creator` — with `info` attribute pointing to the author profile URL |
+
+Additional attachment types not yet included in `sitemap-media.xml`:
+
+- **PDFs** — Google indexes PDFs directly by file URL; including them as plain `<url>` entries (no extension nodes required) improves discoverability.
+- **Audio pages** — No official sitemap extension exists for audio, but attachment pages with Schema.org `AudioObject` JSON-LD can be submitted as standard `<url>` entries.
+
 ---
 
 ## WP-CLI
