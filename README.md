@@ -7,12 +7,12 @@
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-purple)](https://php.net)
 [![Code Scanning](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml/badge.svg)](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)
-![Status](https://img.shields.io/badge/status-beta-yellow)
+![Status](https://img.shields.io/badge/status-beta-green)
 
 📖 **[Full documentation → GitHub Wiki](https://github.com/richardkentgates/metamanager/wiki)**
 
-> [!WARNING]
-> **Beta software.** Functionality may be incomplete or subject to breaking change without notice. Use at your own risk. [Bug reports and feedback](https://github.com/richardkentgates/metamanager/issues) are welcome.
+> [!NOTE]
+> **Beta software.** Core features are complete and integration-tested. Breaking changes are possible before a stable 1.0 release. [Bug reports and feedback](https://github.com/richardkentgates/metamanager/issues) are welcome.
 
 ---
 
@@ -54,19 +54,29 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 
 ## Requirements
 
+### Tested environments
+
+| OS | PHP | WordPress | Package manager | Result |
+|---|---|---|---|---|
+| Ubuntu 22.04 LTS | 8.1 – 8.3 | 6.0+ | apt | ✅ Full install |
+| AlmaLinux 9.7 (RHEL 9-compat) | 8.3.30 | 6.9.4 | dnf + EPEL + CRB | ✅ Full install |
+| GitHub Actions (ubuntu-latest) | 8.2 | Latest | apt | ✅ CI (every push) |
+
+### Component requirements
+
 | Component | Minimum | Notes |
 |-----------|---------|-------|
-| OS | Linux | systemd required; tested on **Ubuntu 22.04+**, **Debian 12+**, **RHEL / Rocky 9+**. The install script supports `apt`, `dnf`, and `yum`. Other distros require manual dependency installation. |
-| bash | 5.0+ | Required by the daemon scripts. Ubuntu 18.04 ships bash 4.4 and is **not supported**. Ubuntu 20.04 (bash 5.0) works but is untested. |
+| OS | Linux | systemd required; tested on **Ubuntu 22.04+**, **Debian 12+**, **AlmaLinux / Rocky / RHEL 9+**. The install script supports `apt`, `dnf`, and `yum`. Other distros require manual dependency installation. |
+| bash | 5.0+ | Required by the daemon scripts. Ubuntu 18.04 (bash 4.4) is **not supported**. |
 | WordPress | 6.0+ | |
 | PHP | 8.0+ | |
-| ExifTool | any | `perl-Image-ExifTool` or `libimage-exiftool-perl` |
+| ExifTool | any | `libimage-exiftool-perl` (apt) or `perl-Image-ExifTool` (dnf via EPEL) |
 | jpegtran | any | `libjpeg-turbo-progs` (apt) or `libjpeg-turbo-utils` (dnf) |
-| optipng | any | `optipng` |
-| cwebp | any | `webp` package — for lossless WebP compression |
-| ffmpeg | any | `ffmpeg` — for video container remux |
-| inotify-tools | any | For daemon file watching (Linux kernel inotify subsystem, present since 2.6.13) |
-| jq | any | JSON parsing in daemon scripts |
+| optipng | any | `optipng` — in EPEL 9 for RHEL-based systems |
+| cwebp | any | `webp` (apt) or `libwebp-tools` (dnf via CRB) — for lossless WebP compression |
+| ffmpeg | any | `ffmpeg` (apt/Ubuntu) — for video container remux. **Not in EPEL 9** — requires [RPM Fusion](https://rpmfusion.org/) on RHEL / AlmaLinux. All other features work without it. |
+| inotify-tools | any | `inotify-tools` — in EPEL 9 for RHEL-based systems |
+| jq | any | JSON parsing in daemon scripts — in base repos on all tested distros |
 | systemd | v232+ | Minimum for `ProtectSystem=strict` and `ReadWritePaths=` used in service units |
 
 ---
