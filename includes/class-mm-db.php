@@ -57,6 +57,7 @@ class MM_DB {
 			attachment_id BIGINT(20) UNSIGNED NOT NULL,
 			image_name    VARCHAR(255)        NOT NULL DEFAULT '',
 			job_type      VARCHAR(32)         NOT NULL DEFAULT '',
+			job_trigger   VARCHAR(64)         NOT NULL DEFAULT '',
 			file_path     TEXT                NOT NULL,
 			size          VARCHAR(64)         NOT NULL DEFAULT '',
 			dimensions    VARCHAR(32)         NOT NULL DEFAULT '',
@@ -140,6 +141,7 @@ class MM_DB {
 			'attachment_id' => $attachment_id,
 			'image_name'    => sanitize_text_field( $job['image_name'] ?? '' ),
 			'job_type'      => $job_type,
+			'job_trigger'   => sanitize_key( $job['trigger'] ?? '' ),
 			'file_path'     => sanitize_text_field( $job['file_path'] ?? '' ),
 			'size'          => $size,
 			'dimensions'    => sanitize_text_field( $job['dimensions'] ?? '' ),
@@ -148,7 +150,7 @@ class MM_DB {
 			'completed_at'  => sanitize_text_field( $job['completed_at'] ?? current_time( 'mysql' ) ),
 			'details'       => wp_json_encode( $job['details'] ?? [] ),
 		];
-		$formats = [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
+		$formats = [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ];
 
 		if ( null !== $bytes_before ) {
 			$data['bytes_before'] = $bytes_before;
@@ -349,6 +351,7 @@ class MM_DB {
 				'attachment_id' => $attachment_id,
 				'image_name'    => sanitize_text_field( $job['image_name'] ?? '' ),
 				'job_type'      => $job_type,
+				'job_trigger'   => sanitize_key( $job['trigger'] ?? '' ),
 				'file_path'     => sanitize_text_field( $job['file_path'] ?? '' ),
 				'size'          => $size,
 				'dimensions'    => sanitize_text_field( $job['dimensions'] ?? '' ),
@@ -356,7 +359,7 @@ class MM_DB {
 				'submitted_at'  => sanitize_text_field( $job['submitted_at'] ?? current_time( 'mysql' ) ),
 				'details'       => wp_json_encode( [] ),
 			],
-			[ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			[ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
 		);
 	}
 

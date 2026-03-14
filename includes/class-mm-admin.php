@@ -261,8 +261,8 @@ class MM_Admin {
 		);
 		add_submenu_page(
 			'upload.php',
-			esc_html__( 'Bulk Apply Metadata', 'metamanager' ),
-			esc_html__( 'Bulk Apply Metadata', 'metamanager' ),
+			esc_html__( 'Batch Apply Metadata', 'metamanager' ),
+			esc_html__( 'Batch Apply Metadata', 'metamanager' ),
 			'edit_others_posts',
 			'metamanager-bulk-meta',
 			[ __CLASS__, 'render_bulk_meta_page' ]
@@ -1387,11 +1387,11 @@ class MM_Admin {
 			}
 
 			if ( ! empty( $fields ) && $also_compress ) {
-				MM_Job_Queue::enqueue_all_sizes( $id, [], 'both', [ 'trigger' => 'bulk_apply' ] );
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'both', [ 'trigger' => 'batch_apply' ] );
 			} elseif ( ! empty( $fields ) ) {
-				MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'bulk_apply' ] );
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'batch_apply' ] );
 			} elseif ( $also_compress ) {
-				MM_Job_Queue::enqueue_all_sizes( $id, [], 'compression', [ 'trigger' => 'bulk_apply' ] );
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'compression', [ 'trigger' => 'batch_apply' ] );
 			}
 
 			++$count;
@@ -1460,6 +1460,7 @@ class MM_Admin {
 			. '<th>' . esc_html__( 'File', 'metamanager' ) . '</th>'
 			. '<th>' . esc_html__( 'Size', 'metamanager' ) . '</th>'
 			. '<th>' . esc_html__( 'Type', 'metamanager' ) . '</th>'
+			. '<th>' . esc_html__( 'Trigger', 'metamanager' ) . '</th>'
 			. '<th>' . esc_html__( 'Result', 'metamanager' ) . '</th>'
 			. '<th>' . esc_html__( 'Status', 'metamanager' ) . '</th>'
 			. '<th>' . esc_html__( 'Completed', 'metamanager' ) . '</th>'
@@ -1542,6 +1543,8 @@ class MM_Admin {
 			} else {
 				$result_html = '<span style="color:#888;">' . esc_html__( 'already optimal', 'metamanager' ) . '</span>';
 			}
+		} elseif ( 'metadata' === $job->job_type ) {
+			$result_html = '<span style="color:#50575e;">WP &rarr; File</span>';
 		} else {
 			$result_html = '<span style="color:#888;">—</span>';
 		}
@@ -1556,10 +1559,13 @@ class MM_Admin {
 			? '<span style="color:#dba617;font-size:12px;">' . esc_html__( 'waiting…', 'metamanager' ) . '</span>'
 			: '<span style="white-space:nowrap;color:#50575e;font-size:12px;">' . esc_html( $job->completed_at ?? $job->submitted_at ) . '</span>';
 
+		$trigger_label = strtr( $job->job_trigger ?? '', [ '_' => ' ' ] );
+
 		return '<tr>'
 			. '<td>' . $file_cell . '</td>'
 			. '<td>' . esc_html( $job->size ) . '</td>'
 			. '<td>' . esc_html( ucfirst( $job->job_type ) ) . '</td>'
+			. '<td><span style="white-space:nowrap;">' . esc_html( $trigger_label ) . '</span></td>'
 			. '<td>' . $result_html . '</td>'
 			. '<td><span class="' . esc_attr( $status_class ) . '">' . esc_html( ucfirst( $job->status ) ) . '</span></td>'
 			. '<td>' . $date . '</td>'
@@ -1588,7 +1594,7 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Render the Bulk Apply Metadata page.
+	 * Render the Batch Apply Metadata page.
 	 *
 	 * Left panel: field form where the user fills in values to stamp across selected images.
 	 * Right panel: paginated thumbnail grid with checkboxes for image selection.
@@ -1647,7 +1653,7 @@ class MM_Admin {
 		];
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Bulk Apply Metadata', 'metamanager' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Batch Apply Metadata', 'metamanager' ); ?></h1>
 			<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-jobs' ) ); ?>" class="page-title-action">
 				<?php esc_html_e( '← Job Dashboard', 'metamanager' ); ?>
 			</a>
