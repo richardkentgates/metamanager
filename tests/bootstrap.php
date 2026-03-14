@@ -2,42 +2,44 @@
 /**
  * PHPUnit bootstrap for Metamanager integration tests.
  *
- * Loads the WordPress test environment and then bootstraps the plugin so
- * all classes and constants are available inside every test case.
+ * Uses the wp-phpunit/wp-phpunit Composer package (already in vendor/) as
+ * the WordPress test library — no SVN checkout or separate download needed.
  *
- * Requirements:
- *   - Run bin/install-wp-tests.sh to install the WP test library and create
- *     the test database before running the suite for the first time.
- *   - The WP_TESTS_DIR environment variable must point to the installed
- *     library (default: /tmp/wordpress-tests-lib).
+ * Before running the suite for the first time:
+ *   1. Run bin/install-wp-tests.sh to create the test DB and write
+ *      tests/wp-tests-config.php with your local credentials.
+ *   2. Ensure ABSPATH in wp-tests-config.php points to a WordPress
+ *      installation (e.g. /srv/www/wordpress on the test server, or
+ *      /tmp/wordpress in CI after downloading WP core).
  */
 
-$_tests_dir = getenv( 'WP_TESTS_DIR' );
-if ( ! $_tests_dir ) {
-	$_tests_dir = rtrim( sys_get_temp_dir(), '/\\' ) . '/wordpress-tests-lib';
+// Point wp-phpunit at our local DB/path config file.
+// The env var takes precedence so CI can override via workflow env.
+if ( ! getenv( 'WP_PHPUNIT__TESTS_CONFIG' ) ) {
+	putenv( 'WP_PHPUNIT__TESTS_CONFIG=' . __DIR__ . '/wp-tests-config.php' );
 }
 
-if ( ! file_exists( $_tests_dir . '/includes/bootstrap.php' ) ) {
+$_wp_phpunit_bootstrap = dirname( __DIR__ ) . '/vendor/wp-phpunit/wp-phpunit/includes/bootstrap.php';
+if ( ! file_exists( $_wp_phpunit_bootstrap ) ) {
 	echo PHP_EOL;
-	echo 'ERROR: Cannot find the WordPress test library.' . PHP_EOL;
-	echo "Looked in: {$_tests_dir}/includes/bootstrap.php" . PHP_EOL;
-	echo PHP_EOL;
-	echo 'Run this once to install it:' . PHP_EOL;
-	echo '  bash bin/install-wp-tests.sh <db> <user> <pass>' . PHP_EOL;
+	echo 'ERROR: Cannot find vendor/wp-phpunit/wp-phpunit/includes/bootstrap.php' . PHP_EOL;
+	echo 'Run:  composer install' . PHP_EOL;
 	echo PHP_EOL;
 	exit( 1 );
 }
 
-// Point WordPress at its test core directory.
-$_wp_dir = getenv( 'WP_CORE_DIR' );
-if ( ! $_wp_dir ) {
-	$_wp_dir = rtrim( sys_get_temp_dir(), '/\\' ) . '/wordpress';
+$_tests_config = __DIR__ . '/wp-tests-config.php';
+if ( ! getenv( 'WP_PHPUNIT__TESTS_CONFIG' ) && ! file_exists( $_tests_config ) ) {
+	echo PHP_EOL;
+	echo 'ERROR: Cannot find tests/wp-tests-config.php' . PHP_EOL;
+	echo 'Run:  bash bin/install-wp-tests.sh <db> <user> <pass> [host] [wp-path]' . PHP_EOL;
+	echo PHP_EOL;
+	exit( 1 );
 }
-define( 'ABSPATH', trailingslashify( $_wp_dir ) );
 
-// Boot the WP test suite. This defines WP functions, WP_UnitTestCase, the
-// factory system, and sets up/tears down a test DB transaction per test.
-require_once $_tests_dir . '/includes/bootstrap.php';
+// Boot the WP test suite (defines WP functions, WP_UnitTestCase, factories,
+// and installs a fresh test DB that is wiped per-test).
+require_once $_wp_phpunit_bootstrap;
 
 // ---------------------------------------------------------------------------
 // Bootstrap the plugin

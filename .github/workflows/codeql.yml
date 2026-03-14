@@ -95,3 +95,64 @@ jobs:
         run: |
           vendor/bin/phpstan analyse --no-progress
         # Uses phpstan.neon for paths, level, and stubs config.
+
+  # ---------------------------------------------------------------------------
+  # PHPUnit — Integration tests against a real WordPress + MySQL install
+  # ---------------------------------------------------------------------------
+  phpunit:
+    name: PHPUnit Integration Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_test
+          MYSQL_USER: wordpress
+          MYSQL_PASSWORD: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Download WordPress core
+        run: |
+          mkdir -p /tmp/wordpress
+          curl -sL https://wordpress.org/latest.zip -o /tmp/wp.zip
+          unzip -q /tmp/wp.zip -d /tmp
+          # wordpress/ is unzipped inside /tmp — files are at /tmp/wordpress/
+          ls /tmp/wordpress/wp-settings.php
+
+      - name: Write wp-tests-config.php
+        run: |
+          bash bin/install-wp-tests.sh \
+            wordpress_test \
+            wordpress \
+            wordpress \
+            127.0.0.1 \
+            /tmp/wordpress \
+            true
+        # skip-db-create=true because the MySQL service already created it
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --no-coverage

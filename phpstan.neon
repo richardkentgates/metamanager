@@ -7,6 +7,8 @@ parameters:
         - metamanager.php
         - uninstall.php
         - includes/
+    excludePaths:
+        - tests/
     # PHPDoc types from WordPress stubs may report "always true/false" incorrectly.
     treatPhpDocTypesAsCertain: false
     scanFiles:
