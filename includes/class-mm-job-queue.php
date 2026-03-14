@@ -134,9 +134,6 @@ class MM_Job_Queue {
 			) );
 		}
 
-		// Build and write the job file.
-		$post = get_post( $attachment_id );
-
 		// Dimensions from file — only valid for images; skip for video/audio.
 		$dimensions = '';
 		if ( file_exists( $file_path ) ) {
@@ -148,7 +145,7 @@ class MM_Job_Queue {
 
 		$job = array_merge( [
 			'attachment_id'  => $attachment_id,
-			'image_name'     => $post ? $post->post_title : '',
+			'image_name'     => pathinfo( get_attached_file( $attachment_id ) ?: '', PATHINFO_FILENAME ),
 			'job_type'       => $type,
 			'file_path'      => $file_path,
 			'size'           => $size,
