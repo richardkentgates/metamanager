@@ -7,6 +7,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.1] — 2026-03-14
+
+### Fixed
+- **`metamanager-install.sh --update` was a no-op when run from the installed plugin directory** — the script resolved its own directory and detected `metamanager.php` beside it, so it copied files from itself rather than fetching from GitHub. Added a `realpath` comparison: if `SCRIPT_DIR` equals `PLUGIN_DEST` the local-copy shortcut is skipped and the GitHub fetch path runs instead. Both `sudo bash .../metamanager-install.sh --update` and the `wget` pipe form now always fetch the latest release from GitHub.
+- **Automated job history management** — `MM_DB::log_job()` now upserts: any existing row for the same `(attachment_id, job_type, size)` is deleted before the new result is inserted, keeping exactly one history entry per image-per-operation-type. Added `MM_DB::delete_jobs_for_attachment()` hooked to WordPress `delete_attachment` so all history rows for a deleted media file are removed automatically.
+- **Actions column and Clear History button removed** — manual row deletion and full-history clearing are superseded by automated history management above. The Actions column now only shows **Re-queue** for failed jobs.
+
+---
+
 ## [1.6.0] — 2026-03-14
 
 ### Added

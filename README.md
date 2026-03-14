@@ -106,16 +106,16 @@ A **Check for Updates** action link on **Plugins → Installed Plugins** forces 
 **Via server script (plugin files only — daemons untouched):**
 
 ```bash
+sudo bash /path/to/wordpress/wp-content/plugins/metamanager/metamanager-install.sh --update
+```
+
+Or via wget:
+
+```bash
 wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update
 ```
 
-Or from a cloned directory:
-
-```bash
-sudo bash metamanager-install.sh --update
-```
-
-The `--update` flag skips dependency installation, daemon patching, and systemd service management. It only syncs plugin PHP, JS, and asset files, fixes permissions, and flushes the WordPress object cache.
+The `--update` flag skips dependency installation, daemon patching, and systemd service management. It only syncs plugin PHP, JS, and asset files, fixes permissions, and flushes the WordPress object cache. Both forms always fetch the latest code from GitHub — when run directly from the installed plugin directory the script detects this automatically.
 
 ---
 

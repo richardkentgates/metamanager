@@ -71,7 +71,7 @@
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
           "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); Open Graph tags; and XML media and video sitemaps — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "1.6.0",
+          "softwareVersion": "1.6.1",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -456,10 +456,10 @@ updates history table</code></pre>
             <div class="feature-card">
                 <div class="feature-icon">🖥</div>
                 <h3>Server Script (plugin files only)</h3>
-                <p>Use <code>--update</code> to sync only PHP, JS, and asset files. Daemons keep running, dependencies are not reinstalled, and systemd services are not restarted — zero downtime for the compression and metadata pipelines.</p>
+                <p>Use <code>--update</code> to sync only PHP, JS, and asset files. Daemons keep running, dependencies are not reinstalled, and systemd services are not restarted — zero downtime for the compression and metadata pipelines. Always fetches the latest code from GitHub, even when run directly from the installed plugin directory.</p>
                 <div class="code-block" style="margin-top:1em;">
-                    <code>sudo bash metamanager-install.sh --update</code>
-                    <button class="copy-btn" data-copy="sudo bash metamanager-install.sh --update">Copy</button>
+                    <code>sudo bash /path/to/wordpress/wp-content/plugins/metamanager/metamanager-install.sh --update</code>
+                    <button class="copy-btn" data-copy="sudo bash /path/to/wordpress/wp-content/plugins/metamanager/metamanager-install.sh --update">Copy</button>
                 </div>
             </div>
         </div>
@@ -986,8 +986,8 @@ X-WP-Nonce: &lt;nonce&gt;
         <div class="install-box">
             <div class="install-label">Update plugin files only (keeps daemons running, skips dependencies)</div>
             <div class="code-block">
-                <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update</code>
-                <button class="copy-btn" data-copy="wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update">Copy</button>
+                <code>sudo bash /path/to/wordpress/wp-content/plugins/metamanager/metamanager-install.sh --update</code>
+                <button class="copy-btn" data-copy="sudo bash /path/to/wordpress/wp-content/plugins/metamanager/metamanager-install.sh --update">Copy</button>
             </div>
         </div>
 

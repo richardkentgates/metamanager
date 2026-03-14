@@ -9,8 +9,11 @@
 #
 # To update only the plugin files (skip daemons and dependencies):
 #   sudo bash metamanager-install.sh --update [--wp-path /path/to/wordpress]
-# OR:
 #   wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update
+#
+# Both forms always fetch the latest code from GitHub. When run directly from
+# the installed plugin directory, the script detects this and fetches from
+# GitHub rather than copying from itself.
 #
 # What this script does:
 #   1. Detects or accepts the WordPress installation path
@@ -215,7 +218,8 @@ if [[ "${UPDATE_ONLY}" == true ]]; then
     TMP_UPDATE=$(mktemp -d)
     trap 'rm -rf "${TMP_UPDATE}"' EXIT
 
-    if [[ "${SCRIPT_DIR}" != "." && -f "${SCRIPT_DIR}/metamanager.php" ]]; then
+    if [[ "${SCRIPT_DIR}" != "." && -f "${SCRIPT_DIR}/metamanager.php" \
+          && "$(realpath "${SCRIPT_DIR}")" != "$(realpath "${PLUGIN_DEST}")" ]]; then
         cp -r "${SCRIPT_DIR}/." "${TMP_UPDATE}/"
         success "Update source: ${SCRIPT_DIR}"
     else
