@@ -365,7 +365,7 @@ for svc in metamanager-compress-daemon metamanager-meta-daemon; do
         error "Service file not found: ${src}"
     fi
 
-    sed "s|__WP_CONTENT_DIR__|${WP_CONTENT_DIR}|g" "${src}" > "${dest}"
+    sed "s|__WP_CONTENT_DIR__|${WP_CONTENT_DIR}|g; s|User=www-data|User=${WP_OWNER}|g; s|Group=www-data|Group=${WP_OWNER}|g" "${src}" > "${dest}"
     chmod 644 "${dest}"
     success "Service file installed: ${dest}"
 done
