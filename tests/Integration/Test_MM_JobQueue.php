@@ -92,20 +92,19 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 			default                   => explode( '/', $mime )[1] ?? 'bin',
 		};
 
-		$upload_dir = wp_upload_dir();
-		wp_mkdir_p( $upload_dir['basedir'] );
-
-		$filename  = 'mm_test_' . uniqid() . '.' . $ext;
-		$file_path = $upload_dir['basedir'] . '/' . $filename;
+		// Write to the system temp dir — always writable by the test-runner user.
+		// get_attached_file() returns absolute paths (starting with '/') as-is
+		// without prepending the WP uploads dir, so file_exists() passes inside
+		// enqueue_all_sizes() and on_upload().
+		$file_path = sys_get_temp_dir() . '/mm_test_' . uniqid() . '.' . $ext;
 
 		// Write a minimal placeholder file so file_exists() passes.
 		file_put_contents( $file_path, str_repeat( "\x00", 64 ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 
 		$attachment_id = $this->factory->attachment->create( [ 'post_mime_type' => $mime ] );
 
-		// Override _wp_attached_file with the relative filename inside basedir so
-		// get_attached_file() resolves to the real file we just created.
-		update_post_meta( $attachment_id, '_wp_attached_file', $filename );
+		// Store the absolute path so get_attached_file() resolves it directly.
+		update_post_meta( $attachment_id, '_wp_attached_file', $file_path );
 
 		$this->tmp_files[] = $file_path;
 
