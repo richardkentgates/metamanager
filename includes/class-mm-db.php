@@ -86,12 +86,28 @@ class MM_DB {
 		$bytes_before = isset( $job['bytes_before'] ) && (int) $job['bytes_before'] > 0 ? (int) $job['bytes_before'] : null;
 		$bytes_after  = isset( $job['bytes_after'] )  && (int) $job['bytes_after']  > 0 ? (int) $job['bytes_after']  : null;
 
+		$attachment_id = absint( $job['attachment_id'] ?? 0 );
+		$job_type      = sanitize_key( $job['job_type'] ?? 'unknown' );
+		$size          = sanitize_key( $job['size'] ?? '' );
+
+		// Enforce one record per (attachment_id, job_type, size): drop the stale row
+		// before inserting so history always reflects the latest run only.
+		// If attachment_id is 0 (orphan job) we skip the delete and just append.
+		if ( $attachment_id > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->delete(
+				$table,
+				[ 'attachment_id' => $attachment_id, 'job_type' => $job_type, 'size' => $size ],
+				[ '%d', '%s', '%s' ]
+			);
+		}
+
 		$data    = [
-			'attachment_id' => absint( $job['attachment_id'] ?? 0 ),
+			'attachment_id' => $attachment_id,
 			'image_name'    => sanitize_text_field( $job['image_name'] ?? '' ),
-			'job_type'      => sanitize_key( $job['job_type'] ?? 'unknown' ),
+			'job_type'      => $job_type,
 			'file_path'     => sanitize_text_field( $job['file_path'] ?? '' ),
-			'size'          => sanitize_key( $job['size'] ?? '' ),
+			'size'          => $size,
 			'dimensions'    => sanitize_text_field( $job['dimensions'] ?? '' ),
 			'status'        => sanitize_key( $job['status'] ?? 'completed' ),
 			'submitted_at'  => sanitize_text_field( $job['submitted_at'] ?? current_time( 'mysql' ) ),
@@ -106,7 +122,7 @@ class MM_DB {
 		}
 		if ( null !== $bytes_after ) {
 			$data['bytes_after'] = $bytes_after;
-			$formats[]           = '%d';
+			$formats[]          = '%d';
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -187,17 +203,17 @@ class MM_DB {
 	}
 
 	/**
-	 * Delete a single job record by ID.
+	 * Delete all job history rows for a specific attachment.
+	 * Hooked to 'delete_attachment' so the history self-cleans when media is
+	 * removed from the library.
 	 *
-	 * @param int $job_id
-	 * @return bool True if a row was deleted.
+	 * @param int $attachment_id WordPress attachment post ID.
 	 */
-	public static function delete_job( int $job_id ): bool {
+	public static function delete_jobs_for_attachment( int $attachment_id ): void {
 		global $wpdb;
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$result = $wpdb->delete( $table, [ 'id' => $job_id ], [ '%d' ] );
-		return false !== $result && $result > 0;
+		$wpdb->delete( $table, [ 'attachment_id' => $attachment_id ], [ '%d' ] );
 	}
 
 	/**

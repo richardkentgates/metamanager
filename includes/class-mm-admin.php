@@ -57,12 +57,6 @@ class MM_Admin {
 		// AJAX: re-queue a failed job.
 		add_action( 'wp_ajax_mm_requeue_job', [ __CLASS__, 'ajax_requeue_job' ] );
 
-		// AJAX: delete a single job history row.
-		add_action( 'wp_ajax_mm_delete_job', [ __CLASS__, 'ajax_delete_job' ] );
-
-		// AJAX: clear job history.
-		add_action( 'wp_ajax_mm_clear_history', [ __CLASS__, 'ajax_clear_history' ] );
-
 		// AJAX: scan existing library (import metadata for all un-synced images).
 		add_action( 'wp_ajax_mm_scan_library', [ __CLASS__, 'ajax_scan_library' ] );
 
@@ -1147,23 +1141,6 @@ class MM_Admin {
 				}, 'json');
 			});
 
-			$(document).on('click', '.mm-delete-job-btn', function(e){
-				e.preventDefault();
-				var btn = $(this);
-				if (!confirm('<?php echo esc_js( __( 'Delete this job record?', 'metamanager' ) ); ?>')) return;
-				$.post(ajaxurl, {
-					action: 'mm_delete_job',
-					nonce:  '<?php echo esc_js( wp_create_nonce( 'mm_delete_job' ) ); ?>',
-					job_id: btn.data('job-id')
-				}, function(resp){
-					if (resp.success) {
-						btn.closest('tr').fadeOut(300, function(){ $(this).remove(); });
-					} else {
-						btn.after('<span style="color:#e54c3c;margin-left:4px;">&#10007;</span>');
-					}
-				}, 'json');
-			});
-
 			$(document).on('click', '#mm-scan-library-btn', function(e){
 				e.preventDefault();
 				var btn        = $(this);
@@ -1213,14 +1190,6 @@ class MM_Admin {
 				runBatch(0, 0);
 			});
 
-			$(document).on('click', '#mm-clear-history-btn', function(e){
-				e.preventDefault();
-				if (!confirm('<?php echo esc_js( __( 'Clear entire job history? This cannot be undone.', 'metamanager' ) ); ?>')) return;
-				$.post(ajaxurl, {
-					action: 'mm_clear_history',
-					nonce:  '<?php echo esc_js( wp_create_nonce( 'mm_clear_history' ) ); ?>'
-				}, function(){ refreshDashboard(); }, 'json');
-			});
 		});
 		</script>
 		<?php
@@ -1250,28 +1219,6 @@ class MM_Admin {
 		} else {
 			wp_send_json_error( 'Job not found or file missing.' );
 		}
-	}
-
-	public static function ajax_delete_job(): void {
-		check_ajax_referer( 'mm_delete_job', 'nonce' );
-		if ( ! current_user_can( 'edit_others_posts' ) ) {
-			wp_send_json_error( 'Permission denied.' );
-		}
-		$job_id = absint( $_POST['job_id'] ?? 0 );
-		if ( MM_DB::delete_job( $job_id ) ) {
-			wp_send_json_success();
-		} else {
-			wp_send_json_error( 'Job not found.' );
-		}
-	}
-
-	public static function ajax_clear_history(): void {
-		check_ajax_referer( 'mm_clear_history', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( 'Permission denied.' );
-		}
-		MM_DB::clear_history();
-		wp_send_json_success();
 	}
 
 	/**
@@ -1505,16 +1452,12 @@ class MM_Admin {
 			. ' <span>' . esc_html__( '(live)', 'metamanager' ) . '</span></h2>'
 			. '</div><div class="inside">';
 
-		// Toolbar: search form left, Clear History link right.
-		echo '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1em;gap:8px;">'
-			. '<form class="mm-search-form" style="display:flex;gap:8px;margin:0;">'
-			. wp_nonce_field( 'mm_jobs_refresh', '_wpnonce', true, false )
-			. '<input type="search" name="s" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr__( 'Search jobs…', 'metamanager' ) . '" class="regular-text">'
-			. '<button class="button">' . esc_html__( 'Search', 'metamanager' ) . '</button>'
-			. '</form>'
-			. '<button id="mm-clear-history-btn" class="button-link-delete">'
-			. esc_html__( 'Clear History', 'metamanager' ) . '</button>'
-			. '</div>';
+// Search form.
+			echo '<form class="mm-search-form" style="margin-bottom:1em;display:flex;gap:8px;">'
+				. wp_nonce_field( 'mm_jobs_refresh', '_wpnonce', true, false )
+				. '<input type="search" name="s" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr__( 'Search jobs…', 'metamanager' ) . '" class="regular-text">'
+				. '<button class="button">' . esc_html__( 'Search', 'metamanager' ) . '</button>'
+				. '</form>';
 
 		if ( empty( $jobs ) ) {
 			echo '<p style="color:#50575e;">' . esc_html__( 'No jobs recorded yet.', 'metamanager' ) . '</p>';
@@ -1547,11 +1490,8 @@ class MM_Admin {
 				}
 				$requeue_btn = ( 'failed' === $job->status )
 					? '<button class="button button-small mm-requeue-btn" data-job-id="' . esc_attr( (string) $job->id ) . '">'
-						. esc_html__( 'Re-queue', 'metamanager' ) . '</button> '
+						. esc_html__( 'Re-queue', 'metamanager' ) . '</button>'
 					: '';
-				$actions_html = $requeue_btn
-					. '<button class="button-link-delete mm-delete-job-btn" data-job-id="' . esc_attr( (string) $job->id ) . '">'
-					. esc_html__( 'Delete', 'metamanager' ) . '</button>';
 
 				// Compression savings column.
 				$savings_html = '—';
@@ -1577,7 +1517,7 @@ class MM_Admin {
 					. '<td><span class="' . esc_attr( $status_class ) . '">' . esc_html( ucfirst( $job->status ) ) . '</span></td>'
 					. '<td>' . esc_html( $job->submitted_at ) . '</td>'
 					. '<td>' . esc_html( $job->completed_at ?? '' ) . '</td>'
-					. '<td>' . $actions_html . '</td>' // Buttons escaped above.
+					. '<td>' . $requeue_btn . '</td>' // Re-queue button for failed jobs; empty otherwise.
 					. '</tr>';
 			}
 			echo '</tbody></table>';

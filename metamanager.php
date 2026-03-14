@@ -75,6 +75,10 @@ if ( ! is_admin() ) {
 // Sitemaps: rewrite rules, template_redirect, and admin settings registration.
 MM_Sitemap::init();
 
+// Auto-clean job history when an attachment is deleted from the Media Library.
+// Fires in both admin and REST API contexts, so it belongs here unconditionally.
+add_action( 'delete_attachment', [ 'MM_DB', 'delete_jobs_for_attachment' ] );
+
 // ---------------------------------------------------------------------------
 // Activation / deactivation
 // ---------------------------------------------------------------------------
