@@ -450,27 +450,6 @@ class MM_Admin {
 			echo '</div>';
 		}
 
-		// Pending jobs notice.
-		$pending_types = MM_DB::get_pending_job_types( $post->ID );
-		if ( ! empty( $pending_types ) ) {
-			$labels = array_map( static function ( string $t ): string {
-				return match ( $t ) {
-					'import'      => __( 'metadata import', 'metamanager' ),
-					'compression' => __( 'compression', 'metamanager' ),
-					'metadata'    => __( 'metadata write-back', 'metamanager' ),
-					default       => $t,
-				};
-			}, $pending_types );
-			echo '<div style="background:#fff8e1;border:1px solid #dba617;padding:8px 12px;border-radius:3px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">';
-			echo '<span class="dashicons dashicons-clock" style="color:#dba617;flex-shrink:0;"></span> ';
-			echo '<span>' . sprintf(
-				/* translators: %s: comma-separated list of job types */
-				esc_html__( 'Job queued and waiting for daemon: %s.', 'metamanager' ),
-				'<strong>' . esc_html( implode( ', ', $labels ) ) . '</strong>'
-			) . '</span>';
-			echo '</div>';
-		}
-
 		// Write capability notice.
 		if ( 'read_only' === $capability ) {
 			echo '<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:3px;margin-bottom:12px;">'
@@ -520,6 +499,18 @@ class MM_Admin {
 				. '<td style="white-space:pre-wrap;">' . esc_html( $value ) . '</td>'
 				. '</tr>';
 		}
+		// Site provenance — always written to files during any metadata job.
+		echo '<tr><td colspan="2" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #c3c4c7;color:#50575e;font-size:11px;text-transform:uppercase;letter-spacing:.04em;">'
+			. esc_html__( 'Site Provenance (always embedded in metadata jobs)', 'metamanager' )
+			. '</td></tr>';
+		echo '<tr>'
+			. '<td><code>' . esc_html__( 'Publisher', 'metamanager' ) . '</code></td>'
+			. '<td>' . esc_html( get_bloginfo( 'name' ) ) . '</td>'
+			. '</tr>';
+		echo '<tr>'
+			. '<td><code>' . esc_html__( 'Website', 'metamanager' ) . '</code></td>'
+			. '<td>' . esc_html( home_url() ) . '</td>'
+			. '</tr>';
 		echo '</tbody></table></div>';
 		echo '</div></div>'; // .inside .postbox
 
