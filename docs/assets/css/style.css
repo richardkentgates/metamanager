@@ -319,8 +319,10 @@ body { font-family: var(--sans); color: var(--mid); background: var(--white); li
     flex-direction: column;
     align-items: center;
     text-align: center;
-    max-width: 200px;
-    padding: 0 12px;
+    flex: 1;
+    min-width: 180px;
+    max-width: 260px;
+    padding: 0 16px;
 }
 .flow-number {
     width: 42px;

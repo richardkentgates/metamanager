@@ -378,7 +378,7 @@
                 <div class="flow-number">1</div>
                 <div class="flow-content">
                     <h4>Upload, Scan, or Edit</h4>
-                    <p>On upload or library scan, an import job is queued to the metadata daemon. The daemon reads embedded tags from the file (EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, GPS) and returns them as structured JSON. WP-Cron picks up the result and populates empty WordPress fields — existing user-set values are never overwritten. On edit, changed fields are queued for writing back to the file. All three paths write job files — no operation is ever lost.</p>
+                    <p>A file lands in the Media Library, a library scan is triggered from WP-CLI or the dashboard, or a user edits embedded fields on the attachment screen.</p>
                 </div>
             </div>
             <div class="flow-arrow">→</div>
@@ -386,7 +386,7 @@
                 <div class="flow-number">2</div>
                 <div class="flow-content">
                     <h4>Job Written</h4>
-                    <p>Metamanager writes a small JSON job file to the queue directory. PHP does nothing else.</p>
+                    <p>PHP writes a small JSON job file to the queue directory — import, compress, or metadata write-back. No shell commands. PHP does nothing else.</p>
                 </div>
             </div>
             <div class="flow-arrow">→</div>
@@ -394,7 +394,7 @@
                 <div class="flow-number">3</div>
                 <div class="flow-content">
                     <h4>Daemon Processes</h4>
-                    <p><code>inotifywait</code> detects the new file. The daemon processes the file with <code>jpegtran</code>, <code>optipng</code>, <code>cwebp</code>, <code>ffmpeg</code>, or ExifTool depending on file type and job.</p>
+                    <p><code>inotifywait</code> detects the new file. ExifTool reads or writes embedded tags (EXIF/IPTC/XMP, ID3, QuickTime, GPS); <code>jpegtran</code>, <code>optipng</code>, <code>cwebp</code>, or <code>ffmpeg</code> handles compression.</p>
                 </div>
             </div>
             <div class="flow-arrow">→</div>
@@ -402,7 +402,7 @@
                 <div class="flow-number">4</div>
                 <div class="flow-content">
                     <h4>Result Recorded</h4>
-                    <p>The daemon writes a result JSON to the completed folder. WP-Cron picks it up every minute and records it in the database.</p>
+                    <p>The daemon writes a result JSON to the completed folder. WP-Cron picks it up, populates empty WordPress fields — existing user-set values are never overwritten — and logs the job to the database.</p>
                 </div>
             </div>
         </div>
