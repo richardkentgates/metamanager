@@ -697,7 +697,11 @@ class MM_Metadata {
 			}
 
 			$value = $pick( $candidates );
+
+			// Always write the row so get_post_meta() returns a known value even when
+			// the file carries no data for this field.
 			if ( '' === $value ) {
+				update_post_meta( $attachment_id, $meta_key, '' );
 				continue;
 			}
 
@@ -713,9 +717,9 @@ class MM_Metadata {
 						self::META_GPS_LON => $coord >= -180.0 && $coord <= 180.0 && 0.0 !== $coord,
 						default            => $coord >= -9000.0 && $coord <= 9000.0,
 					};
-					if ( $valid ) {
-						update_post_meta( $attachment_id, $meta_key, (string) $coord );
-					}
+					update_post_meta( $attachment_id, $meta_key, $valid ? (string) $coord : '' );
+				} else {
+					update_post_meta( $attachment_id, $meta_key, '' );
 				}
 			} else {
 				update_post_meta( $attachment_id, $meta_key, sanitize_text_field( $value ) );

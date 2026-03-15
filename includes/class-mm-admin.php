@@ -451,31 +451,20 @@ class MM_Admin {
 			MM_Metadata::META_GPS_ALT   => __( 'GPS Altitude', 'metamanager' ),
 		];
 
-		$stored = [];
+		echo '<div style="max-height:420px;overflow:auto;">';
+		echo '<table class="widefat striped" style="font-size:13px;">';
+		echo '<thead><tr>'
+			. '<th style="width:35%;">' . esc_html__( 'Field', 'metamanager' ) . '</th>'
+			. '<th>' . esc_html__( 'Value', 'metamanager' ) . '</th>'
+			. '</tr></thead><tbody>';
 		foreach ( $meta_keys as $key => $label ) {
 			$value = (string) get_post_meta( $post->ID, $key, true );
-			if ( '' !== $value ) {
-				$stored[ $label ] = $value;
-			}
+			echo '<tr>'
+				. '<td><code>' . esc_html( $label ) . '</code></td>'
+				. '<td style="white-space:pre-wrap;">' . esc_html( $value ) . '</td>'
+				. '</tr>';
 		}
-
-		if ( empty( $stored ) ) {
-			echo '<p style="color:#50575e;">' . esc_html__( 'No Metamanager metadata stored for this file yet. Upload or run a scan to import embedded tags.', 'metamanager' ) . '</p>';
-		} else {
-			echo '<div style="max-height:420px;overflow:auto;">';
-			echo '<table class="widefat striped" style="font-size:13px;">';
-			echo '<thead><tr>'
-				. '<th style="width:35%;">' . esc_html__( 'Field', 'metamanager' ) . '</th>'
-				. '<th>' . esc_html__( 'Value', 'metamanager' ) . '</th>'
-				. '</tr></thead><tbody>';
-			foreach ( $stored as $label => $value ) {
-				echo '<tr>'
-					. '<td><code>' . esc_html( $label ) . '</code></td>'
-					. '<td style="white-space:pre-wrap;">' . esc_html( $value ) . '</td>'
-					. '</tr>';
-			}
-			echo '</tbody></table></div>';
-		}
+		echo '</tbody></table></div>';
 		echo '</div></div>'; // .inside .postbox
 
 		// Inline script for the re-compress button on this edit screen.
