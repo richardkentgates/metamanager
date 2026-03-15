@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.1] — 2026-03-14
+
+### Fixed
+
+- **Fatal error on attachment edit screen** — `shell_exec()` was called directly
+  from PHP (`MM_Metadata::read_embedded()`) on hosts that restrict it via
+  `disable_functions`. ExifTool invocation is now fully delegated to the
+  background meta-daemon. PHP only writes job files and reads result files.
+- **Import flow is now async** — on upload and `wp metamanager scan/import`,
+  an `import` job is queued to the daemon. The daemon reads embedded tags with
+  ExifTool and writes them to a result file. WP-Cron picks up the result, maps
+  the tags to WP post meta, and queues a metadata write-back job. This means
+  the initial metadata import no longer blocks the HTTP request and works on
+  any host regardless of PHP execution restrictions.
+- **Admin attachment pane** — the "Embedded File Metadata" section now displays
+  the values stored in WP post meta instead of calling ExifTool live, which is
+  both safer and consistent with what the daemon has persisted.
+
+---
+
 ## [2.1.0] — 2026-03-14
 
 ### Added
