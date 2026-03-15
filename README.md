@@ -149,9 +149,10 @@ WordPress (PHP)                     OS (Bash daemons)
 Upload / scan / edit media file
 (image, video, audio, PDF)
        │
-       ├── On upload or scan: import_from_file() reads embedded
-       │   tags into empty WordPress fields (EXIF/IPTC/XMP,
-       │   ID3, QuickTime, Vorbis, GPS) — never overwrites.
+       ├── On upload or scan: enqueue_import_job() writes an
+       │   'import' job — daemon reads embedded tags (EXIF/IPTC/
+       │   XMP, ID3, QuickTime, Vorbis, GPS) and returns them
+       │   as JSON. WP-Cron applies to WP fields, never overwrites.
        │
        ▼
 Write job JSON to                   inotifywait detects new file

@@ -71,7 +71,7 @@
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
           "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); Open Graph tags; and XML media and video sitemaps — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "2.1.0",
+          "softwareVersion": "2.1.2",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -378,7 +378,7 @@
                 <div class="flow-number">1</div>
                 <div class="flow-content">
                     <h4>Upload, Scan, or Edit</h4>
-                    <p>On upload or library scan, embedded metadata tags are read from the file into empty WordPress fields. On edit, changed fields are queued for writing back to the file. All three paths write job files — no operation is ever lost.</p>
+                    <p>On upload or library scan, an import job is queued to the metadata daemon. The daemon reads embedded tags from the file (EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, GPS) and returns them as structured JSON. WP-Cron picks up the result and populates empty WordPress fields — existing user-set values are never overwritten. On edit, changed fields are queued for writing back to the file. All three paths write job files — no operation is ever lost.</p>
                 </div>
             </div>
             <div class="flow-arrow">→</div>
@@ -414,7 +414,7 @@ Upload, scan, or edit media file
 (image/video/audio/PDF)
         │
         ├─ On upload or scan:
-        │    import_from_file()  ◄── ExifTool reads embedded tags
+        │    enqueue_import_job() ◄── daemon reads embedded tags
         │    populates empty WP fields       (EXIF/IPTC/XMP, ID3, QuickTime,
         │                                    Vorbis, GPS)
         ▼
@@ -815,7 +815,7 @@ wp metamanager compress all --force # re-queue already-compressed files</code></
 
             <div class="cli-card">
                 <div class="cli-cmd">wp metamanager import</div>
-                <p>Read embedded tags from the file and populate empty WordPress fields. Existing user-set values are never overwritten. Supports images (EXIF/IPTC/XMP), video (QuickTime atoms/XMP), audio (ID3/Vorbis/XMP), and PDF (XMP).</p>
+                <p>Read embedded tags from the file via the metadata daemon and populate empty WordPress fields. Existing user-set values are never overwritten. Supports images (EXIF/IPTC/XMP), video (QuickTime atoms/XMP), audio (ID3/Vorbis/XMP), and PDF (XMP). All MM-managed fields are stored after import — empty or not — so the full field table is always visible on the attachment edit screen.</p>
                 <div class="arch-diagram">
 <pre><code>wp metamanager import               # all supported files
 wp metamanager import all           # explicit

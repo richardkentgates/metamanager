@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.2] — 2026-03-15
+
+### Changed
+
+- **Metadata import stores all fields** — after the daemon reads embedded tags from a
+  file, all Metamanager-managed fields are written to WordPress post meta for that
+  media type, even when the file carries no value for a given field. This ensures
+  the attachment edit screen always shows a full field table — no more "no metadata
+  stored" message for files that have been scanned.
+
+### Fixed
+
+- **Attachment edit screen metadata table** — always renders all MM-managed fields
+  (Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating,
+  City, State/Province, Country, GPS Latitude/Longitude/Altitude) whether populated
+  or empty. Previously the table was hidden until at least one field had a value.
+- **GPS validation** — coordinates that fail range checks now write an empty string
+  rather than silently skipping the row, so the field always appears in the table.
+
+---
+
 ## [2.1.1] — 2026-03-14
 
 ### Fixed
