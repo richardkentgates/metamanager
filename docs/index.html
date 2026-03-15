@@ -71,7 +71,7 @@
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Linux",
           "description": "WordPress plugin that delivers lossless compression for images (JPEG/PNG/WebP via jpegtran/optipng/cwebp), video (container remux via ffmpeg), and audio; bidirectional metadata sync for EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP; GPS coordinate import; PDF metadata; Schema.org JSON-LD (ImageObject/VideoObject/AudioObject/DigitalDocument); Open Graph tags; and XML media and video sitemaps — all managed natively from the WordPress dashboard using OS-level daemons.",
-          "softwareVersion": "2.0.0",
+          "softwareVersion": "2.0.1",
           "license": "https://www.gnu.org/licenses/gpl-3.0.html",
           "image": { "@id": "https://metamanager.richardkentgates.com/#logo" },
           "author": {
@@ -839,6 +839,17 @@ wp metamanager import 42            # single attachment ID</code></pre>
             </div>
 
             <div class="cli-card">
+                <div class="cli-cmd">wp metamanager embed</div>
+                <p>Queue metadata-embedding daemon jobs for one attachment or all supported media. Unlike <code>import</code> (which reads tags <em>from</em> the file into WordPress), <code>embed</code> writes WordPress field values <em>back into</em> the file via the metadata daemon. Accepts <code>--force</code> to re-queue files already processed.</p>
+                <div class="arch-diagram">
+<pre><code>wp metamanager embed             # all supported files
+wp metamanager embed all         # explicit
+wp metamanager embed 42          # single attachment ID
+wp metamanager embed all --force # re-queue already-embedded files</code></pre>
+                </div>
+            </div>
+
+            <div class="cli-card">
                 <div class="cli-cmd">wp metamanager queue status</div>
                 <p>Print pending job counts by type and current daemon health status.</p>
                 <div class="arch-diagram">
@@ -928,6 +939,13 @@ Metadata daemon: running</code></pre>
                         <td>Queue lossless compression. Images → all sizes recompressed. Video → lossless remux. Audio/PDF → <code>422</code>.</td>
                         <td><code>edit_others_posts</code></td>
                         <td><code>force</code> (boolean)</td>
+                    </tr>
+                    <tr>
+                        <td><code class="method-post">POST</code></td>
+                        <td><code>/attachment/{id}/embed</code></td>
+                        <td>Queue metadata-embedding daemon job for one attachment. Returns <code>404</code> for unknown attachment, <code>422</code> for unsupported MIME type.</td>
+                        <td><code>edit_others_posts</code></td>
+                        <td>&mdash;</td>
                     </tr>
                     <tr>
                         <td><code class="method-post">POST</code></td>

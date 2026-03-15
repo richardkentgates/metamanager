@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.0.1] — 2026-03-14
+
+### Fixed
+
+- **PHPStan static analysis** — added precise object shape types to `render_job_row()` and `get_jobs()` docblocks to resolve level-6 type errors. No runtime behaviour change.
+
+### Documentation
+
+- **`wp metamanager embed` CLI command** added to the WP-CLI reference on the project site.
+- **`POST /attachment/{id}/embed` REST endpoint** added to the REST API reference table.
+
+---
+
 ## [2.0.0] — 2026-03-14
 
 ### Added
