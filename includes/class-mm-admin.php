@@ -143,22 +143,22 @@ class MM_Admin {
 					'<tr><td style="padding:4px 8px;">Description</td><td style="padding:4px 8px;">WP Post Content</td><td style="padding:4px 8px;">No</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Caption</td><td style="padding:4px 8px;">WP Excerpt</td><td style="padding:4px 8px;">No</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Alt Text</td><td style="padding:4px 8px;">WP Alt Field</td><td style="padding:4px 8px;">No</td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Creator</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Copyright</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Owner</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Creator</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Copyright</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Owner</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Publisher</td><td style="padding:4px 8px;">Site name (auto)</td><td style="padding:4px 8px;">Yes — Inject Site Info</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Website</td><td style="padding:4px 8px;">Site URL (auto)</td><td style="padding:4px 8px;">Yes — Inject Site Info</td></tr>' .				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Editorial</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Headline</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Credit</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Headline</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Credit</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
 				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Classification</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Keywords</td><td style="padding:4px 8px;">Per-image field (semicolon-separated)</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Date Created</td><td style="padding:4px 8px;">Per-image field (YYYY-MM-DD)</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Rating</td><td style="padding:4px 8px;">Per-image field (0–5 stars)</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Keywords</td><td style="padding:4px 8px;">Per-image field (semicolon-separated)</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Date Created</td><td style="padding:4px 8px;">Per-image field (YYYY-MM-DD)</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Rating</td><td style="padding:4px 8px;">Per-image field (0–5 stars)</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
 				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Location (IPTC Photo Metadata Standard)</td></tr>' .
-				'<tr><td style="padding:4px 8px;">City</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">State / Province</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Country</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .					'</table>' .
-					'<p style="margin-top:.75em;">' . esc_html__( 'All per-image fields can be stamped across multiple images at once from the Batch Apply Metadata page. Leave any field blank to leave it unchanged on the selected images.', 'metamanager' ) . '</p>',
+				'<tr><td style="padding:4px 8px;">City</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">State / Province</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Country</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Metadata</td></tr>' .					'</table>' .
+					'<p style="margin-top:.75em;">' . esc_html__( 'All per-image fields can be stamped across multiple images at once from the Batch Metadata page. Leave any field blank to leave it unchanged on the selected images.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [
@@ -261,8 +261,8 @@ class MM_Admin {
 		);
 		add_submenu_page(
 			'upload.php',
-			esc_html__( 'Batch Apply Metadata', 'metamanager' ),
-			esc_html__( 'Batch Apply Metadata', 'metamanager' ),
+			esc_html__( 'Batch Metadata', 'metamanager' ),
+			esc_html__( 'Batch Metadata', 'metamanager' ),
 			'edit_others_posts',
 			'metamanager-bulk-meta',
 			[ __CLASS__, 'render_bulk_meta_page' ]
@@ -1658,7 +1658,7 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Render the Batch Apply Metadata page.
+	 * Render the Batch Metadata page.
 	 *
 	 * Left panel: field form where the user fills in values to stamp across selected images.
 	 * Right panel: paginated thumbnail grid with checkboxes for image selection.
@@ -1717,7 +1717,7 @@ class MM_Admin {
 		];
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Batch Apply Metadata', 'metamanager' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Batch Metadata', 'metamanager' ); ?></h1>
 			<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-jobs' ) ); ?>" class="page-title-action">
 				<?php esc_html_e( '← Job Dashboard', 'metamanager' ); ?>
 			</a>
