@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.5] — 2026-03-15
+
+### Fixed
+
+- **Publisher and Website now visible in the attachment metadata table** — the
+  "Embedded File Metadata" pane on individual image/video/audio/PDF edit screens
+  now shows a **Site Provenance** section at the bottom of the table with the
+  current Publisher (site name) and Website (site URL) values. These fields are
+  written into every metadata job but previously had no post-meta backing, so
+  they were invisible in the UI despite being embedded in the file.
+- **Duplicate pending-jobs notice removed** — the amber "Job queued and waiting
+  for daemon" banner was rendered twice on the attachment edit pane.
+
+---
+
 ## [2.1.4] — 2026-03-15
 
 ### Added
