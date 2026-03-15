@@ -145,9 +145,9 @@ class MM_Status {
 	// -----------------------------------------------------------------------
 	// Daemon liveness
 	//
-	// The daemons write their PID to /tmp on startup. PHP reads the PID file
-	// and confirms the process is still running via /proc. This works for
-	// www-data without systemctl privileges.
+	// The daemons write their PID to wp-content/metamanager-jobs/ on startup.
+	// PHP reads the PID file and confirms the process is still running via
+	// /proc. This works for www-data without systemctl privileges.
 	// -----------------------------------------------------------------------
 
 	/**

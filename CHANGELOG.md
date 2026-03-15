@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.4] — 2026-03-15
+
+### Added
+
+- **Pending job indicators in Media Library and attachment pane** — the
+  `mm_meta_sync` column now shows an amber clock icon with a tooltip listing
+  queued job types (e.g. "Queued: import, compression") whenever one or more
+  pending daemon jobs are waiting for that file. The single-image attachment
+  edit pane displays a prominent "Job queued and waiting for daemon" notice.
+  Both indicators read the same `metamanager_jobs` table as the job dashboard
+  and clear automatically once the daemon processes the jobs.
+
+---
+
 ## [2.1.3] — 2026-03-15
 
 ### Changed

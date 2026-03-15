@@ -125,7 +125,7 @@ class MM_Admin {
 					'<li><strong>metamanager-compress-daemon</strong> — ' . esc_html__( 'lossless JPEG compression via jpegtran; lossless PNG compression via optipng; lossless WebP recompression via cwebp; video container remux via ffmpeg. Files are only replaced if the result is smaller.', 'metamanager' ) . '</li>' .
 					'<li><strong>metamanager-meta-daemon</strong> — ' . esc_html__( 'writes metadata via ExifTool in a single pass, using each file\'s native tag system: EXIF/IPTC/XMP for images; ID3 for MP3; QuickTime atoms for MP4/MOV/M4A; Vorbis comments for OGG/FLAC; XMP-only for AVI/WAV/WMV/WMA/PDF; read-only for MKV/WebM/OGV.', 'metamanager' ) . '</li>' .
 					'</ul>' .
-					'<p>' . esc_html__( 'Daemon status is shown in the banner at the top of this page and the Media Library. Status is read from a PID file in /tmp/ — no systemctl privileges are needed.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Daemon status is shown in the banner at the top of this page and the Media Library. Status is read from a PID file in the wp-content/metamanager-jobs/ directory — no systemctl privileges are needed.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'To restart a daemon from the server:', 'metamanager' ) . '</p>' .
 					'<code>sudo systemctl restart metamanager-compress-daemon</code><br>' .
 					'<code>sudo systemctl restart metamanager-meta-daemon</code>',
@@ -192,6 +192,7 @@ class MM_Admin {
 					'<p>' . esc_html__( 'Status meanings:', 'metamanager' ) . '</p>' .
 					'<ul>' .
 					'<li><strong style="color:#13bb2c;">' . esc_html__( 'Compressed', 'metamanager' ) . '</strong> — ' . esc_html__( 'The file has been losslessly optimised.', 'metamanager' ) . '</li>' .
+					'<li><strong style="color:#e6b800;">' . esc_html__( 'Queued (clock icon)', 'metamanager' ) . '</strong> — ' . esc_html__( 'One or more daemon jobs (import, compression, or metadata write-back) are pending for this file. The tooltip lists the queued job types. The indicator clears automatically once the daemon processes them.', 'metamanager' ) . '</li>' .
 					'<li><strong style="color:#e6b800;">' . esc_html__( 'Pending', 'metamanager' ) . '</strong> — ' . esc_html__( 'A compression job is queued and waiting for the daemon.', 'metamanager' ) . '</li>' .
 					'<li><strong style="color:#e54c3c;">' . esc_html__( 'Failed', 'metamanager' ) . '</strong> — ' . esc_html__( 'The last compression attempt failed. Go to Media → Metamanager to re-queue.', 'metamanager' ) . '</li>' .
 					'<li><strong style="color:#888;">' . esc_html__( 'Not compressed', 'metamanager' ) . '</strong> — ' . esc_html__( 'No compression job has run yet. Use Compress Lossless from the Bulk Actions menu.', 'metamanager' ) . '</li>' .
@@ -220,9 +221,10 @@ class MM_Admin {
 				'title'   => __( 'Upload Receipts', 'metamanager' ),
 				'content' =>
 					'<h2>' . esc_html__( 'Upload Receipt Emails', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'When "Enable upload receipt emails" is checked, Metamanager sends a digest email after a batch of uploads. Emails are grouped into 60-second windows — no matter how many files are uploaded in that window, only one email is sent per uploader (plus one to the admin address).', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'The site admin always receives a batched digest email after uploads — no toggle needed. Each WordPress user can control their own receipt preference from Users → Your Profile → Metamanager → Upload receipts. The checkbox is enabled by default; uncheck it to stop receiving receipts without affecting anyone else.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Uploads within a 60-second window are grouped into a single email per recipient — no matter how many files are uploaded in that window.', 'metamanager' ) . '</p>' .
 					'<ul>' .
-					'<li><strong>' . esc_html__( 'Extra CC address', 'metamanager' ) . '</strong> — ' . esc_html__( 'An additional email address to CC on every upload receipt. Leave blank to send only to the uploader and the site admin.', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( 'Extra CC address', 'metamanager' ) . '</strong> — ' . esc_html__( 'An additional email address to CC on every upload receipt sent to the admin. Leave blank to send only to the admin address. Per-user receipts are controlled from each user\'s own profile page.', 'metamanager' ) . '</li>' .
 					'</ul>' .
 					'<p>' . esc_html__( 'If an email fails to send, an admin notice banner appears at the top of the dashboard with a one-click retry button. Dismiss it to discard the failed batch without retrying.', 'metamanager' ) . '</p>',
 			] );
