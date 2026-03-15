@@ -323,199 +323,7 @@ class MM_Metadata {
 	// Import embedded metadata from file → WordPress (fires on upload)
 	// -----------------------------------------------------------------------
 
-	/**
-	 * Read embedded metadata from the image file and populate WordPress fields.
-	 *
-	 * Called by MM_Job_Queue::on_upload() before jobs are enqueued so the
-	 * job payload already contains the imported values.
-	 *
-	 * Rules:
-	 * - Custom post meta: imported only if currently empty (never overwrites
-	 *   values set by a prior user action).
-	 * - WP native fields (post_content, post_excerpt, alt text): imported if empty.
-	 * - post_title: imported if a meaningful embedded title exists and the current
-	 *   title matches the sanitised filename WordPress set automatically.
-	 *
-	 * @param int $attachment_id WordPress attachment ID.
-	 */
-	public static function import_from_file( int $attachment_id ): void {
-		if ( ! MM_Status::exiftool_available() ) {
-			return;
-		}
 
-		$file = get_attached_file( $attachment_id );
-		if ( ! $file || ! file_exists( $file ) ) {
-			return;
-		}
-
-		$embedded = self::read_embedded( $file );
-
-		if ( empty( $embedded ) ) {
-			return;
-		}
-
-		// Helper: first non-empty value from a priority-ordered list of ExifTool tags.
-		// ExifTool with -G1 names tags as "Group:Tag" — EXIF IFD0 tags appear as
-		// "IFD0:Tag", ExifIFD tags as "ExifIFD:Tag". We list real group names plus
-		// common aliases so images from any camera/software are handled correctly.
-		$pick = static function ( array $candidates ) use ( $embedded ): string {
-			foreach ( $candidates as $tag ) {
-				$value = $embedded[ $tag ] ?? '';
-				if ( is_array( $value ) ) {
-					// Multi-value (Keywords, Subject) → semicolon-separated string.
-					$value = implode( '; ', array_filter( array_map( 'trim', $value ) ) );
-				}
-				$value = trim( (string) $value );
-				if ( '' !== $value ) {
-					return $value;
-				}
-			}
-			return '';
-		};
-
-		// Custom post meta: priority-ordered ExifTool tag candidates.
-		$meta_import = [
-			self::META_CREATOR   => [ 'IPTC:By-line', 'IFD0:Artist', 'XMP:Creator', 'EXIF:Artist' ],
-			self::META_COPYRIGHT => [ 'IPTC:CopyrightNotice', 'IFD0:Copyright', 'XMP:Rights', 'EXIF:Copyright' ],
-			self::META_OWNER     => [ 'ExifIFD:OwnerName', 'IFD0:OwnerName', 'XMP:Owner' ],
-			self::META_HEADLINE  => [ 'IPTC:Headline', 'XMP:Headline' ],
-			self::META_CREDIT    => [ 'IPTC:Credit', 'XMP:Credit' ],
-			self::META_KEYWORDS  => [ 'IPTC:Keywords', 'XMP:Subject' ],
-			self::META_DATE      => [ 'ExifIFD:DateTimeOriginal', 'IPTC:DateCreated', 'XMP:DateCreated', 'IFD0:DateTime' ],
-			self::META_CITY      => [ 'IPTC:City', 'XMP:City' ],
-			self::META_STATE     => [ 'IPTC:Province-State', 'XMP:State' ],
-			self::META_COUNTRY   => [ 'IPTC:Country-PrimaryLocationName', 'XMP:Country' ],
-			self::META_RATING    => [ 'XMP:Rating' ],
-			// GPS — ExifTool Composite group provides pre-computed signed decimal values.
-			self::META_GPS_LAT   => [ 'Composite:GPSLatitude', 'GPS:GPSLatitude' ],
-			self::META_GPS_LON   => [ 'Composite:GPSLongitude', 'GPS:GPSLongitude' ],
-			self::META_GPS_ALT   => [ 'Composite:GPSAltitude', 'GPS:GPSAltitude' ],
-		];
-
-		// For video and audio files, prepend container-native tag candidates so
-		// QuickTime/ID3/Vorbis/ASF tags are preferred over generic XMP equivalents.
-		// For PDFs, prepend PDF-namespace candidates so PDF:Author etc. win over IPTC.
-		$mime = (string) get_post_mime_type( $attachment_id );
-		if ( self::is_av_mime( $mime ) ) {
-			$av_candidates = [
-				self::META_CREATOR   => [ 'QuickTime:Author', 'QuickTime:Artist', 'ID3:Artist', 'Vorbis:Artist', 'ASF:Author', 'RIFF:Artist' ],
-				self::META_COPYRIGHT => [ 'QuickTime:Copyright', 'ID3:Copyright', 'Vorbis:Copyright', 'ASF:Copyright' ],
-				self::META_HEADLINE  => [ 'QuickTime:Title', 'ID3:Title', 'Vorbis:Title', 'ASF:Title', 'RIFF:Title', 'Matroska:Title' ],
-				self::META_CREDIT    => [ 'QuickTime:Producer', 'ID3:Band', 'Vorbis:Organization' ],
-				self::META_KEYWORDS  => [ 'QuickTime:Keywords', 'ID3:ContentType', 'Vorbis:Genre', 'ASF:Genre' ],
-				self::META_DATE      => [ 'QuickTime:CreateDate', 'QuickTime:MediaCreateDate', 'ID3:Year', 'Vorbis:Date', 'ASF:CreationDate', 'Matroska:DateTimeOriginal' ],
-				self::META_CITY      => [ 'QuickTime:LocationName', 'Keys:LocationName' ],
-				self::META_COUNTRY   => [ 'QuickTime:LocationCountryCode', 'Keys:LocationCountryCode' ],
-				self::META_GPS_LAT   => [ 'Composite:GPSLatitude', 'QuickTime:GPSCoordinates' ],
-				self::META_GPS_LON   => [ 'Composite:GPSLongitude' ],
-				self::META_GPS_ALT   => [ 'Composite:GPSAltitude', 'Keys:GPSAltitude' ],
-			];
-			foreach ( $av_candidates as $key => $prepend ) {
-				if ( isset( $meta_import[ $key ] ) ) {
-					$meta_import[ $key ] = array_merge( $prepend, $meta_import[ $key ] );
-				}
-			}
-		}
-
-		if ( self::is_pdf_mime( $mime ) ) {
-			// PDF metadata is XMP-based; ExifTool also exposes a PDF: group for
-			// the document information dictionary (pre-XMP legacy fields).
-			$pdf_candidates = [
-				self::META_HEADLINE  => [ 'PDF:Title', 'XMP:Title', 'XMP-dc:Title' ],
-				self::META_CREATOR   => [ 'PDF:Author', 'XMP:Author', 'XMP-dc:Creator', 'XMP:Creator' ],
-				self::META_COPYRIGHT => [ 'XMP:Rights', 'XMP-dc:Rights' ],
-				self::META_KEYWORDS  => [ 'PDF:Keywords', 'XMP:Subject', 'XMP-dc:Subject' ],
-				self::META_DATE      => [ 'PDF:CreateDate', 'XMP:CreateDate', 'XMP-xmp:CreateDate' ],
-			];
-			foreach ( $pdf_candidates as $key => $prepend ) {
-				if ( isset( $meta_import[ $key ] ) ) {
-					$meta_import[ $key ] = array_merge( $prepend, $meta_import[ $key ] );
-				}
-			}
-		}
-
-		foreach ( $meta_import as $meta_key => $candidates ) {
-			$existing = get_post_meta( $attachment_id, $meta_key, true );
-			if ( '' !== (string) $existing ) {
-				continue; // Preserve existing user-set value.
-			}
-
-			$value = $pick( $candidates );
-			if ( '' === $value ) {
-				continue;
-			}
-
-			if ( self::META_RATING === $meta_key ) {
-				update_post_meta( $attachment_id, $meta_key, min( 5, max( 0, (int) $value ) ) );
-			} elseif ( self::META_DATE === $meta_key ) {
-				update_post_meta( $attachment_id, $meta_key, self::normalise_date( $value ) );
-			} elseif ( in_array( $meta_key, [ self::META_GPS_LAT, self::META_GPS_LON, self::META_GPS_ALT ], true ) ) {
-				// Composite:GPS* from ExifTool returns signed decimal in JSON output.
-				// Extract the leading numeric part and validate plausible coordinate ranges.
-				if ( preg_match( '/^(-?\d+(?:\.\d+)?)/', $value, $coord_m ) ) {
-					$coord = (float) $coord_m[1];
-					$valid = match ( $meta_key ) {
-						self::META_GPS_LAT => $coord >= -90.0  && $coord <= 90.0  && 0.0 !== $coord,
-						self::META_GPS_LON => $coord >= -180.0 && $coord <= 180.0 && 0.0 !== $coord,
-						default            => $coord >= -9000.0 && $coord <= 9000.0,
-					};
-					if ( $valid ) {
-						update_post_meta( $attachment_id, $meta_key, (string) $coord );
-					}
-				}
-			} else {
-				update_post_meta( $attachment_id, $meta_key, sanitize_text_field( $value ) );
-			}
-		}
-
-		// WordPress native fields.
-		$post = get_post( $attachment_id );
-		if ( ! $post ) {
-			return;
-		}
-
-		$native_updates = [];
-
-		// post_title: replace if the embedded title exists AND the current title
-		// looks like WP's auto-generated filename default (not a user-typed value).
-		$embedded_title = $pick( [ 'IPTC:ObjectName', 'XMP:Title', 'IFD0:Title' ] );
-		if ( '' !== $embedded_title ) {
-			$auto_title = str_replace( [ '-', '_' ], ' ', preg_replace( '/\.[^.]+$/', '', basename( $file ) ) );
-			if ( '' === trim( $post->post_title )
-				|| strtolower( trim( $post->post_title ) ) === strtolower( trim( $auto_title ) ) ) {
-				$native_updates['post_title'] = sanitize_text_field( $embedded_title );
-			}
-		}
-
-		// post_content (Description): import if empty.
-		if ( '' === trim( $post->post_content ) ) {
-			$v = $pick( [ 'IPTC:Caption-Abstract', 'XMP:Description', 'IFD0:ImageDescription' ] );
-			if ( '' !== $v ) {
-				$native_updates['post_content'] = sanitize_textarea_field( $v );
-			}
-		}
-
-		// post_excerpt (Caption): import if empty and distinct from description.
-		if ( '' === trim( $post->post_excerpt ) ) {
-			$v = $pick( [ 'XMP:Caption' ] );
-			if ( '' !== $v && $v !== ( $native_updates['post_content'] ?? '' ) ) {
-				$native_updates['post_excerpt'] = sanitize_text_field( $v );
-			}
-		}
-
-		if ( ! empty( $native_updates ) ) {
-			$native_updates['ID'] = $attachment_id;
-			wp_update_post( $native_updates );
-		}
-
-		// Alt text — stored as _wp_attachment_image_alt (WordPress standard postmeta).
-		if ( '' === (string) get_post_meta( $attachment_id, '_wp_attachment_image_alt', true ) ) {
-			$v = $pick( [ 'XMP:AltTextAccessibility' ] );
-			if ( '' !== $v ) {
-				update_post_meta( $attachment_id, '_wp_attachment_image_alt', sanitize_text_field( $v ) );
-			}
-		}
-	}
 
 	// -----------------------------------------------------------------------
 	// Building the metadata payload for a job file
@@ -767,51 +575,197 @@ class MM_Metadata {
 	}
 
 	// -----------------------------------------------------------------------
-	// Reading embedded metadata from file (live ExifTool display pane)
+	// -----------------------------------------------------------------------
+	// Queue-based import (file → WordPress)
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Read all embedded metadata from an image using ExifTool.
-	 * Returns a flat "Group:Tag" => value map for the admin display pane.
+	 * Enqueue a daemon import job for the given attachment.
 	 *
-	 * @param  string $file_path Absolute path to the image.
-	 * @return array<string, mixed>  Empty if ExifTool is unavailable or fails.
+	 * The meta daemon reads embedded tags from the file using ExifTool and
+	 * writes a result JSON containing the parsed values.  WP-Cron picks up the
+	 * result and calls apply_import_result() to populate WordPress fields.
+	 * No PHP-side ExifTool invocation is performed here.
+	 *
+	 * @param int $attachment_id WordPress attachment ID.
 	 */
-	public static function read_embedded( string $file_path ): array {
+	public static function enqueue_import_job( int $attachment_id ): void {
 		if ( ! MM_Status::exiftool_available() ) {
-			return [];
+			return;
 		}
 
-		if ( ! file_exists( $file_path ) ) {
-			return [];
+		$file = get_attached_file( $attachment_id );
+		if ( ! $file || ! file_exists( $file ) ) {
+			return;
 		}
 
-		$exiftool = MM_Status::exiftool_path();
-		// -a  : extract duplicate tags (e.g. multiple keyword entries)
-		// -G1 : include group name prefix for disambiguation
-		// -s  : tag names not descriptions
-		// -j  : JSON output
-		$cmd = escapeshellcmd( $exiftool ) . ' -a -G1 -s -j ' . escapeshellarg( $file_path ) . ' 2>/dev/null';
+		MM_Job_Queue::write_job( 'import', $attachment_id, $file, 'full', [ 'trigger' => 'import' ] );
+	}
 
-		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_shell_exec
-		$json = shell_exec( $cmd );
-		if ( ! $json ) {
-			return [];
+	/**
+	 * Apply an embedded-tag map returned by the daemon to WordPress post meta
+	 * and native fields.  Called from mm_import_completed_jobs() when a daemon
+	 * import job result arrives.
+	 *
+	 * Existing user-set values are never overwritten.
+	 *
+	 * @param int                  $attachment_id WordPress attachment ID.
+	 * @param array<string,mixed>  $embedded      Flat "Group:Tag" => value map
+	 *                                             as returned by ExifTool -G1 -j.
+	 */
+	public static function apply_import_result( int $attachment_id, array $embedded ): void {
+		if ( empty( $embedded ) ) {
+			return;
 		}
 
-		$arr = json_decode( $json, true );
-		if ( ! is_array( $arr ) || empty( $arr[0] ) ) {
-			return [];
+		$file = get_attached_file( $attachment_id );
+
+		// Helper: first non-empty value from a priority-ordered list of ExifTool tags.
+		$pick = static function ( array $candidates ) use ( $embedded ): string {
+			foreach ( $candidates as $tag ) {
+				$value = $embedded[ $tag ] ?? '';
+				if ( is_array( $value ) ) {
+					$value = implode( '; ', array_filter( array_map( 'trim', $value ) ) );
+				}
+				$value = trim( (string) $value );
+				if ( '' !== $value ) {
+					return $value;
+				}
+			}
+			return '';
+		};
+
+		// Custom post meta: priority-ordered ExifTool tag candidates.
+		$meta_import = [
+			self::META_CREATOR   => [ 'IPTC:By-line', 'IFD0:Artist', 'XMP:Creator', 'EXIF:Artist' ],
+			self::META_COPYRIGHT => [ 'IPTC:CopyrightNotice', 'IFD0:Copyright', 'XMP:Rights', 'EXIF:Copyright' ],
+			self::META_OWNER     => [ 'ExifIFD:OwnerName', 'IFD0:OwnerName', 'XMP:Owner' ],
+			self::META_HEADLINE  => [ 'IPTC:Headline', 'XMP:Headline' ],
+			self::META_CREDIT    => [ 'IPTC:Credit', 'XMP:Credit' ],
+			self::META_KEYWORDS  => [ 'IPTC:Keywords', 'XMP:Subject' ],
+			self::META_DATE      => [ 'ExifIFD:DateTimeOriginal', 'IPTC:DateCreated', 'XMP:DateCreated', 'IFD0:DateTime' ],
+			self::META_CITY      => [ 'IPTC:City', 'XMP:City' ],
+			self::META_STATE     => [ 'IPTC:Province-State', 'XMP:State' ],
+			self::META_COUNTRY   => [ 'IPTC:Country-PrimaryLocationName', 'XMP:Country' ],
+			self::META_RATING    => [ 'XMP:Rating' ],
+			self::META_GPS_LAT   => [ 'Composite:GPSLatitude', 'GPS:GPSLatitude' ],
+			self::META_GPS_LON   => [ 'Composite:GPSLongitude', 'GPS:GPSLongitude' ],
+			self::META_GPS_ALT   => [ 'Composite:GPSAltitude', 'GPS:GPSAltitude' ],
+		];
+
+		$mime = (string) get_post_mime_type( $attachment_id );
+		if ( self::is_av_mime( $mime ) ) {
+			$av_candidates = [
+				self::META_CREATOR   => [ 'QuickTime:Author', 'QuickTime:Artist', 'ID3:Artist', 'Vorbis:Artist', 'ASF:Author', 'RIFF:Artist' ],
+				self::META_COPYRIGHT => [ 'QuickTime:Copyright', 'ID3:Copyright', 'Vorbis:Copyright', 'ASF:Copyright' ],
+				self::META_HEADLINE  => [ 'QuickTime:Title', 'ID3:Title', 'Vorbis:Title', 'ASF:Title', 'RIFF:Title', 'Matroska:Title' ],
+				self::META_CREDIT    => [ 'QuickTime:Producer', 'ID3:Band', 'Vorbis:Organization' ],
+				self::META_KEYWORDS  => [ 'QuickTime:Keywords', 'ID3:ContentType', 'Vorbis:Genre', 'ASF:Genre' ],
+				self::META_DATE      => [ 'QuickTime:CreateDate', 'QuickTime:MediaCreateDate', 'ID3:Year', 'Vorbis:Date', 'ASF:CreationDate', 'Matroska:DateTimeOriginal' ],
+				self::META_CITY      => [ 'QuickTime:LocationName', 'Keys:LocationName' ],
+				self::META_COUNTRY   => [ 'QuickTime:LocationCountryCode', 'Keys:LocationCountryCode' ],
+				self::META_GPS_LAT   => [ 'Composite:GPSLatitude', 'QuickTime:GPSCoordinates' ],
+				self::META_GPS_LON   => [ 'Composite:GPSLongitude' ],
+				self::META_GPS_ALT   => [ 'Composite:GPSAltitude', 'Keys:GPSAltitude' ],
+			];
+			foreach ( $av_candidates as $key => $prepend ) {
+				if ( isset( $meta_import[ $key ] ) ) {
+					$meta_import[ $key ] = array_merge( $prepend, $meta_import[ $key ] );
+				}
+			}
 		}
 
-		// Remove ExifTool housekeeping keys that confuse users in the display pane.
-		foreach ( [ 'ExifTool:ExifToolVersion', 'File:FileName', 'File:Directory',
-			'File:FilePermissions', 'File:FileAccessDate',
-			'File:FileModifyDate', 'File:FileInodeChangeDate' ] as $k ) {
-			unset( $arr[0][ $k ] );
+		if ( self::is_pdf_mime( $mime ) ) {
+			$pdf_candidates = [
+				self::META_HEADLINE  => [ 'PDF:Title', 'XMP:Title', 'XMP-dc:Title' ],
+				self::META_CREATOR   => [ 'PDF:Author', 'XMP:Author', 'XMP-dc:Creator', 'XMP:Creator' ],
+				self::META_COPYRIGHT => [ 'XMP:Rights', 'XMP-dc:Rights' ],
+				self::META_KEYWORDS  => [ 'PDF:Keywords', 'XMP:Subject', 'XMP-dc:Subject' ],
+				self::META_DATE      => [ 'PDF:CreateDate', 'XMP:CreateDate', 'XMP-xmp:CreateDate' ],
+			];
+			foreach ( $pdf_candidates as $key => $prepend ) {
+				if ( isset( $meta_import[ $key ] ) ) {
+					$meta_import[ $key ] = array_merge( $prepend, $meta_import[ $key ] );
+				}
+			}
 		}
 
-		return $arr[0];
+		foreach ( $meta_import as $meta_key => $candidates ) {
+			$existing = get_post_meta( $attachment_id, $meta_key, true );
+			if ( '' !== (string) $existing ) {
+				continue;
+			}
+
+			$value = $pick( $candidates );
+			if ( '' === $value ) {
+				continue;
+			}
+
+			if ( self::META_RATING === $meta_key ) {
+				update_post_meta( $attachment_id, $meta_key, min( 5, max( 0, (int) $value ) ) );
+			} elseif ( self::META_DATE === $meta_key ) {
+				update_post_meta( $attachment_id, $meta_key, self::normalise_date( $value ) );
+			} elseif ( in_array( $meta_key, [ self::META_GPS_LAT, self::META_GPS_LON, self::META_GPS_ALT ], true ) ) {
+				if ( preg_match( '/^(-?\d+(?:\.\d+)?)/', $value, $coord_m ) ) {
+					$coord = (float) $coord_m[1];
+					$valid = match ( $meta_key ) {
+						self::META_GPS_LAT => $coord >= -90.0  && $coord <= 90.0  && 0.0 !== $coord,
+						self::META_GPS_LON => $coord >= -180.0 && $coord <= 180.0 && 0.0 !== $coord,
+						default            => $coord >= -9000.0 && $coord <= 9000.0,
+					};
+					if ( $valid ) {
+						update_post_meta( $attachment_id, $meta_key, (string) $coord );
+					}
+				}
+			} else {
+				update_post_meta( $attachment_id, $meta_key, sanitize_text_field( $value ) );
+			}
+		}
+
+		// WordPress native fields.
+		$post = get_post( $attachment_id );
+		if ( ! $post ) {
+			return;
+		}
+
+		$native_updates = [];
+
+		$embedded_title = $pick( [ 'IPTC:ObjectName', 'XMP:Title', 'IFD0:Title' ] );
+		if ( '' !== $embedded_title ) {
+			$auto_title = $file
+				? str_replace( [ '-', '_' ], ' ', preg_replace( '/\.[^.]+$/', '', basename( $file ) ) )
+				: '';
+			if ( '' === trim( $post->post_title )
+				|| ( '' !== $auto_title && strtolower( trim( $post->post_title ) ) === strtolower( trim( $auto_title ) ) ) ) {
+				$native_updates['post_title'] = sanitize_text_field( $embedded_title );
+			}
+		}
+
+		if ( '' === trim( $post->post_content ) ) {
+			$v = $pick( [ 'IPTC:Caption-Abstract', 'XMP:Description', 'IFD0:ImageDescription' ] );
+			if ( '' !== $v ) {
+				$native_updates['post_content'] = sanitize_textarea_field( $v );
+			}
+		}
+
+		if ( '' === trim( $post->post_excerpt ) ) {
+			$v = $pick( [ 'XMP:Caption' ] );
+			if ( '' !== $v && $v !== ( $native_updates['post_content'] ?? '' ) ) {
+				$native_updates['post_excerpt'] = sanitize_text_field( $v );
+			}
+		}
+
+		if ( ! empty( $native_updates ) ) {
+			$native_updates['ID'] = $attachment_id;
+			wp_update_post( $native_updates );
+		}
+
+		if ( '' === (string) get_post_meta( $attachment_id, '_wp_attachment_image_alt', true ) ) {
+			$v = $pick( [ 'XMP:AltTextAccessibility' ] );
+			if ( '' !== $v ) {
+				update_post_meta( $attachment_id, '_wp_attachment_image_alt', sanitize_text_field( $v ) );
+			}
+		}
 	}
 
 	// -----------------------------------------------------------------------

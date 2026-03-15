@@ -310,12 +310,16 @@ class MM_Job_Queue {
 		$is_regeneration = MM_DB::has_any_completed_job( $attachment_id );
 
 		if ( $is_image ) {
-			// ---- Images: existing regen-aware logic ----
+			// ---- Images: regen-aware logic ----
 			if ( $is_regeneration ) {
 				self::enqueue_all_sizes( $attachment_id, $metadata, 'compression', [ 'trigger' => 'thumbnail_regen' ] );
 			} else {
-				MM_Metadata::import_from_file( $attachment_id );
-				self::enqueue_all_sizes( $attachment_id, $metadata, 'both', [ 'trigger' => 'upload' ] );
+				// Queue an import job so the daemon reads embedded tags and reports
+				// them back via result JSON. The metadata write-back job is queued by
+				// mm_import_completed_jobs() after the import result arrives, at which
+				// point the WP fields have been populated from the file.
+				MM_Metadata::enqueue_import_job( $attachment_id );
+				self::enqueue_all_sizes( $attachment_id, $metadata, 'compression', [ 'trigger' => 'upload' ] );
 			}
 			return $metadata;
 		}
@@ -327,12 +331,13 @@ class MM_Job_Queue {
 		}
 
 		if ( ! $is_regeneration ) {
-			MM_Metadata::import_from_file( $attachment_id );
-		}
-
-		// Queue metadata write-back if the format supports it.
-		if ( MM_Metadata::can_write_meta( $mime ) ) {
-			self::write_job( 'metadata', $attachment_id, $file, 'full', [ 'trigger' => 'upload' ] );
+			// Queue an import job; metadata write-back is triggered by the result handler.
+			MM_Metadata::enqueue_import_job( $attachment_id );
+		} else {
+			// Re-upload of an existing file: write current WP fields back.
+			if ( MM_Metadata::can_write_meta( $mime ) ) {
+				self::write_job( 'metadata', $attachment_id, $file, 'full', [ 'trigger' => 'upload' ] );
+			}
 		}
 
 		// Queue video remux (container repack, lossless) — audio and PDF have no remux.

@@ -87,6 +87,36 @@ process_job() {
         return 0
     fi
 
+    # ---- Import job: read embedded tags and report back ----
+    # The PHP side (WP-Cron result handler) applies the returned tags to WP post meta.
+    local job_type
+    job_type=$(jq -r '.job_type // "metadata"' "${tmpfile}")
+
+    if [[ "${job_type}" == "import" ]]; then
+        local embedded_json
+        # -a  : allow duplicate tags (e.g. multiple Keywords entries)
+        # -G1 : include group name prefix (Group:Tag) for disambiguation
+        # -s  : tag names, not descriptions
+        # -j  : JSON output (array with one element per file)
+        embedded_json=$( "${EXIFTOOL}" -a -G1 -s -j "${file_path}" 2>/dev/null | jq -c '.[0] // {}' )
+        local et_exit=$?
+        exec 9>&-; rm -f "${lockfile}"
+        if [[ ${et_exit} -ne 0 ]] || [[ -z "${embedded_json}" ]]; then
+            write_result "${tmpfile}" "failed" "ExifTool read failed for: ${file_path}"
+            return 1
+        fi
+        # Merge the embedded tag map into the result JSON under "embedded_tags".
+        jq --arg status "completed" \
+           --arg msg    "Read embedded tags from ${file_path}" \
+           --arg ts     "$(date '+%Y-%m-%d %H:%M:%S')" \
+           --argjson et  "${embedded_json}" \
+           '. + {status: $status, completed_at: $ts, details: {message: $msg}, embedded_tags: $et}' \
+           "${tmpfile}" > "${JOB_DONE}/$(basename "${tmpfile}" .processing)-result.json" 2>/dev/null || true
+        rm -f "${tmpfile}"
+        log "OK: import read $(echo "${embedded_json}" | jq 'keys | length') tag(s) from ${file_path}"
+        return 0
+    fi
+
     # Determine file category from extension — drives the tag writing strategy.
     # ExifTool routes generic tags (e.g. -Title) to the correct namespace per format,
     # but explicitly-namespaced IPTC/EXIF image tags fail on video/audio containers.

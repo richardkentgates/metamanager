@@ -258,6 +258,31 @@ function mm_import_completed_jobs(): void {
 					continue;
 				}
 
+				// Import result: apply embedded tags to WP post meta, then queue
+				// the metadata write-back job so the daemon embeds the values.
+				if ( 'import' === ( $job['job_type'] ?? '' ) && 'completed' === $status ) {
+					$att_id = (int) ( $job['attachment_id'] ?? 0 );
+					$tags   = is_array( $job['embedded_tags'] ?? null ) ? $job['embedded_tags'] : [];
+					if ( $att_id > 0 ) {
+						MM_Metadata::apply_import_result( $att_id, $tags );
+
+						// Now that WP fields are populated, queue the write-back job.
+						$file = get_attached_file( $att_id );
+						$mime = (string) get_post_mime_type( $att_id );
+						if ( $file && file_exists( $file ) && MM_Metadata::can_write_meta( $mime ) ) {
+							MM_Job_Queue::write_job( 'metadata', $att_id, $file, 'full', [ 'trigger' => 'import' ] );
+						}
+
+						// For images, also queue metadata write-back for all registered sizes.
+						if ( wp_attachment_is_image( $att_id ) ) {
+							$meta = wp_get_attachment_metadata( $att_id );
+							if ( is_array( $meta ) ) {
+								MM_Job_Queue::enqueue_all_sizes( $att_id, $meta, 'metadata', [ 'trigger' => 'import' ] );
+							}
+						}
+					}
+				}
+
 				if ( 'failed' === $status ) {
 					$failed_jobs[] = $job;
 				}

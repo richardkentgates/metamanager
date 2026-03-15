@@ -184,13 +184,13 @@ class MM_CLI extends \WP_CLI_Command {
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Importing metadata', count( $ids ) );
 
 		foreach ( $ids as $id ) {
-			MM_Metadata::import_from_file( (int) $id );
+			MM_Metadata::enqueue_import_job( (int) $id );
 			++$count;
 			$progress->tick();
 		}
 
 		$progress->finish();
-		\WP_CLI::success( "Imported metadata for {$count} file(s)." );
+		\WP_CLI::success( "Queued metadata import for {$count} file(s). The daemon will read embedded tags and populate WordPress fields." );
 	}
 
 	// -----------------------------------------------------------------------
@@ -288,24 +288,17 @@ class MM_CLI extends \WP_CLI_Command {
 			$id   = (int) $id;
 			$mime = (string) get_post_mime_type( $id );
 
-			// Bootstrap WP post_meta from any metadata already embedded in the file.
-			MM_Metadata::import_from_file( $id );
+			// Queue an import job so the daemon reads embedded tags and reports
+			// back. The metadata write-back job is triggered by the result handler.
+			MM_Metadata::enqueue_import_job( $id );
 
-			// Queue daemon jobs — mirrors the on_upload() path for unsynced attachments.
+			// Queue compression separately — does not depend on metadata import.
 			if ( wp_attachment_is_image( $id ) ) {
-				MM_Job_Queue::enqueue_all_sizes( $id, [], 'both', [ 'trigger' => 'scan' ] );
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'compression', [ 'trigger' => 'scan' ] );
 			} elseif ( MM_Metadata::is_video_mime( $mime ) ) {
 				$file = get_attached_file( $id );
 				if ( $file && file_exists( $file ) ) {
-					MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'scan' ] );
 					MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'scan' ] );
-				}
-			} elseif ( MM_Metadata::is_audio_mime( $mime ) || MM_Metadata::is_pdf_mime( $mime ) ) {
-				if ( MM_Metadata::can_write_meta( $mime ) ) {
-					$file = get_attached_file( $id );
-					if ( $file && file_exists( $file ) ) {
-						MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'scan' ] );
-					}
 				}
 			}
 
@@ -314,7 +307,7 @@ class MM_CLI extends \WP_CLI_Command {
 		}
 
 		$progress->finish();
-		\WP_CLI::success( "Scanned {$count} file(s): imported metadata into WP fields and queued daemon jobs." );
+		\WP_CLI::success( "Scanned {$count} file(s): queued daemon import jobs. WordPress fields will be populated once the daemon processes each file." );
 	}
 
 	// -----------------------------------------------------------------------

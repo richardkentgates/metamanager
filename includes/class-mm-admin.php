@@ -380,7 +380,6 @@ class MM_Admin {
 		}
 
 		$capability = MM_Metadata::write_capability( $mime );
-		$metadata   = MM_Metadata::read_embedded( $file );
 
 		echo '<div class="postbox mm-meta-pane"><div class="postbox-header">'
 			. '<h2 class="hndle">' . esc_html__( 'Embedded File Metadata', 'metamanager' ) . '</h2>'
@@ -434,24 +433,45 @@ class MM_Admin {
 				. '</div>';
 		}
 
-		if ( ! MM_Status::exiftool_available() ) {
-			echo '<p style="color:#d63638;">' . esc_html__( 'ExifTool is not installed. Metadata display unavailable.', 'metamanager' ) . '</p>';
-		} elseif ( empty( $metadata ) ) {
-			echo '<p style="color:#50575e;">' . esc_html__( 'No embedded metadata found in this file.', 'metamanager' ) . '</p>';
+		// Show Metamanager-managed post meta values in a read-only table.
+		$meta_keys = [
+			MM_Metadata::META_CREATOR   => __( 'Creator', 'metamanager' ),
+			MM_Metadata::META_COPYRIGHT => __( 'Copyright', 'metamanager' ),
+			MM_Metadata::META_OWNER     => __( 'Owner', 'metamanager' ),
+			MM_Metadata::META_HEADLINE  => __( 'Headline', 'metamanager' ),
+			MM_Metadata::META_CREDIT    => __( 'Credit', 'metamanager' ),
+			MM_Metadata::META_KEYWORDS  => __( 'Keywords', 'metamanager' ),
+			MM_Metadata::META_DATE      => __( 'Date Created', 'metamanager' ),
+			MM_Metadata::META_CITY      => __( 'City', 'metamanager' ),
+			MM_Metadata::META_STATE     => __( 'State/Province', 'metamanager' ),
+			MM_Metadata::META_COUNTRY   => __( 'Country', 'metamanager' ),
+			MM_Metadata::META_RATING    => __( 'Rating', 'metamanager' ),
+			MM_Metadata::META_GPS_LAT   => __( 'GPS Latitude', 'metamanager' ),
+			MM_Metadata::META_GPS_LON   => __( 'GPS Longitude', 'metamanager' ),
+			MM_Metadata::META_GPS_ALT   => __( 'GPS Altitude', 'metamanager' ),
+		];
+
+		$stored = [];
+		foreach ( $meta_keys as $key => $label ) {
+			$value = (string) get_post_meta( $post->ID, $key, true );
+			if ( '' !== $value ) {
+				$stored[ $label ] = $value;
+			}
+		}
+
+		if ( empty( $stored ) ) {
+			echo '<p style="color:#50575e;">' . esc_html__( 'No Metamanager metadata stored for this file yet. Upload or run a scan to import embedded tags.', 'metamanager' ) . '</p>';
 		} else {
 			echo '<div style="max-height:420px;overflow:auto;">';
 			echo '<table class="widefat striped" style="font-size:13px;">';
 			echo '<thead><tr>'
-				. '<th style="width:35%;">' . esc_html__( 'Tag', 'metamanager' ) . '</th>'
+				. '<th style="width:35%;">' . esc_html__( 'Field', 'metamanager' ) . '</th>'
 				. '<th>' . esc_html__( 'Value', 'metamanager' ) . '</th>'
 				. '</tr></thead><tbody>';
-			foreach ( $metadata as $tag => $value ) {
-				if ( is_array( $value ) ) {
-					$value = wp_json_encode( $value );
-				}
+			foreach ( $stored as $label => $value ) {
 				echo '<tr>'
-					. '<td><code>' . esc_html( (string) $tag ) . '</code></td>'
-					. '<td style="white-space:pre-wrap;">' . esc_html( (string) $value ) . '</td>'
+					. '<td><code>' . esc_html( $label ) . '</code></td>'
+					. '<td style="white-space:pre-wrap;">' . esc_html( $value ) . '</td>'
 					. '</tr>';
 			}
 			echo '</tbody></table></div>';
