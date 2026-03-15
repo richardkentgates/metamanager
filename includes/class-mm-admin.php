@@ -1576,7 +1576,7 @@ class MM_Admin {
 	/**
 	 * Render a single <tr> for a job row (shared by pending and done tables).
 	 *
-	 * @param object $job DB row object.
+	 * @param object{id: int, attachment_id: int, image_name: string, job_type: string, job_trigger: string, file_path: string, size: string, dimensions: string, bytes_before: int, bytes_after: int, status: string, submitted_at: string, completed_at: string|null, details: string|null} $job DB row object.
 	 * @return string Escaped HTML.
 	 */
 	private static function render_job_row( object $job ): string {

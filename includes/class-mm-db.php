@@ -178,7 +178,7 @@ class MM_DB {
 	 *   @type int    $paged     Current page (1-based).
 	 * }
 	 * @return array{
-	 *   jobs: list<object{id: int, attachment_id: int, image_name: string, job_type: string, file_path: string, size: string, dimensions: string, bytes_before: int, bytes_after: int, status: string, submitted_at: string, completed_at: string|null, error_message: string|null}>,
+	 *   jobs: list<object{id: int, attachment_id: int, image_name: string, job_type: string, job_trigger: string, file_path: string, size: string, dimensions: string, bytes_before: int, bytes_after: int, status: string, submitted_at: string, completed_at: string|null, details: string|null}>,
 	 *   total: int
 	 * }
 	 */
