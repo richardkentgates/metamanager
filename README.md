@@ -37,13 +37,15 @@ PHP's role is coordinator only: write the instruction, let the daemon execute it
 - **Native WordPress integration**: metadata fields on every image edit screen; compression status column in Media Library
 - **Grouped edit UI**: Attribution & Rights, Editorial, Classification, Location — clearly separated in the attachment editor
 - **Bulk operations**: compress all uncompressed images, or inject site provenance (Publisher + Website URL) into metadata
+- **Auto-embed site provenance control**: a checkbox setting (**Media → MM Settings → Metadata Embedding**) enables or disables automatic Publisher and Website embedding — on by default; uncheck to omit those fields without touching any other metadata
+- **Write-back verification**: after the metadata daemon embeds fields into a file, Metamanager automatically re-reads it with ExifTool to confirm the values were written correctly; any discrepancies are recorded and shown as an amber notice on the attachment edit screen
 - **No false attribution**: bulk actions never set Creator, Copyright, Owner, or any per-image field
 - **Real-time job dashboard**: live queue view and searchable/paginated history under Media → Metamanager
 - **Re-queue on failure**: one-click retry for any failed job from the history table
 - **Daemon health indicator**: status banner shows whether each daemon is running (via PID file — no `systemctl` privilege required)
 - **REST API access control**: disable all Metamanager REST endpoints or restrict them to a comma-separated list of allowed IP addresses from Media → MM Settings — unauthorized requests receive a `403` before any capability check runs
 - **Upload receipt emails**: the site admin always receives a batched digest email after uploads (one email per 60-second window); every other WordPress user has an opt-in checkbox on their own profile page; configurable extra CC address; failed sends are surfaced as a dismissible admin notice with one-click retry
-- **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates; includes a manual "Check for Updates" link on the Plugins page
+- **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates; includes a manual "Check for Updates" link on the Plugins page; a notice reminds server admins to restart the OS daemons after every plugin update
 - **Multisite compatible**: network activation creates the DB table and schedules cron on every existing site; new blog creation is handled automatically via `wp_initialize_site`
 - **Clean uninstall**: an opt-in "Remove all data on uninstall" setting wipes all options, post meta, the job log table, the job queue directory, and the updater transient when the plugin is deleted — nothing is removed by default
 
@@ -301,18 +303,21 @@ Each `<url>` entry contains an `<image:image>` extension node (when the Image Si
 
 | Sitemap field | Source |
 |---------------|--------|
-| `<loc>` | Attachment permalink |
+| `<loc>` | Attachment permalink (PDFs use direct file URL) |
 | `<image:loc>` | File URL |
-| `<image:title>` | Post title |
+| `<image:title>` | Headline field, falling back to post title |
 | `<image:caption>` | Post excerpt |
 | `<image:license>` | Copyright field (when a URL) |
-| `<video:title>` | Post title |
+| `<image:geo_location>` | City and country from GPS/location fields; decimal coordinates as fallback |
+| `<video:title>` | Headline field, falling back to post title |
 | `<video:description>` | Post excerpt |
 | `<video:content_loc>` | File URL |
 | `<video:duration>` | Duration (seconds, from `ffprobe` via daemon) |
-| `<video:publication_date>` | Post date |
+| `<video:publication_date>` | Date Created field |
 | `<video:rating>` | Rating field (0–5, normalised to 0–1) |
-| `<video:family_friendly>` | Rating field (`yes` when rating ≤ 4) |
+| `<video:family_friendly>` | `yes` when rating ≤ 4, `no` when rating > 4 |
+| `<video:tag>` | Keywords field (one element per keyword, up to 32) |
+| `<video:uploader>` | Creator field (with author profile URL as `info` attribute) |
 
 ### Video sitemap (`/sitemap-video.xml`)
 
@@ -322,7 +327,7 @@ Scans all published posts for embedded video and emits one `<url>` per video fou
 - **YouTube** — `<iframe>` embeds and WordPress oEmbed blocks (`youtu.be`, `youtube.com`)
 - **Vimeo** — `<iframe>` embeds and WordPress oEmbed blocks (`vimeo.com`)
 
-YouTube and Vimeo metadata is resolved via the oEmbed API and cached as transients for 24 hours.
+YouTube and Vimeo metadata is resolved via the oEmbed API and cached as transients for one week.
 
 ### Settings
 
@@ -344,22 +349,7 @@ Sitemap settings are under **Media → MM Settings → Sitemaps**. Each source c
 3. Enter `sitemap-media.xml` in the "Add a new sitemap" box and click **Submit**.
 4. Repeat for `sitemap-video.xml`.
 
-Both sitemaps refresh on every request — no manual resubmission is needed after new uploads.
-
-### Planned sitemap enhancements
-
-The following tags are not yet emitted but the underlying metadata is already stored by Metamanager and could be added in a future release:
-
-| Tag | Source |
-|-----|--------|
-| `<image:geo_location>` | `mm_gps_latitude` / `mm_gps_longitude` — emit as `"{lat},{lng}"` or reverse-geocoded city/country |
-| `<video:tag>` | `mm_keywords` — one element per keyword (Google supports up to 32 tags) |
-| `<video:uploader>` | `mm_creator` — with `info` attribute pointing to the author profile URL |
-
-Additional attachment types not yet included in `sitemap-media.xml`:
-
-- **PDFs** — Google indexes PDFs directly by file URL; including them as plain `<url>` entries (no extension nodes required) improves discoverability.
-- **Audio pages** — No official sitemap extension exists for audio, but attachment pages with Schema.org `AudioObject` JSON-LD can be submitted as standard `<url>` entries.
+Sitemap XML is cached in a WordPress transient (1-hour TTL) and flushed automatically whenever content changes (post publish/update, media upload or deletion). Active sitemap URLs are appended as `Sitemap:` directives to `robots.txt` automatically. Google and Bing are pinged via a non-blocking background request whenever a post is published.
 
 ---
 
@@ -595,7 +585,7 @@ sudo systemctl restart metamanager-meta-daemon
 Before deleting the plugin, go to **Media → MM Settings → Data & Uninstall** and enable **Remove all data on uninstall**. Once that box is checked and you delete the plugin from the Plugins screen, Metamanager will automatically:
 
 - Delete all plugin settings
-- Remove all metadata it stored on attachments (16 post meta keys + `_mm_compressed_*` keys)
+- Remove all metadata it stored on attachments (18 post meta keys + `_mm_compressed_*` keys)
 - Drop the `wp_metamanager_jobs` job-log table
 - Remove the `wp-content/metamanager-jobs/` queue directory
 - Delete the updater transient
@@ -636,7 +626,8 @@ DELETE FROM wp_options WHERE option_name IN
 DELETE FROM wp_postmeta WHERE meta_key IN
   ('mm_creator','mm_copyright','mm_owner','mm_headline','mm_credit','mm_keywords',
    'mm_date_created','mm_location_city','mm_location_state','mm_location_country',
-   'mm_rating','mm_gps_lat','mm_gps_lon','mm_gps_alt','mm_meta_synced');
+   'mm_rating','mm_gps_lat','mm_gps_lon','mm_gps_alt','mm_meta_synced',
+   'mm_verify_discrepancies','mm_verified_at','mm_duration');
 DELETE FROM wp_postmeta WHERE meta_key LIKE '_mm_compressed_%';
 ```
 

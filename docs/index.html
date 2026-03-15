@@ -651,12 +651,12 @@ updates history table</code></pre>
             <div class="feature-card">
                 <div class="feature-icon">🎬</div>
                 <h3>Schema.org <code>VideoObject</code></h3>
-                <p>Emitted on video attachment pages (MP4, MOV, AVI, MKV, WebM, WMV, OGV, 3GP). Carries title, description, creator, copyright, keywords, upload date, and a thumbnail URL when one is present.</p>
+                <p>Emitted on video attachment pages (MP4, MOV, AVI, MKV, WebM, WMV, OGV, 3GP). Carries title, description, creator, copyright, keywords, duration (ISO 8601 format from <code>ffprobe</code>), upload date, and a thumbnail URL when one is present.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🎵</div>
                 <h3>Schema.org <code>AudioObject</code></h3>
-                <p>Emitted on audio attachment pages (MP3, M4A, OGG, WAV, FLAC, WMA, AIFF). Carries title, description, creator, copyright, keywords, and upload date read from the file's ID3, QuickTime, or Vorbis tags.</p>
+                <p>Emitted on audio attachment pages (MP3, M4A, OGG, WAV, FLAC, WMA, AIFF). Carries title, description, creator, copyright, keywords, duration (ISO 8601 format), and upload date read from the file's ID3, QuickTime, or Vorbis tags.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">📄</div>
@@ -723,6 +723,7 @@ updates history table</code></pre>
   "creator": { "@type": "Person", "name": "Jane Doe" },
   "copyrightNotice": "© 2026 Jane Doe",
   "keywords": ["interview", "documentary", "behind-the-scenes"],
+  "duration": "PT1H30M15S",
   "uploadDate": "2026-01-15",
   "thumbnailUrl": "https://example.com/wp-content/uploads/2026/01/interview-300x169.jpg",
   "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=55" }
@@ -741,6 +742,7 @@ updates history table</code></pre>
   "creator": { "@type": "Person", "name": "Jane Doe" },
   "copyrightNotice": "© 2026 Mountain Light Photography",
   "keywords": ["podcast", "photography", "landscape"],
+  "duration": "PT45M30S",
   "uploadDate": "2026-01-20",
   "mainEntityOfPage": { "@type": "WebPage", "@id": "https://example.com/?attachment_id=63" }
 }</code></pre>
@@ -767,7 +769,7 @@ updates history table</code></pre>
 <section class="section" id="sitemaps">
     <div class="container">
         <h2 class="section-title">XML Sitemaps</h2>
-        <p class="section-subtitle">Two dedicated sitemap endpoints generated on every request — no static files, no cron jobs required.</p>
+        <p class="section-subtitle">Two dedicated sitemap endpoints — cached server-side for one hour and auto-flushed on content changes. No static files required.</p>
 
         <div class="feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 2.5rem;">
             <div class="feature-card">
@@ -788,7 +790,7 @@ updates history table</code></pre>
             <div class="feature-card">
                 <div class="feature-icon">📡</div>
                 <h3>Google Search Console Ready</h3>
-                <p>Submit <code>/sitemap-media.xml</code> and <code>/sitemap-video.xml</code> directly to Google Search Console. Both sitemaps refresh automatically on every request — new uploads appear without any manual resubmission. Step-by-step instructions are available in the contextual help tab on the settings screen.</p>
+                <p>Submit <code>/sitemap-media.xml</code> and <code>/sitemap-video.xml</code> directly to Google Search Console. Sitemap XML is cached for one hour and flushed automatically when content changes — new uploads appear without any manual resubmission. Both sitemaps are also appended automatically as <code>Sitemap:</code> directives in <code>robots.txt</code>. Step-by-step instructions are available in the contextual help tab on the settings screen.</p>
             </div>
         </div>
     </div>

@@ -44,6 +44,7 @@ function _mm_uninstall_site(): void {
 		'mm_sitemap_video_youtube',
 		'mm_sitemap_video_vimeo',
 		'mm_sitemap_video_selfhosted',
+		'mm_auto_provenance',
 	];
 	foreach ( $options as $option ) {
 		delete_option( $option );
@@ -86,6 +87,9 @@ function _mm_uninstall_site(): void {
 		'mm_gps_lon',
 		'mm_gps_alt',
 		'mm_meta_synced',
+		'mm_duration',
+		'mm_verify_discrepancies',
+		'mm_verified_at',
 	];
 	foreach ( $meta_keys as $key ) {
 		delete_post_meta_by_key( $key );
