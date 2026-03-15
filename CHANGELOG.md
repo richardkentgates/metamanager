@@ -7,6 +7,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.0.2] — 2026-03-14
+
+### Fixed
+
+- **Library Scan button never created jobs** — `ajax_scan_library()` called `MM_Metadata::import_from_file()` which invokes ExifTool via `shell_exec()`. On hosts where `shell_exec` is disabled this threw a fatal error that aborted the entire AJAX request before any job files were written. Removed the `import_from_file()` call entirely — the metadata daemon already reads embedded tags from the file when it processes the job, so the synchronous pre-read served no purpose.
+- **Job writes silently failed on hosts with conflicting filesystem plugins** — `MM_Job_Queue::get_filesystem()` returned whatever the global `$wp_filesystem` object was, which third-party plugins (e.g. InMotion Hosting central-connect) can replace with a broken FTP object during the `init` hook. All `put_contents()` calls against an FTP stub silently returned false and `log_pending_job()` was never reached, leaving `wp_metamanager_jobs` permanently empty. `get_filesystem()` now always instantiates `WP_Filesystem_Direct` directly, ignoring the global.
+
+---
+
 ## [2.0.1] — 2026-03-14
 
 ### Fixed

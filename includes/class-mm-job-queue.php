@@ -21,18 +21,24 @@ class MM_Job_Queue {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Initialise and return the global WP_Filesystem object (direct method).
-	 * Safe to call in any execution context — cron, admin, front-end uploads.
+	 * Return a direct-access filesystem instance for writing job queue files.
+	 * Always uses WP_Filesystem_Direct regardless of the global FS method so
+	 * that other plugins (e.g. those that set the global to FTP/SSH) cannot
+	 * silently break job file writes.
 	 *
-	 * @return WP_Filesystem_Base|null
+	 * @return WP_Filesystem_Direct
 	 */
-	private static function get_filesystem(): ?WP_Filesystem_Base {
-		global $wp_filesystem;
-		if ( empty( $wp_filesystem ) ) {
-			require_once ABSPATH . 'wp-admin/includes/file.php';
+	private static function get_filesystem(): WP_Filesystem_Direct {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+		// Call WP_Filesystem() only to ensure FS_CHMOD_FILE / FS_CHMOD_DIR constants
+		// are defined (they are set inside WP_Filesystem(), not at file-include time).
+		// We ignore the global it sets — all actual I/O goes through WP_Filesystem_Direct.
+		if ( ! defined( 'FS_CHMOD_FILE' ) ) {
 			WP_Filesystem();
 		}
-		return $wp_filesystem instanceof WP_Filesystem_Base ? $wp_filesystem : null;
+		return new WP_Filesystem_Direct( [] );
 	}
 
 	// -----------------------------------------------------------------------

@@ -53,26 +53,29 @@ class MM_DB {
 		self::maybe_deduplicate();
 
 		$sql = "CREATE TABLE {$table} (
-			id            BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			attachment_id BIGINT(20) UNSIGNED NOT NULL,
-			image_name    VARCHAR(255)        NOT NULL DEFAULT '',
-			job_type      VARCHAR(32)         NOT NULL DEFAULT '',
-			job_trigger   VARCHAR(64)         NOT NULL DEFAULT '',
-			file_path     TEXT                NOT NULL,
-			size          VARCHAR(64)         NOT NULL DEFAULT '',
-			dimensions    VARCHAR(32)         NOT NULL DEFAULT '',
-			bytes_before  BIGINT(20) UNSIGNED          DEFAULT NULL,
-			bytes_after   BIGINT(20) UNSIGNED          DEFAULT NULL,
-			status        VARCHAR(32)         NOT NULL DEFAULT 'pending',
-			submitted_at  DATETIME            NOT NULL,
-			completed_at  DATETIME                     DEFAULT NULL,
-			details       LONGTEXT                     DEFAULT NULL,
-			PRIMARY KEY  (id),
+			image_name VARCHAR(255) NOT NULL DEFAULT '',
+			job_type VARCHAR(32) NOT NULL DEFAULT '',
+			job_trigger VARCHAR(64) NOT NULL DEFAULT '',
+			file_path TEXT NOT NULL,
+			size VARCHAR(64) NOT NULL DEFAULT '',
+			dimensions VARCHAR(32) NOT NULL DEFAULT '',
+			bytes_before BIGINT(20) UNSIGNED DEFAULT NULL,
+			bytes_after BIGINT(20) UNSIGNED DEFAULT NULL,
+			status VARCHAR(32) NOT NULL DEFAULT 'pending',
+			submitted_at DATETIME NOT NULL,
+			completed_at DATETIME DEFAULT NULL,
+			details LONGTEXT DEFAULT NULL,
+			PRIMARY KEY (id),
 			UNIQUE KEY uniq_job (attachment_id, job_type, size),
 			KEY idx_attachment (attachment_id),
-			KEY idx_job_type   (job_type),
-			KEY idx_status     (status)
+			KEY idx_job_type (job_type),
+			KEY idx_status (status)
 		) {$charset_collate};";
+
+		// dbDelta is sensitive to leading whitespace; normalize before calling it.
+		$sql = implode( "\n", array_map( 'ltrim', explode( "\n", $sql ) ) );
 
 		dbDelta( $sql );
 	}

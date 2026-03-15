@@ -1322,9 +1322,6 @@ class MM_Admin {
 			$id   = (int) $id;
 			$mime = (string) get_post_mime_type( $id );
 
-			// Bootstrap WP post_meta from any metadata already embedded in the file.
-			MM_Metadata::import_from_file( $id );
-
 			// Queue daemon jobs — mirrors the on_upload() path for unsynced attachments.
 			if ( wp_attachment_is_image( $id ) ) {
 				MM_Job_Queue::enqueue_all_sizes( $id, [], 'both', [ 'trigger' => 'scan' ] );
