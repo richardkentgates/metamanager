@@ -451,7 +451,7 @@ class MM_Admin {
 			MM_Metadata::META_GPS_ALT   => __( 'GPS Altitude', 'metamanager' ),
 		];
 
-		echo '<div style="max-height:420px;overflow:auto;">';
+		echo '<div>';
 		echo '<table class="widefat striped" style="font-size:13px;">';
 		echo '<thead><tr>'
 			. '<th style="width:35%;">' . esc_html__( 'Field', 'metamanager' ) . '</th>'
