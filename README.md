@@ -7,7 +7,7 @@
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-purple)](https://php.net)
 [![Code Scanning](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml/badge.svg)](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)
-![Status](https://img.shields.io/badge/status-beta-green)
+![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
 📖 **[Full documentation → GitHub Wiki](https://github.com/richardkentgates/metamanager/wiki)**
 
@@ -392,11 +392,25 @@ wp metamanager import 42          # single attachment ID
 
 ### `scan`
 
-Import metadata for every library file not yet synced by Metamanager. Faster than `import all` on large existing libraries — already-synced files are skipped automatically.
+Import metadata for every library file not yet synced by Metamanager. Faster than `import all` on large existing libraries — already-synced files are skipped automatically. After importing metadata into WordPress fields, also queues daemon jobs to embed those fields back into the files (same as an upload).
 
 ```bash
 wp metamanager scan
 ```
+
+---
+
+### `embed`
+
+Queue metadata embedding for one or all supported attachments. Writes the current WordPress field values back into the media files via ExifTool. Use this after editing fields in WordPress to push changes into files.
+
+```bash
+wp metamanager embed           # all supported files
+wp metamanager embed all       # explicit
+wp metamanager embed 42        # single attachment ID
+```
+
+---
 
 ### `queue status`
 
@@ -482,6 +496,21 @@ Paginated, filterable job history. Pagination totals in `X-WP-Total` and `X-WP-T
 | `per_page` | integer | `20` | 1–100 |
 | `page` | integer | `1` | |
 
+Each job object includes a `job_trigger` field indicating what created it:
+
+| `job_trigger` value | Meaning |
+|---------------------|----------|
+| `upload` | Triggered on file upload |
+| `edit` | Triggered by saving the attachment edit screen |
+| `scan` | Triggered by Scan Existing Library / `wp metamanager scan` |
+| `manual` | Triggered by re-compressing a single image from its edit screen |
+| `requeue` | Triggered by clicking Re-queue on a failed job |
+| `thumbnail_regen` | Triggered by thumbnail regeneration (e.g. Regenerate Thumbnails plugin) |
+| `bulk` | Triggered by a WordPress Bulk Actions operation (Compress Lossless, Inject Site Info) |
+| `batch_apply` | Triggered by the Batch Apply Metadata page |
+| `cli` | Triggered via WP-CLI (`wp metamanager compress`, `embed`, etc.) |
+| `rest_api` | Triggered via REST API (`POST /compress`, `POST /embed`) |
+
 ---
 
 ### `GET /jobs/{id}` — requires `edit_others_posts`
@@ -518,6 +547,21 @@ Queue lossless compression for one attachment.
 
 ```json
 { "id": 42, "queued": true, "message": "Compression jobs queued." }
+```
+
+---
+
+### `POST /attachment/{id}/embed` — requires `edit_others_posts`
+
+Queue metadata embedding for one attachment. Writes the current WordPress field values back into the file via ExifTool.
+
+- **Image** → queues embedding jobs for all registered sizes
+- **Video** → queues a single metadata-writing job via `ffmpeg`/ExifTool
+- **Audio / PDF** → queues a metadata-writing job (when the format supports writing)
+- **Unsupported type** → `422 Unprocessable Entity`
+
+```json
+{ "id": 42, "queued": true, "message": "Metadata embedding jobs queued for all image sizes." }
 ```
 
 ---

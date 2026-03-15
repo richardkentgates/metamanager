@@ -102,6 +102,10 @@ if ( ! defined( 'MM_PID_META' ) ) {
 	define( 'MM_PID_META',     MM_JOB_ROOT . '/meta-daemon.pid' );
 }
 
+// WP_CLI\Utils stubs — needed by Test_MM_CLI.php; loaded here so the test
+// file itself has no namespace declarations (avoids Intelephense false positives).
+require_once __DIR__ . '/stubs/wp-cli-utils.php';
+
 // Load all plugin classes.
 $plugin_includes = dirname( __DIR__ ) . '/includes/';
 require_once $plugin_includes . 'class-mm-db.php';

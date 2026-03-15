@@ -11,6 +11,8 @@
             <file>tests/Integration/Test_MM_Settings.php</file>
             <file>tests/Integration/Test_MM_Frontend.php</file>
             <file>tests/Integration/Test_MM_JobQueue.php</file>
+            <file>tests/Integration/Test_MM_CLI.php</file>
+            <file>tests/Integration/Test_MM_REST.php</file>
         </testsuite>
     </testsuites>
 

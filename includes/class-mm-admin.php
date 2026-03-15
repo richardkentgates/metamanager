@@ -90,28 +90,28 @@ class MM_Admin {
 				'title'   => __( 'Overview', 'metamanager' ),
 				'content' =>
 					'<h2>' . esc_html__( 'Metamanager Job Dashboard', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'This page shows everything Metamanager is doing or has done. The top section is the live queue — jobs waiting to be processed by the OS daemons. The bottom section is the history of completed and failed jobs pulled from the database.', 'metamanager' ) . '</p>' .
-					'<p>' . esc_html__( 'Both sections refresh automatically every 5 seconds. You do not need to reload the page.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'This page shows everything Metamanager is doing or has done: pending jobs waiting for the OS daemons and the history of completed and failed jobs, all in a single unified view.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'The dashboard refreshes automatically every 5 seconds. You do not need to reload the page.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'Access to this dashboard and all write operations (bulk actions, re-queue, library scan) requires the Editor role or higher (edit_others_posts capability). Per-attachment actions such as recompressing or saving metadata on a single file respect normal WordPress ownership — Authors can act on their own uploads.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [
 				'id'      => 'mm_help_queue',
-				'title'   => __( 'Job Queue', 'metamanager' ),
+				'title'   => __( 'Pending Jobs', 'metamanager' ),
 				'content' =>
-					'<h2>' . esc_html__( 'Job Queue', 'metamanager' ) . '</h2>' .
-					'<p>' . esc_html__( 'Jobs enter the queue when you upload a media file, save metadata fields on an attachment edit screen, run Scan Existing Library from this dashboard, or trigger a bulk action from the Media Library.', 'metamanager' ) . '</p>' .
+					'<h2>' . esc_html__( 'Pending Jobs', 'metamanager' ) . '</h2>' .
+					'<p>' . esc_html__( 'Jobs enter the queue when you upload a media file, save metadata fields on an attachment edit screen, run Scan Existing Library from this dashboard, or trigger a bulk or batch action from the Media Library.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'Each job is written as a small JSON file to one of two directories inside wp-content/metamanager-jobs/: compress/ for image compression jobs, and meta/ for metadata embedding jobs.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'The OS daemons watch these directories with inotifywait and process jobs immediately — no polling delay. Jobs disappear from this view as soon as a daemon processes them.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [
 				'id'      => 'mm_help_history',
-				'title'   => __( 'Job History', 'metamanager' ),
+				'title'   => __( 'Job Results', 'metamanager' ),
 				'content' =>
-					'<h2>' . esc_html__( 'Job History', 'metamanager' ) . '</h2>' .
+					'<h2>' . esc_html__( 'Job Results', 'metamanager' ) . '</h2>' .
 					'<p>' . esc_html__( 'After a daemon finishes a job it writes a result JSON to the completed/ or failed/ directory. WP-Cron reads these files every 60 seconds and records them in the database.', 'metamanager' ) . '</p>' .
-					'<p>' . esc_html__( 'Completed jobs show the file size, dimensions (where applicable), and timestamps. Failed jobs show a Re-queue button — click it to re-submit the original job file without any manual steps.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Completed jobs show the file size, dimensions (where applicable), timestamps, and the trigger that created the job (e.g. upload, edit, scan, batch apply, CLI). Failed jobs show a Re-queue button — click it to re-submit the original job file without any manual steps.', 'metamanager' ) . '</p>' .
 					'<p>' . esc_html__( 'Use the search box to filter by file name, job type, or status. Clear History removes all records from the database but does not affect any media files.', 'metamanager' ) . '</p>',
 			] );
 
@@ -143,22 +143,22 @@ class MM_Admin {
 					'<tr><td style="padding:4px 8px;">Description</td><td style="padding:4px 8px;">WP Post Content</td><td style="padding:4px 8px;">No</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Caption</td><td style="padding:4px 8px;">WP Excerpt</td><td style="padding:4px 8px;">No</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Alt Text</td><td style="padding:4px 8px;">WP Alt Field</td><td style="padding:4px 8px;">No</td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Creator</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Copyright</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
-					'<tr><td style="padding:4px 8px;"><strong>Owner</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Creator</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Copyright</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+					'<tr><td style="padding:4px 8px;"><strong>Owner</strong></td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Publisher</td><td style="padding:4px 8px;">Site name (auto)</td><td style="padding:4px 8px;">Yes — Inject Site Info</td></tr>' .
 					'<tr><td style="padding:4px 8px;">Website</td><td style="padding:4px 8px;">Site URL (auto)</td><td style="padding:4px 8px;">Yes — Inject Site Info</td></tr>' .				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Editorial</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Headline</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Credit</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Headline</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Credit</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
 				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Classification</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Keywords</td><td style="padding:4px 8px;">Per-image field (semicolon-separated)</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Date Created</td><td style="padding:4px 8px;">Per-image field (YYYY-MM-DD)</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Rating</td><td style="padding:4px 8px;">Per-image field (0–5 stars)</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Keywords</td><td style="padding:4px 8px;">Per-image field (semicolon-separated)</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Date Created</td><td style="padding:4px 8px;">Per-image field (YYYY-MM-DD)</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Rating</td><td style="padding:4px 8px;">Per-image field (0–5 stars)</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
 				'<tr><td colspan="3" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #ddd;">Location (IPTC Photo Metadata Standard)</td></tr>' .
-				'<tr><td style="padding:4px 8px;">City</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">State / Province</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .
-				'<tr><td style="padding:4px 8px;">Country</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Bulk Apply Metadata</td></tr>' .					'</table>' .
-					'<p style="margin-top:.75em;">' . esc_html__( 'All per-image fields can be stamped across multiple images at once from the Bulk Apply Metadata page. Leave any field blank to leave it unchanged on the selected images.', 'metamanager' ) . '</p>',
+				'<tr><td style="padding:4px 8px;">City</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">State / Province</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .
+				'<tr><td style="padding:4px 8px;">Country</td><td style="padding:4px 8px;">Per-image field</td><td style="padding:4px 8px;">Yes — Batch Apply Metadata</td></tr>' .					'</table>' .
+					'<p style="margin-top:.75em;">' . esc_html__( 'All per-image fields can be stamped across multiple images at once from the Batch Apply Metadata page. Leave any field blank to leave it unchanged on the selected images.', 'metamanager' ) . '</p>',
 			] );
 
 			$screen->add_help_tab( [
@@ -891,6 +891,20 @@ class MM_Admin {
 			]
 		);
 
+		// --- Queue metadata embedding for one attachment ---
+		register_rest_route(
+			'metamanager/v1',
+			'/attachment/(?P<id>[0-9]+)/embed',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ __CLASS__, 'rest_embed_attachment' ],
+				'permission_callback' => $auth_editor,
+				'args' => [
+					'id' => [ 'type' => 'integer', 'required' => true ],
+				],
+			]
+		);
+
 		// --- Aggregate stats ---
 		register_rest_route(
 			'metamanager/v1',
@@ -1006,6 +1020,56 @@ class MM_Admin {
 		return rest_ensure_response( MM_DB::get_stats() );
 	}
 
+	/**
+	 * REST: queue metadata embedding for one attachment.
+	 *
+	 * Queues a daemon job to write the current WordPress field values back into
+	 * the media file via ExifTool.  Supports images (all sizes), video, audio,
+	 * and PDF.  Returns 422 if the MIME type cannot receive embedded metadata.
+	 */
+	public static function rest_embed_attachment( \WP_REST_Request $request ) {
+		$id   = (int) $request->get_param( 'id' );
+		$mime = (string) get_post_mime_type( $id );
+
+		if ( ! get_post( $id ) ) {
+			return new \WP_Error( 'not_found', __( 'Attachment not found.', 'metamanager' ), [ 'status' => 404 ] );
+		}
+
+		$is_image = wp_attachment_is_image( $id );
+		$is_av    = MM_Metadata::is_av_mime( $mime );
+		$is_pdf   = MM_Metadata::is_pdf_mime( $mime );
+
+		if ( ! $is_image && ! $is_av && ! $is_pdf ) {
+			return new \WP_Error(
+				'not_embeddable',
+				__( 'Attachment type does not support metadata embedding.', 'metamanager' ),
+				[ 'status' => 422 ]
+			);
+		}
+
+		if ( $is_image ) {
+			MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'rest_api' ] );
+		} else {
+			if ( ! MM_Metadata::can_write_meta( $mime ) ) {
+				return new \WP_Error(
+					'not_embeddable',
+					__( 'This file type does not support metadata writing.', 'metamanager' ),
+					[ 'status' => 422 ]
+				);
+			}
+			$file = get_attached_file( $id );
+			MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'rest_api' ] );
+		}
+
+		return rest_ensure_response( [
+			'id'      => $id,
+			'queued'  => true,
+			'message' => $is_image
+				? __( 'Metadata embedding jobs queued for all image sizes.', 'metamanager' )
+				: __( 'Metadata embedding job queued.', 'metamanager' ),
+		] );
+	}
+
 	// -----------------------------------------------------------------------
 	// Admin page — job dashboard
 	// -----------------------------------------------------------------------
@@ -1025,10 +1089,10 @@ class MM_Admin {
 					<summary style="cursor:pointer;font-weight:600;"><?php esc_html_e( 'About this page (click to expand)', 'metamanager' ); ?></summary>
 					<div style="margin-top:.8em;line-height:1.7;">
 						<p><?php esc_html_e( 'This dashboard shows all Metamanager activity in real time. It refreshes every 5 seconds automatically — no page reload needed.', 'metamanager' ); ?></p>
-						<h4><?php esc_html_e( 'Job Queue', 'metamanager' ); ?></h4>
-						<p><?php esc_html_e( 'Jobs appear here when a media file is uploaded, metadata fields are saved, or a bulk action is triggered. Each job is a small JSON file the OS daemon picks up via inotifywait. Jobs vanish as soon as the daemon processes them.', 'metamanager' ); ?></p>
-						<h4><?php esc_html_e( 'Job History', 'metamanager' ); ?></h4>
-						<p><?php esc_html_e( 'Once a daemon finishes a job it writes a result file to completed/ or failed/. WP-Cron reads those files every 60 seconds and records them here. Click the image name to open the edit screen. Use Re-queue on any failed job to resubmit it without manual steps.', 'metamanager' ); ?></p>
+						<h4><?php esc_html_e( 'Pending Jobs', 'metamanager' ); ?></h4>
+						<p><?php esc_html_e( 'Jobs appear here when a media file is uploaded, metadata fields are saved, or a bulk or batch action is triggered. Each job is a small JSON file the OS daemon picks up via inotifywait. Jobs vanish as soon as the daemon processes them.', 'metamanager' ); ?></p>
+						<h4><?php esc_html_e( 'Job Results', 'metamanager' ); ?></h4>
+						<p><?php esc_html_e( 'Once a daemon finishes a job it writes a result file to completed/ or failed/. WP-Cron reads those files every 60 seconds and records them here. Each row shows the type, trigger (e.g. upload, edit, scan, batch apply, CLI), and result. Click the image name to open the edit screen. Use Re-queue on any failed job to resubmit it without manual steps.', 'metamanager' ); ?></p>
 						<h4><?php esc_html_e( 'Bulk Actions (Media Library)', 'metamanager' ); ?></h4>
 						<ul style="margin:.3em 0 0 1.5em;">
 							<li><strong><?php esc_html_e( 'Compress Lossless', 'metamanager' ); ?></strong> — <?php esc_html_e( 'queues lossless compression for all uncompressed files in the selection. Images: JPEG via jpegtran, PNG via optipng, WebP via cwebp. Video: container remux via ffmpeg. Files are only replaced if the result is smaller.', 'metamanager' ); ?></li>

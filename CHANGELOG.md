@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.0.0] — 2026-03-14
+
+### Added
+
+- **`wp metamanager embed` CLI command** — queues metadata-embedding daemon jobs for one attachment or all supported media (`image`, `audio`, `video`, `PDF`). Accepts `--force` to bypass the already-completed guard.
+- **`POST /metamanager/v1/attachment/{id}/embed` REST endpoint** — queues metadata-embedding jobs for a single attachment. Requires `edit_others_posts` (editor role). Returns `{ "queued": true, "id": <n> }` on success, 404 for unknown attachment, 422 for unsupported MIME type.
+- **`job_trigger` field in all job rows** — every `write_job()` call now records how the job was created. Possible values: `upload`, `scan`, `cli`, `rest_api`, `thumbnail_regen`, `requeue`. Exposed in the `GET /jobs` and `GET /jobs/{id}` REST responses and visible in the Job Results admin table.
+- **Integration test suite** — `Test_MM_CLI.php` (25 tests) and `Test_MM_REST.php` (21 tests) added to `phpunit.xml.dist`. Covers all CLI commands and all 7 REST endpoints including auth tiers, 404 / 422 handling, and the `job_trigger` field. 101 tests, 170 assertions, 0 failures.
+
+### Fixed
+
+- **`wp metamanager scan` never queued daemon jobs** — the CLI scan called `import_from_file()` but wrote no job files. `scan()` now mirrors the upload path exactly: images queue compression + metadata via `enqueue_all_sizes('both')`; video queues metadata + compression; audio/PDF queue metadata when `can_write_meta()` returns true. `job_trigger` is set to `'scan'`.
+
+### Changed
+
+- **Job Queue UI renamed** — "Job Queue" tab → **"Pending Jobs"**, "Job History" tab → **"Job Results"** throughout the admin interface and inline help. "Bulk Apply Metadata" → **"Batch Apply Metadata"** in the help panel.
+- **BETA badge removed** — plugin description no longer carries the `[BETA — untested in production]` prefix.
+
+---
+
 ## [1.6.2] — 2026-07-13
 
 ### Fixed

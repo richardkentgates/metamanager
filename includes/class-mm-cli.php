@@ -5,9 +5,10 @@
  * Provides CLI access to Metamanager operations:
  *
  *   wp metamanager compress <id|all>  — queue lossless compression (images + video remux)
+ *   wp metamanager embed   <id|all>   — queue metadata embedding: write WP fields back into files
  *   wp metamanager import  <id|all>   — import embedded metadata into WP fields (all supported types)
  *   wp metamanager queue   status     — show live queue statistics
- *   wp metamanager scan               — batch-import metadata for un-synced library (all supported types)
+ *   wp metamanager scan               — batch-import + queue daemon jobs for un-synced library
  *   wp metamanager stats              — show compression savings statistics
  *
  * @package Metamanager
@@ -245,8 +246,9 @@ class MM_CLI extends \WP_CLI_Command {
 	 * Import metadata for every library file not yet processed by Metamanager.
 	 *
 	 * Scans all supported attachments (images, video, audio, PDF) that have
-	 * never been synced and imports their embedded metadata into WordPress
-	 * fields.  Already-synced files are skipped automatically.
+	 * never been synced: imports their embedded metadata into WordPress fields
+	 * and queues daemon jobs to write WP fields back into the files.
+	 * Already-synced files are skipped automatically.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -256,7 +258,7 @@ class MM_CLI extends \WP_CLI_Command {
 	 */
 	public function scan( array $args ): void {
 		$supported_mimes = array_merge(
-			[ 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/tiff' ],
+			[ 'image' ],
 			MM_Metadata::VIDEO_MIME_TYPES,
 			MM_Metadata::AUDIO_MIME_TYPES,
 			MM_Metadata::PDF_MIME_TYPES
@@ -268,6 +270,8 @@ class MM_CLI extends \WP_CLI_Command {
 			'post_status'    => 'inherit',
 			'numberposts'    => -1,
 			'fields'         => 'ids',
+			'orderby'        => 'ID',
+			'order'          => 'ASC',
 		] );
 		$done_ids = MM_DB::get_ids_with_completed_job( 'metadata' );
 		$ids      = array_values( array_diff( array_map( 'intval', $all_ids ), $done_ids ) );
@@ -281,13 +285,126 @@ class MM_CLI extends \WP_CLI_Command {
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Scanning library', count( $ids ) );
 
 		foreach ( $ids as $id ) {
-			MM_Metadata::import_from_file( (int) $id );
+			$id   = (int) $id;
+			$mime = (string) get_post_mime_type( $id );
+
+			// Bootstrap WP post_meta from any metadata already embedded in the file.
+			MM_Metadata::import_from_file( $id );
+
+			// Queue daemon jobs — mirrors the on_upload() path for unsynced attachments.
+			if ( wp_attachment_is_image( $id ) ) {
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'both', [ 'trigger' => 'scan' ] );
+			} elseif ( MM_Metadata::is_video_mime( $mime ) ) {
+				$file = get_attached_file( $id );
+				if ( $file && file_exists( $file ) ) {
+					MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'scan' ] );
+					MM_Job_Queue::write_job( 'compression', $id, $file, 'full', [ 'trigger' => 'scan' ] );
+				}
+			} elseif ( MM_Metadata::is_audio_mime( $mime ) || MM_Metadata::is_pdf_mime( $mime ) ) {
+				if ( MM_Metadata::can_write_meta( $mime ) ) {
+					$file = get_attached_file( $id );
+					if ( $file && file_exists( $file ) ) {
+						MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'scan' ] );
+					}
+				}
+			}
+
 			++$count;
 			$progress->tick();
 		}
 
 		$progress->finish();
-		\WP_CLI::success( "Scanned and imported metadata for {$count} file(s)." );
+		\WP_CLI::success( "Scanned {$count} file(s): imported metadata into WP fields and queued daemon jobs." );
+	}
+
+	// -----------------------------------------------------------------------
+	// embed
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Queue metadata embedding for one or all supported attachments.
+	 *
+	 * Queues daemon jobs to write the current WordPress field values back into
+	 * the media files via ExifTool.  Works for images, video, audio, and PDF.
+	 * Use this after editing fields in WordPress to push changes into files.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<id>]
+	 * : Attachment ID to embed.  Omit (or pass "all") to process all supported files.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp metamanager embed 42
+	 *     wp metamanager embed all
+	 *
+	 * @param array $args Positional arguments.
+	 */
+	public function embed( array $args ): void {
+		$target = $args[0] ?? 'all';
+
+		if ( 'all' === strtolower( $target ) ) {
+			$supported_mimes = array_merge(
+				[ 'image' ],
+				MM_Metadata::VIDEO_MIME_TYPES,
+				MM_Metadata::AUDIO_MIME_TYPES,
+				MM_Metadata::PDF_MIME_TYPES
+			);
+			$ids = get_posts( [
+				'post_type'      => 'attachment',
+				'post_mime_type' => $supported_mimes,
+				'post_status'    => 'inherit',
+				'numberposts'    => -1,
+				'fields'         => 'ids',
+			] );
+			if ( empty( $ids ) ) {
+				\WP_CLI::success( 'No supported files found.' );
+				return;
+			}
+		} else {
+			$ids  = [ (int) $target ];
+			$mime = (string) get_post_mime_type( $ids[0] );
+			if (
+				! wp_attachment_is_image( $ids[0] ) &&
+				! MM_Metadata::is_av_mime( $mime ) &&
+				! MM_Metadata::is_pdf_mime( $mime )
+			) {
+				\WP_CLI::error( "Attachment {$ids[0]} is not a supported file type for metadata embedding." );
+			}
+		}
+
+		$count    = 0;
+		$skipped  = 0;
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Queuing embed jobs', count( $ids ) );
+
+		foreach ( $ids as $id ) {
+			$id   = (int) $id;
+			$mime = (string) get_post_mime_type( $id );
+
+			if ( wp_attachment_is_image( $id ) ) {
+				MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'cli' ] );
+				++$count;
+			} elseif ( MM_Metadata::is_av_mime( $mime ) || MM_Metadata::is_pdf_mime( $mime ) ) {
+				if ( MM_Metadata::can_write_meta( $mime ) ) {
+					$file = get_attached_file( $id );
+					if ( $file && file_exists( $file ) ) {
+						MM_Job_Queue::write_job( 'metadata', $id, $file, 'full', [ 'trigger' => 'cli' ] );
+						++$count;
+					} else {
+						++$skipped;
+					}
+				} else {
+					++$skipped;
+				}
+			} else {
+				++$skipped;
+			}
+
+			$progress->tick();
+		}
+
+		$progress->finish();
+		\WP_CLI::success( "Queued embed jobs for {$count} file(s). Skipped: {$skipped}." );
 	}
 
 	// -----------------------------------------------------------------------
