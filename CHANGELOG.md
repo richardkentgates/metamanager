@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.3] — 2026-03-15
+
+### Changed
+
+- **Upload receipt preference is now per-user** — the sitewide "Enable upload
+  receipts" toggle has been removed. The site admin always receives a receipt.
+  Every other WordPress user has an opt-in checkbox on their own profile page
+  ("Send me an email receipt when I upload images") that is enabled by default.
+  Individual users can uncheck it to stop receiving receipts without affecting
+  anyone else.
+
+---
+
 ## [2.1.2] — 2026-03-15
 
 ### Changed
