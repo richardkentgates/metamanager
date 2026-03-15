@@ -499,18 +499,20 @@ class MM_Admin {
 				. '<td style="white-space:pre-wrap;">' . esc_html( $value ) . '</td>'
 				. '</tr>';
 		}
-		// Site provenance — always written to files during any metadata job.
-		echo '<tr><td colspan="2" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #c3c4c7;color:#50575e;font-size:11px;text-transform:uppercase;letter-spacing:.04em;">'
-			. esc_html__( 'Site Provenance (always embedded in metadata jobs)', 'metamanager' )
-			. '</td></tr>';
-		echo '<tr>'
-			. '<td><code>' . esc_html__( 'Publisher', 'metamanager' ) . '</code></td>'
-			. '<td>' . esc_html( get_bloginfo( 'name' ) ) . '</td>'
-			. '</tr>';
-		echo '<tr>'
-			. '<td><code>' . esc_html__( 'Website', 'metamanager' ) . '</code></td>'
-			. '<td>' . esc_html( home_url() ) . '</td>'
-			. '</tr>';
+		// Site provenance — conditionally written to files during metadata jobs.
+		if ( get_option( MM_Settings::OPTION_AUTO_PROVENANCE, true ) ) {
+			echo '<tr><td colspan="2" style="padding:6px 8px 2px;font-weight:700;border-top:1px solid #c3c4c7;color:#50575e;font-size:11px;text-transform:uppercase;letter-spacing:.04em;">'
+				. esc_html__( 'Site Provenance (embedded in metadata jobs)', 'metamanager' )
+				. '</td></tr>';
+			echo '<tr>'
+				. '<td><code>' . esc_html__( 'Publisher', 'metamanager' ) . '</code></td>'
+				. '<td>' . esc_html( get_bloginfo( 'name' ) ) . '</td>'
+				. '</tr>';
+			echo '<tr>'
+				. '<td><code>' . esc_html__( 'Website', 'metamanager' ) . '</code></td>'
+				. '<td>' . esc_html( home_url() ) . '</td>'
+				. '</tr>';
+		}
 		echo '</tbody></table></div>';
 		echo '</div></div>'; // .inside .postbox
 

@@ -14,6 +14,9 @@
  *   mm_api_allowed_ips          — Newline/comma-separated IP allowlist for the REST API.
  *                                 Empty = no restriction.
  *   mm_upload_notify_extra_email — Additional CC address(es) for upload receipts, comma-separated.
+ *   mm_auto_provenance           — When true (default), Publisher (site name) and Website (site URL)
+ *                                 are embedded as neutral provenance in every metadata job.
+ *                                 Set to false to omit them.
  *
  * Per-user options (stored in user meta):
  *   mm_upload_receipt — Whether the user wants to receive upload receipt emails (bool, default true).
@@ -44,6 +47,7 @@ class MM_Settings {
 	const OPTION_API_DISABLED           = 'mm_api_disabled';
 	const OPTION_API_ALLOWED_IPS        = 'mm_api_allowed_ips';
 	const OPTION_UPLOAD_NOTIFY_EXTRA    = 'mm_upload_notify_extra_email';
+	const OPTION_AUTO_PROVENANCE        = 'mm_auto_provenance';
 
 	// -----------------------------------------------------------------------
 	// Boot
@@ -188,6 +192,18 @@ class MM_Settings {
 			]
 		);
 
+		// --- Metadata embedding ---
+
+		register_setting(
+			'mm_settings_group',
+			self::OPTION_AUTO_PROVENANCE,
+			[
+				'type'              => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default'           => true,
+			]
+		);
+
 		// --- Uninstall ---
 
 		add_settings_section(
@@ -226,6 +242,21 @@ class MM_Settings {
 			[ __CLASS__, 'field_upload_notify_extra' ],
 			'metamanager-settings',
 			'mm_section_upload_notify'
+		);
+
+		add_settings_section(
+			'mm_section_metadata',
+			esc_html__( 'Metadata Embedding', 'metamanager' ),
+			fn() => esc_html_e( 'Controls which data is automatically embedded in image metadata during upload and queued jobs.', 'metamanager' ),
+			'metamanager-settings'
+		);
+
+		add_settings_field(
+			'mm_auto_provenance',
+			esc_html__( 'Auto-embed site provenance', 'metamanager' ),
+			[ __CLASS__, 'field_auto_provenance' ],
+			'metamanager-settings',
+			'mm_section_metadata'
 		);
 
 		add_settings_section(
@@ -329,6 +360,17 @@ class MM_Settings {
 			esc_attr( $value )
 		);
 		echo '<p class="description">' . esc_html__( 'Optional. Comma-separated list of addresses that will receive a copy of every upload receipt in addition to the admin and uploader.', 'metamanager' ) . '</p>';
+	}
+
+	public static function field_auto_provenance(): void {
+		$checked = (bool) get_option( self::OPTION_AUTO_PROVENANCE, true );
+		printf(
+			'<input type="checkbox" id="mm_auto_provenance" name="%s" value="1"%s>',
+			esc_attr( self::OPTION_AUTO_PROVENANCE ),
+			checked( $checked, true, false )
+		);
+		echo ' <label for="mm_auto_provenance">' . esc_html__( 'Embed site name and URL in image metadata', 'metamanager' ) . '</label>';
+		echo '<p class="description">' . esc_html__( 'When enabled (default), the Publisher (site name) and Website (site URL) fields are embedded as neutral provenance in every metadata job and on upload. This is not an authorship or copyright claim &mdash; it simply marks where the file was published. Disable if you want Metamanager to leave those fields untouched.', 'metamanager' ) . '</p>';
 	}
 
 	public static function field_delete_data(): void {

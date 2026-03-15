@@ -356,8 +356,11 @@ class MM_Metadata {
 			'Copyright'   => $meta( self::META_COPYRIGHT ),
 			'Owner'       => $meta( self::META_OWNER ),
 			// Site provenance — neutral, never asserts authorship or copyright.
-			'Publisher'   => get_bloginfo( 'name' ),
-			'Website'     => home_url(),
+			// Only embedded when the auto-provenance setting is enabled (default: on).
+			...( get_option( MM_Settings::OPTION_AUTO_PROVENANCE, true ) ? [
+				'Publisher' => get_bloginfo( 'name' ),
+				'Website'   => home_url(),
+			] : [] ),
 			// Editorial.
 			'Headline'    => $meta( self::META_HEADLINE ),
 			'Credit'      => $meta( self::META_CREDIT ),

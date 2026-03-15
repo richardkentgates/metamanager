@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.6] — 2026-03-15
+
+### Added
+
+- **Auto-embed site provenance setting** — a new "Metadata Embedding" section on
+  the Settings page exposes an **Auto-embed site name and URL** checkbox
+  (enabled by default). When checked, Publisher (site name) and Website (site
+  URL) are embedded in every metadata job exactly as before. Unchecking the box
+  omits those fields entirely, leaving them untouched in the file. The Site
+  Provenance rows in the attachment metadata table are also hidden when the
+  setting is disabled. Existing installations default to enabled, preserving
+  current behaviour with no action required.
+
+---
+
 ## [2.1.5] — 2026-03-15
 
 ### Fixed
