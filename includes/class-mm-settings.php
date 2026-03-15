@@ -13,8 +13,11 @@
  *   mm_api_disabled             — When true, all Metamanager REST API routes return 403.
  *   mm_api_allowed_ips          — Newline/comma-separated IP allowlist for the REST API.
  *                                 Empty = no restriction.
- *   mm_upload_notify_enabled    — Whether to send receipt emails when images are uploaded.
  *   mm_upload_notify_extra_email — Additional CC address(es) for upload receipts, comma-separated.
+ *
+ * Per-user options (stored in user meta):
+ *   mm_upload_receipt — Whether the user wants to receive upload receipt emails (bool, default true).
+ *                       The site admin always receives receipts regardless of this setting.
  *
  * Sitemap options (managed by MM_Sitemap::register_settings()):
  *   mm_sitemap_media            — Serve /sitemap-media.xml (bool, default true).
@@ -40,7 +43,6 @@ class MM_Settings {
 	const OPTION_DELETE_DATA            = 'mm_delete_data_on_uninstall';
 	const OPTION_API_DISABLED           = 'mm_api_disabled';
 	const OPTION_API_ALLOWED_IPS        = 'mm_api_allowed_ips';
-	const OPTION_UPLOAD_NOTIFY_ENABLED  = 'mm_upload_notify_enabled';
 	const OPTION_UPLOAD_NOTIFY_EXTRA    = 'mm_upload_notify_extra_email';
 
 	// -----------------------------------------------------------------------
@@ -178,16 +180,6 @@ class MM_Settings {
 
 		register_setting(
 			'mm_settings_group',
-			self::OPTION_UPLOAD_NOTIFY_ENABLED,
-			[
-				'type'              => 'boolean',
-				'sanitize_callback' => 'rest_sanitize_boolean',
-				'default'           => false,
-			]
-		);
-
-		register_setting(
-			'mm_settings_group',
 			self::OPTION_UPLOAD_NOTIFY_EXTRA,
 			[
 				'type'              => 'string',
@@ -224,16 +216,8 @@ class MM_Settings {
 		add_settings_section(
 			'mm_section_upload_notify',
 			esc_html__( 'Upload Receipts', 'metamanager' ),
-			fn() => esc_html_e( 'Send an email receipt whenever images are uploaded to the Media Library. Multiple files uploaded in quick succession are batched into a single email.', 'metamanager' ),
+			fn() => esc_html_e( 'Upload receipts are always sent to the site admin. Each user can enable or disable their own receipt on their profile page. Multiple files uploaded within 60 seconds are batched into a single email.', 'metamanager' ),
 			'metamanager-settings'
-		);
-
-		add_settings_field(
-			'mm_upload_notify_enabled',
-			esc_html__( 'Enable upload receipts', 'metamanager' ),
-			[ __CLASS__, 'field_upload_notify_enabled' ],
-			'metamanager-settings',
-			'mm_section_upload_notify'
 		);
 
 		add_settings_field(
@@ -337,17 +321,6 @@ class MM_Settings {
 		}
 	}
 
-	public static function field_upload_notify_enabled(): void {
-		$checked = self::get_upload_notify_enabled();
-		printf(
-			'<input type="checkbox" id="mm_upload_notify_enabled" name="%s" value="1"%s>',
-			esc_attr( self::OPTION_UPLOAD_NOTIFY_ENABLED ),
-			checked( $checked, true, false )
-		);
-		echo ' <label for="mm_upload_notify_enabled">' . esc_html__( 'Send an email receipt when images are uploaded', 'metamanager' ) . '</label>';
-		echo '<p class="description">' . esc_html__( 'Emails are sent to the site admin and to the uploading user. Multiple files uploaded within 60 seconds are grouped into a single email.', 'metamanager' ) . '</p>';
-	}
-
 	public static function field_upload_notify_extra(): void {
 		$value = (string) get_option( self::OPTION_UPLOAD_NOTIFY_EXTRA, '' );
 		printf(
@@ -447,13 +420,6 @@ class MM_Settings {
 		$items = array_map( 'trim', $items ?: [] );
 		$items = array_filter( $items );
 		return array_values( $items );
-	}
-
-	/**
-	 * Whether upload receipt emails are enabled.
-	 */
-	public static function get_upload_notify_enabled(): bool {
-		return (bool) get_option( self::OPTION_UPLOAD_NOTIFY_ENABLED, false );
 	}
 
 	/**

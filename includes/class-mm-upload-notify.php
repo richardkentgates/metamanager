@@ -52,6 +52,12 @@ class MM_Upload_Notify {
 
 		// AJAX: dismiss (delete without retry) a failed notification entry.
 		add_action( 'wp_ajax_mm_dismiss_upload_notice', [ __CLASS__, 'ajax_dismiss_notice' ] );
+
+		// Per-user receipt preference on the user profile page.
+		add_action( 'show_user_profile',        [ __CLASS__, 'render_profile_field' ] );
+		add_action( 'edit_user_profile',        [ __CLASS__, 'render_profile_field' ] );
+		add_action( 'personal_options_update',  [ __CLASS__, 'save_profile_field' ] );
+		add_action( 'edit_user_profile_update', [ __CLASS__, 'save_profile_field' ] );
 	}
 
 	// -----------------------------------------------------------------------
@@ -65,10 +71,6 @@ class MM_Upload_Notify {
 	 * @param int $attachment_id The new attachment post ID.
 	 */
 	public static function on_attachment_added( int $attachment_id ): void {
-		if ( ! MM_Settings::get_upload_notify_enabled() ) {
-			return;
-		}
-
 		$user_id = get_current_user_id();
 
 		// Read current batch (may not yet exist).
@@ -134,6 +136,11 @@ class MM_Upload_Notify {
 			}
 			// If this user is the admin address, they'll get the admin email — skip.
 			if ( strtolower( $user->user_email ) === strtolower( $admin_mail ) ) {
+				continue;
+			}
+
+			// Respect the user's per-profile opt-out preference.
+			if ( ! self::user_wants_receipt( $uid ) ) {
 				continue;
 			}
 
@@ -492,6 +499,73 @@ class MM_Upload_Notify {
 		$lines[] = '';
 		$lines[] = '— ' . $site_name . ' · ' . $site_url;
 		return implode( "\n", $lines );
+	}
+
+	// -----------------------------------------------------------------------
+	// Per-user receipt preference (user profile field)
+	// -----------------------------------------------------------------------
+
+	/** User-meta key that stores the per-user receipt preference. */
+	const META_USER_RECEIPT = 'mm_upload_receipt';
+
+	/**
+	 * Whether a given user wants to receive upload receipt emails.
+	 * Defaults to true (opted in) when no preference has been saved yet.
+	 *
+	 * @param int $user_id WordPress user ID.
+	 * @return bool
+	 */
+	public static function user_wants_receipt( int $user_id ): bool {
+		$value = get_user_meta( $user_id, self::META_USER_RECEIPT, true );
+		// Empty string means never saved — default to opted in.
+		if ( '' === $value ) {
+			return true;
+		}
+		return (bool) $value;
+	}
+
+	/**
+	 * Render the opt-in/out checkbox on the user profile edit page.
+	 *
+	 * @param \WP_User $user The user being edited.
+	 */
+	public static function render_profile_field( \WP_User $user ): void {
+		$checked = self::user_wants_receipt( $user->ID );
+		?>
+		<h2><?php esc_html_e( 'Metamanager', 'metamanager' ); ?></h2>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Upload receipts', 'metamanager' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="mm_upload_receipt" value="1"<?php checked( $checked ); ?>>
+						<?php esc_html_e( 'Send me an email receipt when I upload images to the Media Library', 'metamanager' ); ?>
+					</label>
+					<p class="description"><?php esc_html_e( 'Multiple files uploaded within 60 seconds are batched into one email.', 'metamanager' ); ?></p>
+					<?php wp_nonce_field( 'mm_upload_receipt_' . $user->ID, 'mm_upload_receipt_nonce' ); ?>
+				</td>
+			</tr>
+		</table>
+		<?php
+	}
+
+	/**
+	 * Save the per-user receipt preference submitted from the profile page.
+	 *
+	 * @param int $user_id The user being updated.
+	 */
+	public static function save_profile_field( int $user_id ): void {
+		if ( ! isset( $_POST['mm_upload_receipt_nonce'] ) ) {
+			return;
+		}
+		check_admin_referer( 'mm_upload_receipt_' . $user_id, 'mm_upload_receipt_nonce' );
+
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			return;
+		}
+
+		$wants = isset( $_POST['mm_upload_receipt'] ) && '1' === $_POST['mm_upload_receipt'];
+		update_user_meta( $user_id, self::META_USER_RECEIPT, $wants ? '1' : '0' );
 	}
 
 	// -----------------------------------------------------------------------
