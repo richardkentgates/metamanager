@@ -825,7 +825,7 @@ wp metamanager import 42            # single attachment ID</code></pre>
 
             <div class="cli-card">
                 <div class="cli-cmd">wp metamanager scan</div>
-                <p>Import metadata for every library file not yet processed by Metamanager. Faster than <code>import all</code> on large existing libraries &mdash; already-synced files are skipped automatically. Good for first run after activation on a site with an existing media library.</p>
+                <p>Queue daemon jobs for every library file not yet processed by Metamanager. For each unsynced file: reads embedded tags into WordPress fields, then queues a metadata-embedding job and (for images and video) a compression job — exactly mirroring the upload path. Already-synced files are skipped. Good for first run after activation on a site with an existing media library.</p>
                 <div class="arch-diagram">
 <pre><code>wp metamanager scan</code></pre>
                 </div>
@@ -833,7 +833,7 @@ wp metamanager import 42            # single attachment ID</code></pre>
 
             <div class="cli-card">
                 <div class="cli-cmd">wp metamanager embed</div>
-                <p>Queue metadata-embedding daemon jobs for one attachment or all supported media. Unlike <code>import</code> (which reads tags <em>from</em> the file into WordPress), <code>embed</code> writes WordPress field values <em>back into</em> the file via the metadata daemon. Accepts <code>--force</code> to re-queue files already processed.</p>
+                <p>Queue metadata-embedding daemon jobs for one attachment or all supported media. Unlike <code>import</code> (which reads tags <em>from</em> the file into WordPress), <code>embed</code> writes WordPress field values <em>back into</em> the file via the metadata daemon. Already-completed files are skipped unless <code>--force</code> is passed.</p>
                 <div class="arch-diagram">
 <pre><code>wp metamanager embed             # all supported files
 wp metamanager embed all         # explicit

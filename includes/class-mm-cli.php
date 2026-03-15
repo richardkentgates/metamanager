@@ -333,14 +333,20 @@ class MM_CLI extends \WP_CLI_Command {
 	 * [<id>]
 	 * : Attachment ID to embed.  Omit (or pass "all") to process all supported files.
 	 *
+	 * [--force]
+	 * : Re-queue even if the file already has a completed metadata job.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp metamanager embed 42
 	 *     wp metamanager embed all
+	 *     wp metamanager embed all --force
 	 *
-	 * @param array $args Positional arguments.
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args Named arguments.
 	 */
-	public function embed( array $args ): void {
+	public function embed( array $args, array $assoc_args = [] ): void {
+		$force  = isset( $assoc_args['force'] );
 		$target = $args[0] ?? 'all';
 
 		if ( 'all' === strtolower( $target ) ) {
@@ -373,6 +379,8 @@ class MM_CLI extends \WP_CLI_Command {
 			}
 		}
 
+		$done_ids = $force ? [] : MM_DB::get_ids_with_completed_job( 'metadata' );
+
 		$count    = 0;
 		$skipped  = 0;
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Queuing embed jobs', count( $ids ) );
@@ -380,6 +388,12 @@ class MM_CLI extends \WP_CLI_Command {
 		foreach ( $ids as $id ) {
 			$id   = (int) $id;
 			$mime = (string) get_post_mime_type( $id );
+
+			if ( ! $force && in_array( $id, $done_ids, true ) ) {
+				++$skipped;
+				$progress->tick();
+				continue;
+			}
 
 			if ( wp_attachment_is_image( $id ) ) {
 				MM_Job_Queue::enqueue_all_sizes( $id, [], 'metadata', [ 'trigger' => 'cli' ] );
