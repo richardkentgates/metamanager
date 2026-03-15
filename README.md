@@ -11,9 +11,6 @@
 
 📖 **[Full documentation → GitHub Wiki](https://github.com/richardkentgates/metamanager/wiki)**
 
-> [!NOTE]
-> **Beta software.** Core features are complete and integration-tested. Breaking changes are possible before a stable 1.0 release. [Bug reports and feedback](https://github.com/richardkentgates/metamanager/issues) are welcome.
-
 ---
 
 ## Why Metamanager
