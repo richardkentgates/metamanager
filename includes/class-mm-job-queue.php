@@ -63,10 +63,7 @@ class MM_Job_Queue {
 			// Drop an .htaccess in each queue dir to prevent direct HTTP access.
 			$htaccess = trailingslashit( $dir ) . '.htaccess';
 			if ( ! file_exists( $htaccess ) ) {
-				$fs = self::get_filesystem();
-				if ( $fs ) {
-					$fs->put_contents( $htaccess, "Deny from all\n", FS_CHMOD_FILE );
-				}
+				self::get_filesystem()->put_contents( $htaccess, "Deny from all\n", FS_CHMOD_FILE );
 			}
 		}
 	}
@@ -165,10 +162,8 @@ class MM_Job_Queue {
 		$filename = $dir . $attachment_id . '-' . $size . '-' . time() . '-' . $uid . '.json';
 
 		$fs = self::get_filesystem();
-		if ( $fs ) {
-			$fs->put_contents( $filename, (string) wp_json_encode( $job ), FS_CHMOD_FILE );
-			MM_DB::log_pending_job( $job );
-		}
+		$fs->put_contents( $filename, (string) wp_json_encode( $job ), FS_CHMOD_FILE );
+		MM_DB::log_pending_job( $job );
 
 		return ! empty( $pending ) ? 'queued' : 'written';
 	}
