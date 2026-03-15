@@ -74,6 +74,9 @@ class MM_Admin {
 
 		// Job queue status notices (duplicate compression suppressed, metadata queued in sequence).
 		add_action( 'admin_notices', [ __CLASS__, 'queue_notices' ] );
+
+		// Daemon restart reminder after plugin update.
+		add_action( 'admin_notices', [ __CLASS__, 'daemon_restart_notice' ] );
 	}
 
 	// -----------------------------------------------------------------------
@@ -448,6 +451,56 @@ class MM_Admin {
 				'<strong>' . esc_html( implode( ', ', $labels ) ) . '</strong>'
 			) . '</span>';
 			echo '</div>';
+		}
+
+		// Write-back verification notice: show discrepancies from the last verify run.
+		$verify_raw = (string) get_post_meta( $post->ID, MM_Metadata::META_VERIFY_DISCREPANCIES, true );
+		if ( '' !== $verify_raw ) {
+			$discrepancies = json_decode( $verify_raw, true );
+			if ( is_array( $discrepancies ) && ! empty( $discrepancies ) ) {
+				echo '<div style="background:#fff3e0;border:1px solid #e65100;padding:8px 12px;border-radius:3px;margin-bottom:12px;">';
+				echo '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+				echo '<span class="dashicons dashicons-warning" style="color:#e65100;flex-shrink:0;"></span>';
+				echo '<strong>' . esc_html__( 'Metadata write-back discrepancies detected', 'metamanager' ) . '</strong>';
+				echo '</div>';
+				$field_labels = [
+					MM_Metadata::META_CREATOR   => __( 'Creator', 'metamanager' ),
+					MM_Metadata::META_COPYRIGHT => __( 'Copyright', 'metamanager' ),
+					MM_Metadata::META_OWNER     => __( 'Owner', 'metamanager' ),
+					MM_Metadata::META_HEADLINE  => __( 'Headline', 'metamanager' ),
+					MM_Metadata::META_CREDIT    => __( 'Credit', 'metamanager' ),
+					MM_Metadata::META_DATE      => __( 'Date Created', 'metamanager' ),
+					MM_Metadata::META_CITY      => __( 'City', 'metamanager' ),
+					MM_Metadata::META_STATE     => __( 'State', 'metamanager' ),
+					MM_Metadata::META_COUNTRY   => __( 'Country', 'metamanager' ),
+				];
+				echo '<ul style="margin:0;padding-left:20px;font-size:13px;">';
+				foreach ( $discrepancies as $meta_key => $diff ) {
+					$label    = isset( $field_labels[ $meta_key ] ) ? (string) $field_labels[ $meta_key ] : (string) $meta_key;
+					$expected = (string) ( $diff['expected'] ?? '' );
+					$found    = (string) ( $diff['found'] ?? '' );
+					echo '<li><strong>' . esc_html( $label ) . ':</strong> '
+						. sprintf(
+							/* translators: 1: value stored in WordPress, 2: value found in file */
+							esc_html__( 'WordPress has %1$s but file contains %2$s.', 'metamanager' ),
+							'<em>' . esc_html( $expected ) . '</em>',
+							'' !== $found
+								? '<em>' . esc_html( $found ) . '</em>'
+								: esc_html__( '(not set)', 'metamanager' )
+						) . '</li>';
+				}
+				echo '</ul>';
+				$verified_at = (string) get_post_meta( $post->ID, MM_Metadata::META_VERIFIED_AT, true );
+				if ( '' !== $verified_at ) {
+					echo '<p style="margin:6px 0 0;font-size:12px;color:#555;">'
+						. sprintf(
+							/* translators: %s: MySQL datetime of last verification */
+							esc_html__( 'Last verified: %s', 'metamanager' ),
+							esc_html( $verified_at )
+						) . '</p>';
+				}
+				echo '</div>';
+			}
 		}
 
 		// Write capability notice.
@@ -2075,6 +2128,46 @@ class MM_Admin {
 			syncState();
 		});
 		</script>
+		<?php
+	}
+
+	/**
+	 * Show an admin notice after a Metamanager plugin update reminding the
+	 * server admin to restart the OS daemons.
+	 *
+	 * The notice is set by MM_Updater::on_plugin_updated() and persists for
+	 * 7 days. It is dismissed once the admin clicks the dismiss link.
+	 */
+	public static function daemon_restart_notice(): void {
+		if ( ! current_user_can( 'update_plugins' ) ) {
+			return;
+		}
+
+		// Handle dismiss action.
+		if ( ! empty( $_GET['mm_dismiss_daemon_notice'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			if ( check_admin_referer( 'mm_dismiss_daemon_notice' ) ) {
+				delete_transient( 'mm_daemon_restart_notice' );
+				return;
+			}
+		}
+
+		if ( ! get_transient( 'mm_daemon_restart_notice' ) ) {
+			return;
+		}
+
+		$dismiss_url = wp_nonce_url(
+			add_query_arg( 'mm_dismiss_daemon_notice', '1' ),
+			'mm_dismiss_daemon_notice'
+		);
+		?>
+		<div class="notice notice-warning">
+			<p>
+				<strong><?php esc_html_e( 'Metamanager updated — daemon restart required.', 'metamanager' ); ?></strong><br>
+				<?php esc_html_e( 'Please SSH into the server and run:', 'metamanager' ); ?>
+				<code>sudo systemctl restart metamanager-compress-daemon metamanager-meta-daemon</code>
+			</p>
+			<p><a href="<?php echo esc_url( $dismiss_url ); ?>"><?php esc_html_e( 'Dismiss', 'metamanager' ); ?></a></p>
+		</div>
 		<?php
 	}
 }

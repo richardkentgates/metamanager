@@ -78,6 +78,16 @@ class MM_Metadata {
 	 */
 	public const META_SYNCED = 'mm_meta_synced';
 
+	/**
+	 * JSON-encoded array of discrepancies found during last write-back verification.
+	 * Each entry: { "expected": "...", "found": "..." } keyed by field label.
+	 * Empty JSON array '[]' when last verify passed cleanly.
+	 */
+	public const META_VERIFY_DISCREPANCIES = 'mm_verify_discrepancies';
+
+	/** MySQL datetime of the most recent write-back verification run. */
+	public const META_VERIFIED_AT = 'mm_verified_at';
+
 	// -----------------------------------------------------------------------
 	// MIME type capability maps
 	// -----------------------------------------------------------------------
@@ -317,6 +327,19 @@ class MM_Metadata {
 				'auth_callback'     => fn() => current_user_can( 'edit_posts' ),
 			] ) );
 		}
+
+		// Verification results — written by the plugin after a verify import completes.
+		register_post_meta( 'attachment', self::META_VERIFY_DISCREPANCIES, array_merge( $base, [
+			'description'       => __( 'JSON-encoded verification discrepancies from last write-back check.', 'metamanager' ),
+			'sanitize_callback' => 'wp_kses_post',
+			'auth_callback'     => fn() => current_user_can( 'edit_posts' ),
+			'show_in_rest'      => false,
+		] ) );
+		register_post_meta( 'attachment', self::META_VERIFIED_AT, array_merge( $base, [
+			'description'       => __( 'Datetime of last write-back verification (MySQL format).', 'metamanager' ),
+			'auth_callback'     => fn() => current_user_can( 'edit_posts' ),
+			'show_in_rest'      => false,
+		] ) );
 	}
 
 	// -----------------------------------------------------------------------
@@ -773,6 +796,78 @@ class MM_Metadata {
 				update_post_meta( $attachment_id, '_wp_attachment_image_alt', sanitize_text_field( $v ) );
 			}
 		}
+	}
+
+	// -----------------------------------------------------------------------
+	// Write-back verification
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Compare embedded ExifTool metadata against WP post meta written-back by the
+	 * daemon. Records any fields where WP has a value but the file does not (or
+	 * carries a different value) into mm_verify_discrepancies. Updates
+	 * mm_verified_at with the current time.
+	 *
+	 * Only the nine primary IPTC/XMP fields are checked — GPS, rating, duration
+	 * and keywords are intentionally excluded because their round-trip formats
+	 * vary and they are not always writable by every ExifTool flavour.
+	 *
+	 * @param int   $attachment_id WP attachment ID.
+	 * @param array $embedded      Flat key→value map from ExifTool (same format
+	 *                             as apply_import_result's $embedded parameter).
+	 */
+	public static function apply_verify_result( int $attachment_id, array $embedded ): void {
+		// Helper: first non-empty value from a priority-ordered list of ExifTool tags.
+		$pick = static function ( array $candidates ) use ( $embedded ): string {
+			foreach ( $candidates as $tag ) {
+				$value = $embedded[ $tag ] ?? '';
+				if ( is_array( $value ) ) {
+					$value = implode( '; ', array_filter( array_map( 'trim', $value ) ) );
+				}
+				$value = trim( (string) $value );
+				if ( '' !== $value ) {
+					return $value;
+				}
+			}
+			return '';
+		};
+
+		// Fields to verify: WP meta-key → priority-ordered ExifTool tag candidates.
+		$checks = [
+			self::META_CREATOR   => [ 'IPTC:By-line', 'IFD0:Artist', 'XMP:Creator', 'EXIF:Artist' ],
+			self::META_COPYRIGHT => [ 'IPTC:CopyrightNotice', 'IFD0:Copyright', 'XMP:Rights', 'EXIF:Copyright' ],
+			self::META_OWNER     => [ 'ExifIFD:OwnerName', 'IFD0:OwnerName', 'XMP:Owner' ],
+			self::META_HEADLINE  => [ 'IPTC:Headline', 'XMP:Headline' ],
+			self::META_CREDIT    => [ 'IPTC:Credit', 'XMP:Credit' ],
+			self::META_DATE      => [ 'ExifIFD:DateTimeOriginal', 'IPTC:DateCreated', 'XMP:DateCreated', 'IFD0:DateTime' ],
+			self::META_CITY      => [ 'IPTC:City', 'XMP:City' ],
+			self::META_STATE     => [ 'IPTC:Province-State', 'XMP:State' ],
+			self::META_COUNTRY   => [ 'IPTC:Country-PrimaryLocationName', 'XMP:Country' ],
+		];
+
+		$discrepancies = [];
+
+		foreach ( $checks as $meta_key => $candidates ) {
+			$wp_value = trim( (string) get_post_meta( $attachment_id, $meta_key, true ) );
+			if ( '' === $wp_value ) {
+				// Nothing set in WP — nothing to verify.
+				continue;
+			}
+			$file_value = $pick( $candidates );
+			if ( self::META_DATE === $meta_key && '' !== $file_value ) {
+				$file_value = self::normalise_date( $file_value );
+			}
+			if ( strtolower( $wp_value ) !== strtolower( $file_value ) ) {
+				$discrepancies[ $meta_key ] = [
+					'expected' => $wp_value,
+					'found'    => $file_value,
+				];
+			}
+		}
+
+		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		update_post_meta( $attachment_id, self::META_VERIFY_DISCREPANCIES, wp_json_encode( $discrepancies ) );
+		update_post_meta( $attachment_id, self::META_VERIFIED_AT, current_time( 'mysql' ) );
 	}
 
 	// -----------------------------------------------------------------------

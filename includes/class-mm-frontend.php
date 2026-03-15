@@ -322,11 +322,39 @@ class MM_Frontend {
 			}
 		}
 
+		// Duration (ISO 8601, e.g. PT1H30M15S) — populated by the meta daemon via ffprobe.
+		$dur_secs = (int) get_post_meta( $id, MM_Metadata::META_DURATION, true );
+		if ( $dur_secs > 0 ) {
+			$schema['duration'] = self::seconds_to_iso_duration( $dur_secs );
+		}
+
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		printf(
 			"\n<!-- Metamanager: Schema.org JSON-LD -->\n<script type=\"application/ld+json\">\n%s\n</script>\n",
 			wp_json_encode( $schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
 		);
+	}
+
+	// -----------------------------------------------------------------------
+	// Helpers
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Convert an integer number of seconds to ISO 8601 duration format.
+	 * e.g. 5415 seconds → "PT1H30M15S"
+	 *
+	 * @param  int    $seconds Non-negative integer.
+	 * @return string          ISO 8601 duration string.
+	 */
+	private static function seconds_to_iso_duration( int $seconds ): string {
+		$h = (int) floor( $seconds / 3600 );
+		$m = (int) floor( ( $seconds % 3600 ) / 60 );
+		$s = $seconds % 60;
+		$d = 'PT';
+		if ( $h ) { $d .= $h . 'H'; }
+		if ( $m ) { $d .= $m . 'M'; }
+		if ( $s || ( ! $h && ! $m ) ) { $d .= $s . 'S'; }
+		return $d;
 	}
 
 	// -----------------------------------------------------------------------

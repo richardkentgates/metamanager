@@ -55,6 +55,11 @@ class MM_Sitemap {
 	/** bool — serve /sitemap-media.xml at all (default true). */
 	const OPT_MEDIA             = 'mm_sitemap_media';
 
+	// Transient keys and TTL for server-side XML caching.
+	const CACHE_KEY_MEDIA = 'mm_sitemap_cache_media';
+	const CACHE_KEY_VIDEO = 'mm_sitemap_cache_video';
+	const CACHE_TTL       = HOUR_IN_SECONDS;
+
 	// -----------------------------------------------------------------------
 	// Boot
 	// -----------------------------------------------------------------------
@@ -68,6 +73,14 @@ class MM_Sitemap {
 		add_action( 'template_redirect',                       [ __CLASS__, 'maybe_serve_sitemap' ] );
 		add_action( 'admin_init',                              [ __CLASS__, 'register_settings' ] );
 		add_action( 'load-media_page_metamanager-settings',    [ __CLASS__, 'add_settings_help_tab' ] );
+		// Append Sitemap: directives to WordPress-generated robots.txt.
+		add_filter( 'robots_txt',                              [ __CLASS__, 'append_robots_txt' ], 10, 2 );
+		// Flush cached XML whenever media or post content changes.
+		add_action( 'save_post',         [ __CLASS__, 'flush_sitemap_cache' ] );
+		add_action( 'add_attachment',    [ __CLASS__, 'flush_sitemap_cache' ] );
+		add_action( 'delete_attachment', [ __CLASS__, 'flush_sitemap_cache' ] );
+		// Ping search engines when a post is published.
+		add_action( 'publish_post',      [ __CLASS__, 'ping_search_engines' ] );
 	}
 
 	// -----------------------------------------------------------------------
@@ -113,17 +126,27 @@ class MM_Sitemap {
 
 		switch ( $type ) {
 			case 'video':
+				$cached = get_transient( self::CACHE_KEY_VIDEO );
+				if ( false === $cached ) {
+					$cached = get_option( self::OPT_VIDEO, true )
+						? self::render_video_sitemap()
+						: self::render_empty_urlset( self::NS_VIDEO, 'video' );
+					set_transient( self::CACHE_KEY_VIDEO, $cached, self::CACHE_TTL );
+				}
 				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				echo get_option( self::OPT_VIDEO, true )
-					? self::render_video_sitemap()
-					: self::render_empty_urlset( self::NS_VIDEO, 'video' );
+				echo $cached;
 				break;
 
 			case 'media':
+				$cached = get_transient( self::CACHE_KEY_MEDIA );
+				if ( false === $cached ) {
+					$cached = get_option( self::OPT_MEDIA, true )
+						? self::render_media_sitemap()
+						: self::render_empty_urlset( '', '' );
+					set_transient( self::CACHE_KEY_MEDIA, $cached, self::CACHE_TTL );
+				}
 				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				echo get_option( self::OPT_MEDIA, true )
-					? self::render_media_sitemap()
-					: self::render_empty_urlset( '', '' );
+				echo $cached;
 				break;
 		}
 
@@ -861,5 +884,62 @@ class MM_Sitemap {
 		echo '<p class="description">'
 			. esc_html__( 'Video attachments are always included. The checkboxes above control extraction of embedded videos from post content.', 'metamanager' )
 			. '</p>';
+	}
+
+	// -------------------------------------------------------------------------
+	// Cache management helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Delete cached sitemap XML (called on any content change).
+	 */
+	public static function flush_sitemap_cache(): void {
+		delete_transient( self::CACHE_KEY_MEDIA );
+		delete_transient( self::CACHE_KEY_VIDEO );
+	}
+
+	/**
+	 * Append Sitemap: directives to the WordPress-generated robots.txt.
+	 *
+	 * @param string $output  Current robots.txt content.
+	 * @param bool   $public  Whether search engines are allowed (site is public).
+	 * @return string
+	 */
+	public static function append_robots_txt( string $output, bool $public ): string {
+		if ( ! $public ) {
+			return $output;
+		}
+		if ( get_option( self::OPT_MEDIA, true ) ) {
+			$output .= "\nSitemap: " . home_url( '/sitemap-media.xml' );
+		}
+		if ( get_option( self::OPT_VIDEO, true ) ) {
+			$output .= "\nSitemap: " . home_url( '/sitemap-video.xml' );
+		}
+		return $output;
+	}
+
+	/**
+	 * Ping Google and Bing with the active sitemaps after a post is published.
+	 * Requests are non-blocking so they never slow down the publish action.
+	 */
+	public static function ping_search_engines(): void {
+		$sitemap_urls = [];
+		if ( get_option( self::OPT_MEDIA, true ) ) {
+			$sitemap_urls[] = home_url( '/sitemap-media.xml' );
+		}
+		if ( get_option( self::OPT_VIDEO, true ) ) {
+			$sitemap_urls[] = home_url( '/sitemap-video.xml' );
+		}
+		foreach ( $sitemap_urls as $sitemap_url ) {
+			$encoded = rawurlencode( $sitemap_url );
+			wp_remote_get(
+				'https://www.google.com/ping?sitemap=' . $encoded,
+				[ 'blocking' => false, 'timeout' => 5 ]
+			);
+			wp_remote_get(
+				'https://www.bing.com/ping?sitemap=' . $encoded,
+				[ 'blocking' => false, 'timeout' => 5 ]
+			);
+		}
 	}
 }

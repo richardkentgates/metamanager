@@ -74,6 +74,9 @@ class MM_Updater {
 
 		// Handle the manual check-for-updates request.
 		add_action( 'admin_init', [ $this, 'handle_manual_check' ] );
+
+		// After any plugin is updated, prompt admins to restart the OS daemons.
+		add_action( 'upgrader_process_complete', [ $this, 'on_plugin_updated' ], 10, 2 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -348,12 +351,33 @@ class MM_Updater {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Fires after the upgrader process completes. Sets a transient so the next
+	 * admin page load shows a notice reminding the server admin to restart the
+	 * Metamanager OS daemons.
+	 *
+	 * @param \WP_Upgrader $upgrader Upgrader instance (unused).
+	 * @param array        $options  Upgrader context: type, action, plugins list.
+	 */
+	public function on_plugin_updated( $upgrader, array $options ): void {
+		if ( 'update' !== ( $options['action'] ?? '' ) ) {
+			return;
+		}
+		if ( 'plugin' !== ( $options['type'] ?? '' ) ) {
+			return;
+		}
+		$updated_plugins = $options['plugins'] ?? [];
+		if ( ! in_array( $this->plugin_basename, (array) $updated_plugins, true ) ) {
+			return;
+		}
+		set_transient( 'mm_daemon_restart_notice', '1', 7 * DAY_IN_SECONDS );
+	}
+
+	/**
 	 * Build a minimal changelog section from the CHANGELOG.md file in the
 	 * plugin directory, stripping headings and converting to simple HTML.
 	 * Falls back to an empty string if the file is not present.
 	 */
-	private function build_changelog_section(): string {
-		$file = MM_PLUGIN_DIR . 'CHANGELOG.md';
+	private function build_changelog_section(): string {		$file = MM_PLUGIN_DIR . 'CHANGELOG.md';
 		if ( ! file_exists( $file ) ) {
 			return '';
 		}

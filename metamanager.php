@@ -3,7 +3,7 @@
  * Plugin Name:  Metamanager
  * Plugin URI:   https://github.com/richardkentgates/metamanager
  * Description:  Lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) via OS-level daemons. Expands the WordPress Media Library with native metadata editing, bulk operations, and a real-time job dashboard.
- * Version:      2.1.6
+ * Version:      2.1.7
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:       Richard Kent Gates
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 // Plugin constants
 // ---------------------------------------------------------------------------
 
-define( 'MM_VERSION',     '2.1.6' );
+define( 'MM_VERSION',     '2.1.7' );
 define( 'MM_PLUGIN_FILE', __FILE__ );
 define( 'MM_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'MM_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -261,25 +261,45 @@ function mm_import_completed_jobs(): void {
 				// Import result: apply embedded tags to WP post meta, then queue
 				// the metadata write-back job so the daemon embeds the values.
 				if ( 'import' === ( $job['job_type'] ?? '' ) && 'completed' === $status ) {
-					$att_id = (int) ( $job['attachment_id'] ?? 0 );
-					$tags   = is_array( $job['embedded_tags'] ?? null ) ? $job['embedded_tags'] : [];
+					$att_id  = (int) ( $job['attachment_id'] ?? 0 );
+					$tags    = is_array( $job['embedded_tags'] ?? null ) ? $job['embedded_tags'] : [];
+					$trigger = (string) ( $job['trigger'] ?? '' );
 					if ( $att_id > 0 ) {
-						MM_Metadata::apply_import_result( $att_id, $tags );
+						if ( 'verify' === $trigger ) {
+							// Post-write-back verification: compare embedded tags against
+							// WP meta and record any discrepancies for display in the admin.
+							MM_Metadata::apply_verify_result( $att_id, $tags );
+						} else {
+							MM_Metadata::apply_import_result( $att_id, $tags );
 
-						// Now that WP fields are populated, queue the write-back job.
-						$file = get_attached_file( $att_id );
-						$mime = (string) get_post_mime_type( $att_id );
-						if ( $file && file_exists( $file ) && MM_Metadata::can_write_meta( $mime ) ) {
-							MM_Job_Queue::write_job( 'metadata', $att_id, $file, 'full', [ 'trigger' => 'import' ] );
-						}
+							// Now that WP fields are populated, queue the write-back job.
+							$file = get_attached_file( $att_id );
+							$mime = (string) get_post_mime_type( $att_id );
+							if ( $file && file_exists( $file ) && MM_Metadata::can_write_meta( $mime ) ) {
+								MM_Job_Queue::write_job( 'metadata', $att_id, $file, 'full', [ 'trigger' => 'import' ] );
+							}
 
-						// For images, also queue metadata write-back for all registered sizes.
-						if ( wp_attachment_is_image( $att_id ) ) {
-							$meta = wp_get_attachment_metadata( $att_id );
-							if ( is_array( $meta ) ) {
-								MM_Job_Queue::enqueue_all_sizes( $att_id, $meta, 'metadata', [ 'trigger' => 'import' ] );
+							// For images, also queue metadata write-back for all registered sizes.
+							if ( wp_attachment_is_image( $att_id ) ) {
+								$meta = wp_get_attachment_metadata( $att_id );
+								if ( is_array( $meta ) ) {
+									MM_Job_Queue::enqueue_all_sizes( $att_id, $meta, 'metadata', [ 'trigger' => 'import' ] );
+								}
 							}
 						}
+					}
+				}
+
+				// Metadata write-back completed: queue a verification read-back so
+				// the daemon re-reads the file and confirms all values stuck.
+				// Only queue for the 'full' size to avoid a verification storm on images.
+				if ( 'metadata' === ( $job['job_type'] ?? '' )
+					&& 'full' === ( $job['size'] ?? '' )
+					&& 'completed' === $status ) {
+					$att_id = (int) ( $job['attachment_id'] ?? 0 );
+					$file   = $att_id > 0 ? get_attached_file( $att_id ) : '';
+					if ( $att_id > 0 && $file && file_exists( $file ) && MM_Status::exiftool_available() ) {
+						MM_Job_Queue::write_job( 'import', $att_id, (string) $file, 'full', [ 'trigger' => 'verify' ] );
 					}
 				}
 

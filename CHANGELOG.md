@@ -7,6 +7,36 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.7] — 2026-03-22
+
+### Added
+
+- **`duration` in Schema.org JSON-LD** — VideoObject and AudioObject structured
+  data output now includes a `duration` field in ISO 8601 duration format
+  (e.g., `PT1H30M15S`) when a media duration has been recorded by the daemon.
+
+- **Sitemap caching, robots.txt, and search-engine ping** — sitemap XML is now
+  cached in a WordPress transient (1-hour TTL) instead of regenerating on every
+  HTTP request. The cache is automatically flushed on post publish/update and
+  media library changes. Active sitemaps are appended as `Sitemap:` directives
+  to `robots.txt` automatically. Google and Bing are pinged via a non-blocking
+  HTTP request whenever a post is published.
+
+- **Write-back verification** — after the metadata daemon successfully embeds
+  fields into a file, Metamanager automatically queues a read-back import job
+  to re-read the file with ExifTool. If any fields that WordPress holds do not
+  match what was found in the file, the discrepancies are recorded in
+  `mm_verify_discrepancies` post meta and displayed as an amber warning panel
+  on the attachment edit screen.
+
+- **Post-update daemon restart notice** — after Metamanager is updated through
+  the WordPress plugin updater, an admin notice appears reminding server admins
+  to restart the OS daemons (`systemctl restart metamanager-compress-daemon
+  metamanager-meta-daemon`). The notice persists for 7 days and can be
+  dismissed with one click.
+
+---
+
 ## [2.1.6] — 2026-03-15
 
 ### Added
