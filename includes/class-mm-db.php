@@ -384,6 +384,24 @@ class MM_DB {
 	}
 
 	/**
+	 * Return the distinct job_type values that are currently pending for an attachment.
+	 * Empty array means no queued work. Used for queue-indicator badges in the admin.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return string[]  e.g. ['import', 'compression']
+	 */
+	public static function get_pending_job_types( int $attachment_id ): array {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$types = $wpdb->get_col( $wpdb->prepare(
+			"SELECT DISTINCT job_type FROM {$table} WHERE attachment_id = %d AND status = 'pending'",
+			$attachment_id
+		) );
+		return is_array( $types ) ? $types : [];
+	}
+
+	/**
 	 * Return attachment IDs that have at least one completed job of the given type.
 	 * Used by library scan to find unprocessed attachments without post_meta queries.
 	 *

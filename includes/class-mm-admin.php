@@ -339,6 +339,18 @@ class MM_Admin {
 			if ( ! wp_attachment_is_image( $attachment_id ) && ! MM_Metadata::is_av_mime( $mime ) && ! MM_Metadata::is_pdf_mime( $mime ) ) {
 				return;
 			}
+
+			$pending_types = MM_DB::get_pending_job_types( $attachment_id );
+			if ( ! empty( $pending_types ) ) {
+				echo '<span class="dashicons dashicons-clock" style="color:#dba617;" title="'
+					. esc_attr( sprintf(
+						/* translators: %s: comma-separated job type list */
+						__( 'Queued: %s', 'metamanager' ),
+						implode( ', ', $pending_types )
+					) ) . '"></span>';
+				return;
+			}
+
 			if ( MM_DB::has_any_completed_metadata( $attachment_id ) ) {
 				echo '<span class="dashicons dashicons-yes-alt" style="color:#00a32a;" title="'
 					. esc_attr__( 'Metadata embedded by daemon', 'metamanager' ) . '"></span>';
@@ -412,6 +424,48 @@ class MM_Admin {
 			echo '<div style="margin-bottom:12px;">';
 			echo '<span style="color:#888;font-size:13px;">'
 				. esc_html__( 'Audio files are not compressed — metadata import and write-back only.', 'metamanager' ) . '</span>';
+			echo '</div>';
+		}
+
+		// Pending jobs notice.
+		$pending_types = MM_DB::get_pending_job_types( $post->ID );
+		if ( ! empty( $pending_types ) ) {
+			$labels = array_map( static function ( string $t ): string {
+				return match ( $t ) {
+					'import'      => __( 'metadata import', 'metamanager' ),
+					'compression' => __( 'compression', 'metamanager' ),
+					'metadata'    => __( 'metadata write-back', 'metamanager' ),
+					default       => $t,
+				};
+			}, $pending_types );
+			echo '<div style="background:#fff8e1;border:1px solid #dba617;padding:8px 12px;border-radius:3px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">';
+			echo '<span class="dashicons dashicons-clock" style="color:#dba617;flex-shrink:0;"></span>';
+			echo '<span>' . sprintf(
+				/* translators: %s: comma-separated list of job types */
+				esc_html__( 'Job queued and waiting for daemon: %s.', 'metamanager' ),
+				'<strong>' . esc_html( implode( ', ', $labels ) ) . '</strong>'
+			) . '</span>';
+			echo '</div>';
+		}
+
+		// Pending jobs notice.
+		$pending_types = MM_DB::get_pending_job_types( $post->ID );
+		if ( ! empty( $pending_types ) ) {
+			$labels = array_map( static function ( string $t ): string {
+				return match ( $t ) {
+					'import'      => __( 'metadata import', 'metamanager' ),
+					'compression' => __( 'compression', 'metamanager' ),
+					'metadata'    => __( 'metadata write-back', 'metamanager' ),
+					default       => $t,
+				};
+			}, $pending_types );
+			echo '<div style="background:#fff8e1;border:1px solid #dba617;padding:8px 12px;border-radius:3px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">';
+			echo '<span class="dashicons dashicons-clock" style="color:#dba617;flex-shrink:0;"></span> ';
+			echo '<span>' . sprintf(
+				/* translators: %s: comma-separated list of job types */
+				esc_html__( 'Job queued and waiting for daemon: %s.', 'metamanager' ),
+				'<strong>' . esc_html( implode( ', ', $labels ) ) . '</strong>'
+			) . '</span>';
 			echo '</div>';
 		}
 
