@@ -7,6 +7,42 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.1.0] — 2026-03-14
+
+### Added
+
+- **`<video:family_friendly>` sitemap tag** — emitted in both `sitemap-media.xml`
+  and `sitemap-video.xml` for video attachment entries. Value is `yes` when
+  `mm_rating` ≤ 4 and `no` when > 4; omitted when no rating is set.
+
+### Changed
+
+- **PDF entries in `sitemap-media.xml`** — `<loc>` now points to the direct file
+  URL instead of the WordPress attachment page permalink. Google indexes PDF
+  documents by file URL, not by a surrounding HTML page.
+- **`wp metamanager embed --force`** — flag was documented but not implemented;
+  re-queues files that already have a completed metadata job, matching the
+  documented behaviour.
+- **Compact truncated pagination** — Job Results and Batch Metadata tables now
+  render a windowed page list (`« prev 1 … 4 5 6 … 12 next »`) instead of a
+  full flat list, keeping the UI usable for large libraries.
+
+### Fixed
+
+- **PHPStan level-6** — removed always-true `if ($fs)` null guards in
+  `MM_Job_Queue` following the earlier fix that made `get_filesystem()` return a
+  non-nullable `WP_Filesystem_Direct` directly.
+
+### Documentation
+
+- Beta language removed from README, docs site, and all wiki pages.
+- Docs site and wiki updated to reflect all implemented sitemap fields
+  (`<image:geo_location>`, `<video:tag>`, `<video:uploader>`,
+  `<video:family_friendly>`, PDF direct `<loc>`).
+- `"for WordPress"` subtitle removed from the header logo on the docs site.
+
+---
+
 ## [2.0.2] — 2026-03-14
 
 ### Fixed
