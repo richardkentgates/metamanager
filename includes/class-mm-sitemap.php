@@ -354,17 +354,18 @@ class MM_Sitemap {
 		$description = wp_strip_all_tags( $att->post_excerpt ?: '' );
 
 		$record = [
-			'thumbnail'   => $thumbnail,
-			'title'       => $title,
-			'description' => $description,
-			'player_loc'  => '',
-			'content_loc' => $url,
-			'duration'    => null,
-			'pub_date'    => null,
-			'rating'      => null,
-			'tags'        => [],
-			'uploader'    => null,
-			'uploader_url'=> null,
+			'thumbnail'      => $thumbnail,
+			'title'          => $title,
+			'description'    => $description,
+			'player_loc'     => '',
+			'content_loc'    => $url,
+			'duration'       => null,
+			'pub_date'       => null,
+			'rating'         => null,
+			'family_friendly'=> null,
+			'tags'           => [],
+			'uploader'       => null,
+			'uploader_url'   => null,
 		];
 
 		// Duration from ffprobe (integer seconds, stored by the meta daemon).
@@ -385,7 +386,9 @@ class MM_Sitemap {
 		// Rating (0–5 stars stored as integer, spec accepts 0.0–5.0 float).
 		$rating = $meta( MM_Metadata::META_RATING );
 		if ( '' !== $rating ) {
-			$record['rating'] = round( (float) $rating, 1 );
+			$float_rating              = round( (float) $rating, 1 );
+			$record['rating']          = $float_rating;
+			$record['family_friendly'] = $float_rating <= 4.0;
 		}
 
 		// Publication date (ISO 8601).
@@ -500,14 +503,20 @@ class MM_Sitemap {
 		$xml .= ">\n";
 
 		foreach ( $attachments as $att ) {
-			$permalink = get_attachment_link( $att->ID );
-			if ( ! $permalink ) {
-				continue;
-			}
 			$mime = (string) get_post_mime_type( $att->ID );
 
+			// PDFs: Google indexes documents directly by file URL, so use the
+			// raw attachment URL rather than the WordPress attachment page.
+			$loc = MM_Metadata::is_pdf_mime( $mime )
+				? wp_get_attachment_url( $att->ID )
+				: get_attachment_link( $att->ID );
+
+			if ( ! $loc ) {
+				continue;
+			}
+
 			$xml .= "\t<url>\n";
-			$xml .= "\t\t<loc>" . esc_xml( $permalink ) . "</loc>\n";
+			$xml .= "\t\t<loc>" . esc_xml( $loc ) . "</loc>\n";
 
 			if ( $include_images && $has_images && wp_attachment_is_image( $att->ID ) ) {
 				$xml .= self::render_image_node( $att->ID, $att );
@@ -602,8 +611,9 @@ class MM_Sitemap {
 	 * Render a <video:video> extension node from a normalised video record array.
 	 *
 	 * Expected array keys: thumbnail, title, description, player_loc,
-	 * content_loc, duration, pub_date, rating, tags (array), uploader,
-	 * uploader_url. All keys are optional; missing/null values are omitted.
+	 * content_loc, duration, pub_date, rating, family_friendly (bool|null),
+	 * tags (array), uploader, uploader_url. All keys are optional;
+	 * missing/null values are omitted.
 	 *
 	 * Per Google's spec, player_loc and content_loc are mutually exclusive;
 	 * player_loc takes precedence when both are set.
@@ -638,6 +648,10 @@ class MM_Sitemap {
 
 		if ( null !== ( $v['rating'] ?? null ) ) {
 			$xml .= "\t\t\t<video:rating>" . number_format( (float) $v['rating'], 1 ) . "</video:rating>\n";
+		}
+
+		if ( null !== ( $v['family_friendly'] ?? null ) ) {
+			$xml .= "\t\t\t<video:family_friendly>" . ( $v['family_friendly'] ? 'yes' : 'no' ) . "</video:family_friendly>\n";
 		}
 
 		foreach ( (array) ( $v['tags'] ?? [] ) as $tag ) {
