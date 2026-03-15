@@ -1471,6 +1471,79 @@ class MM_Admin {
 	}
 
 	/**
+	 * Render compact truncated pagination links.
+	 *
+	 * Always shows: « Prev  1 … p-1 p p+1 … last  Next »
+	 * When near the start/end the ellipsis is omitted and extra adjacent pages are shown.
+	 *
+	 * @param int    $paged       Current page.
+	 * @param int    $total_pages Total page count.
+	 * @param string $type        'ajax' (mm-page-link buttons) or 'url' (real hrefs).
+	 * @param array  $url_args    Extra query args used when $type === 'url'.
+	 */
+	private static function render_pagination( int $paged, int $total_pages, string $type = 'ajax', array $url_args = [] ): void {
+		if ( $total_pages <= 1 ) {
+			return;
+		}
+
+		// Which page numbers to show (always include 1, last, and a window around current).
+		$window = 1; // pages each side of current
+		$pages  = [];
+		for ( $i = 1; $i <= $total_pages; $i++ ) {
+			if ( $i === 1 || $i === $total_pages || abs( $i - $paged ) <= $window ) {
+				$pages[] = $i;
+			}
+		}
+
+		$btn = static function ( int $i, bool $current ) use ( $type, $url_args ): string {
+			if ( $current ) {
+				return '<span class="tablenav-pages-navspan button disabled" aria-current="page">' . esc_html( (string) $i ) . '</span>';
+			}
+			if ( 'url' === $type ) {
+				$href = esc_url( add_query_arg( array_merge( $url_args, [ 'paged' => $i ] ), admin_url( 'upload.php' ) ) );
+				return '<a class="button" href="' . $href . '">' . esc_html( (string) $i ) . '</a>';
+			}
+			return '<a class="mm-page-link button" data-paged="' . esc_attr( (string) $i ) . '" href="#">' . esc_html( (string) $i ) . '</a>';
+		};
+
+		$prev_href = $paged > 1 ? ( 'url' === $type
+			? esc_url( add_query_arg( array_merge( $url_args, [ 'paged' => $paged - 1 ] ), admin_url( 'upload.php' ) ) )
+			: '#' ) : '';
+		$next_href = $paged < $total_pages ? ( 'url' === $type
+			? esc_url( add_query_arg( array_merge( $url_args, [ 'paged' => $paged + 1 ] ), admin_url( 'upload.php' ) ) )
+			: '#' ) : '';
+
+		echo '<span class="pagination-links">';
+
+		// Prev arrow.
+		if ( $paged > 1 ) {
+			$prev_data = 'ajax' === $type ? ' class="mm-page-link button" data-paged="' . esc_attr( (string) ( $paged - 1 ) ) . '"' : ' class="button"';
+			echo '<a' . $prev_data . ' href="' . $prev_href . '" aria-label="' . esc_attr__( 'Previous page', 'metamanager' ) . '">‹</a>';
+		} else {
+			echo '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">‹</span>';
+		}
+
+		$prev_shown = null;
+		foreach ( $pages as $i ) {
+			if ( $prev_shown !== null && $i - $prev_shown > 1 ) {
+				echo '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">…</span>';
+			}
+			echo $btn( $i, $i === $paged ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			$prev_shown = $i;
+		}
+
+		// Next arrow.
+		if ( $paged < $total_pages ) {
+			$next_data = 'ajax' === $type ? ' class="mm-page-link button" data-paged="' . esc_attr( (string) ( $paged + 1 ) ) . '"' : ' class="button"';
+			echo '<a' . $next_data . ' href="' . $next_href . '" aria-label="' . esc_attr__( 'Next page', 'metamanager' ) . '">›</a>';
+		} else {
+			echo '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">›</span>';
+		}
+
+		echo '</span>';
+	}
+
+	/**
 	 * Render the unified jobs section: pending rows always at top, completed/failed paginated below.
 	 */
 	private static function render_history_section(): void {
@@ -1555,15 +1628,9 @@ class MM_Admin {
 					. '<span class="displaying-num">' . sprintf(
 						/* translators: %d: item count */
 						esc_html__( '%d items', 'metamanager' ), $done_total
-					) . '</span><span class="pagination-links">';
-				for ( $i = 1; $i <= $total_pages; $i++ ) {
-					if ( $i === $paged ) {
-						echo '<span class="tablenav-pages-navspan button disabled" aria-current="page">' . esc_html( (string) $i ) . '</span>';
-					} else {
-						echo '<a class="mm-page-link button" data-paged="' . esc_attr( (string) $i ) . '" href="#">' . esc_html( (string) $i ) . '</a>';
-					}
-				}
-				echo '</span></div></div>';
+					) . '</span>';
+				self::render_pagination( $paged, $total_pages, 'ajax' );
+				echo '</div></div>';
 			}
 		}
 
@@ -1855,20 +1922,7 @@ class MM_Admin {
 									printf( esc_html__( '%d images', 'metamanager' ), $total );
 									?>
 								</span>
-								<span class="pagination-links">
-									<?php for ( $i = 1; $i <= $total_pages; $i++ ) :
-										$url = add_query_arg(
-											[ 'paged' => $i, 's' => $search, 'page' => 'metamanager-bulk-meta' ],
-											admin_url( 'upload.php' )
-										);
-										?>
-										<?php if ( $i === $paged ) : ?>
-											<span class="tablenav-pages-navspan button disabled" aria-current="page"><?php echo esc_html( (string) $i ); ?></span>
-										<?php else : ?>
-											<a class="button" href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( (string) $i ); ?></a>
-										<?php endif; ?>
-									<?php endfor; ?>
-								</span>
+								<?php self::render_pagination( $paged, $total_pages, 'url', [ 's' => $search, 'page' => 'metamanager-bulk-meta' ] ); ?>
 							</div>
 						</div>
 						<?php endif; ?>
