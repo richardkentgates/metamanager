@@ -118,3 +118,42 @@ require_once $plugin_includes . 'class-mm-metadata.php';
 require_once $plugin_includes . 'class-mm-status.php';
 require_once $plugin_includes . 'class-mm-settings.php';
 require_once $plugin_includes . 'class-mm-frontend.php';
+
+// Metadata subsystem constants (normally set in metamanager.php).
+if ( ! defined( 'MM_META_OPT_SETTINGS' ) ) {
+	define( 'MM_META_OPT_SETTINGS', 'mm_meta_settings' );
+}
+if ( ! defined( 'MM_META_OPT_BUSINESS' ) ) {
+	define( 'MM_META_OPT_BUSINESS', 'mm_meta_business' );
+}
+if ( ! defined( 'MM_META_KEY' ) ) {
+	define( 'MM_META_KEY', '_mm_meta' );
+}
+
+// Metadata subsystem classes (loaded without booting hooks).
+$mm_meta = $plugin_includes . 'metadata/';
+require_once $mm_meta . 'class-mm-mod-base.php';
+require_once $mm_meta . 'class-mm-site-settings.php';
+require_once $mm_meta . 'class-mm-page-context.php';
+require_once $mm_meta . 'class-mm-head-emitter.php';
+require_once $mm_meta . 'class-mm-schema-types.php';
+require_once $mm_meta . 'class-mm-biz-card-css.php';
+require_once $mm_meta . 'class-mm-importer.php';
+require_once $mm_meta . 'class-mm-metadata-cli.php';
+require_once $mm_meta . 'modules/class-mm-mod-head-meta.php';
+require_once $mm_meta . 'modules/class-mm-mod-social.php';
+require_once $mm_meta . 'modules/class-mm-mod-schema.php';
+require_once $mm_meta . 'modules/class-mm-mod-sitemap.php';
+require_once $mm_meta . 'modules/class-mm-mod-robots.php';
+require_once $mm_meta . 'modules/class-mm-mod-author.php';
+require_once $mm_meta . 'modules/class-mm-mod-hygiene.php';
+require_once $mm_meta . 'modules/class-mm-mod-links.php';
+require_once $mm_meta . 'modules/class-mm-mod-local.php';
+require_once $mm_meta . 'modules/class-mm-mod-html-sitemap.php';
+require_once $mm_meta . 'modules/class-mm-mod-business-contact.php';
+require_once $mm_meta . 'admin/class-mm-metadata-help.php';
+require_once $mm_meta . 'admin/class-mm-metadata-admin.php';
+require_once $mm_meta . 'admin/class-mm-post-meta-panel.php';
+require_once $mm_meta . 'admin/class-mm-term-meta-panel.php';
+require_once $mm_meta . 'admin/class-mm-user-meta-panel.php';
+require_once $mm_meta . 'class-mm-metadata-loader.php';

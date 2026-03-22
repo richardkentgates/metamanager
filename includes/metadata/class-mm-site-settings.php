@@ -23,6 +23,14 @@ class MM_Site_Settings {
 		return self::$instance;
 	}
 
+	/**
+	 * Clear the in-memory singleton and force a fresh load on next access.
+	 * For test isolation only — do not call in production code.
+	 */
+	public static function reset_instance(): void {
+		self::$instance = null;
+	}
+
 	// -------------------------------------------------------------------------
 	// Public getters
 	// -------------------------------------------------------------------------

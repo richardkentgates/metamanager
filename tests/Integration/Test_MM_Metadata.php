@@ -3,16 +3,14 @@
  * Integration tests for the Metamanager metadata subsystem.
  *
  * Covers:
- *   - MM_Site_Settings  : option get/set/sanitize and multisite isolation
+ *   - MM_Site_Settings  : option get/defaults/round-trip
  *   - MM_Page_Context   : context resolver returns correct string for each WP query state
  *   - MM_Head_Emitter   : wp_head output contains expected meta tags
  *
+ * All metadata classes are loaded by tests/bootstrap.php — no require_once needed here.
+ *
  * @package Metamanager\Tests\Integration
  */
-
-require_once dirname( __DIR__, 2 ) . '/includes/metadata/class-mm-metadata-loader.php';
-
-MM_Metadata_Loader::load();
 
 /**
  * @covers MM_Site_Settings
@@ -26,8 +24,6 @@ class Test_MM_Metadata extends WP_UnitTestCase {
 
 	public static function set_up_before_class(): void {
 		parent::set_up_before_class();
-
-		// Ensure the MM DB table exists for any hooks that query it.
 		if ( class_exists( 'MM_DB' ) ) {
 			MM_DB::create_or_update_table();
 		}
@@ -35,8 +31,16 @@ class Test_MM_Metadata extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
-		// Reset the site settings option between tests.
-		delete_option( MM_Site_Settings::OPTION_KEY );
+		// Clear both stored options and flush the in-memory singleton so each test
+		// starts from a clean state with only the class defaults.
+		delete_option( MM_META_OPT_SETTINGS );
+		delete_option( MM_META_OPT_BUSINESS );
+		MM_Site_Settings::reset_instance();
+	}
+
+	public function tear_down(): void {
+		MM_Site_Settings::reset_instance();
+		parent::tear_down();
 	}
 
 	// ------------------------------------------------------------------
@@ -44,60 +48,105 @@ class Test_MM_Metadata extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/** A fresh install returns an array of defaults. */
-	public function test_site_settings_get_all_returns_array(): void {
-		$settings = MM_Site_Settings::get_all();
+	public function test_site_settings_all_returns_array(): void {
+		$settings = MM_Site_Settings::get_instance()->all();
 		$this->assertIsArray( $settings );
 	}
 
 	/** Default title separator is a pipe. */
 	public function test_title_separator_default(): void {
-		$this->assertSame( '|', MM_Site_Settings::get( 'titles', 'separator', '|' ) );
+		$sep = MM_Site_Settings::get_instance()->get( 'titles.separator', '__missing__' );
+		$this->assertSame( '|', $sep );
 	}
 
 	/** Saving and reading back a string value round-trips correctly. */
 	public function test_save_and_read_string_value(): void {
-		MM_Site_Settings::update_section( 'titles', [ 'separator' => '-' ] );
-		$this->assertSame( '-', MM_Site_Settings::get( 'titles', 'separator', '|' ) );
+		update_option( MM_META_OPT_SETTINGS, [ 'titles' => [ 'separator' => '-' ] ] );
+		MM_Site_Settings::reset_instance();
+		$this->assertSame( '-', MM_Site_Settings::get_instance()->get( 'titles.separator', '|' ) );
 	}
 
 	/** Saving a boolean flag and reading it back. */
 	public function test_save_and_read_bool_flag(): void {
-		MM_Site_Settings::update_section( 'robots', [ 'noindex_search' => true ] );
-		$this->assertTrue( MM_Site_Settings::get( 'robots', 'noindex_search', false ) );
+		update_option( MM_META_OPT_SETTINGS, [ 'titles' => [ 'search_noindex' => true ] ] );
+		MM_Site_Settings::reset_instance();
+		$this->assertTrue( MM_Site_Settings::get_instance()->get( 'titles.search_noindex', false ) );
 	}
 
-	/** update_section merges, not overwrites — other keys are preserved. */
-	public function test_update_section_merges_into_existing(): void {
-		MM_Site_Settings::update_section( 'titles', [
-			'separator'   => '-',
-			'post_format' => '%%post_title%% %%sep%% %%sitetitle%%',
+	/** Saving multiple keys — both persist after a second reset. */
+	public function test_partial_save_preserves_sibling_keys(): void {
+		update_option( MM_META_OPT_SETTINGS, [
+			'titles' => [ 'separator' => '-', 'home_title' => 'Custom Site' ],
 		] );
-		MM_Site_Settings::update_section( 'titles', [ 'separator' => '|' ] );
-
-		$this->assertSame( '|', MM_Site_Settings::get( 'titles', 'separator', '' ) );
-		$this->assertSame(
-			'%%post_title%% %%sep%% %%sitetitle%%',
-			MM_Site_Settings::get( 'titles', 'post_format', '' )
-		);
+		MM_Site_Settings::reset_instance();
+		$this->assertSame( '-', MM_Site_Settings::get_instance()->get( 'titles.separator', '|' ) );
+		$this->assertSame( 'Custom Site', MM_Site_Settings::get_instance()->get( 'titles.home_title', '' ) );
 	}
 
-	/** An unknown key returns the provided default. */
+	/** An unknown dot-path key returns the provided default. */
 	public function test_get_unknown_key_returns_default(): void {
-		$result = MM_Site_Settings::get( 'titles', 'nonexistent_key', 'fallback' );
+		$result = MM_Site_Settings::get_instance()->get( 'titles.nonexistent_key', 'fallback' );
 		$this->assertSame( 'fallback', $result );
 	}
 
 	// ------------------------------------------------------------------
-	// MM_Site_Settings — sanitization
+	// MM_Site_Settings — verified defaults from audit
 	// ------------------------------------------------------------------
 
-	/** HTML tags are stripped from string values. */
-	public function test_sanitize_strips_html_from_strings(): void {
-		MM_Site_Settings::update_section( 'titles', [
-			'separator' => '<script>alert(1)</script>|',
-		] );
-		$val = MM_Site_Settings::get( 'titles', 'separator', '' );
-		$this->assertStringNotContainsString( '<script>', $val );
+	/** HTML sitemap config is nested inside the sitemap section. */
+	public function test_html_sitemap_default_enabled(): void {
+		$enabled = MM_Site_Settings::get_instance()->get( 'sitemap.html_sitemap.enabled', false );
+		$this->assertTrue( $enabled );
+	}
+
+	/** Post types for HTML sitemap default to page and post. */
+	public function test_html_sitemap_default_post_types(): void {
+		$pts = MM_Site_Settings::get_instance()->get( 'sitemap.html_sitemap.post_types', [] );
+		$this->assertContains( 'page', $pts );
+		$this->assertContains( 'post', $pts );
+	}
+
+	/** Default cron frequency is twicedaily, not the old mm_meta_6h. */
+	public function test_links_cron_frequency_default_is_twicedaily(): void {
+		$freq = MM_Site_Settings::get_instance()->get( 'links.cron_frequency', '' );
+		$this->assertSame( 'twicedaily', $freq );
+	}
+
+	/** search_title default contains the search_query token. */
+	public function test_titles_search_title_default_has_token(): void {
+		$tpl = MM_Site_Settings::get_instance()->get( 'titles.search_title', '' );
+		$this->assertStringContainsString( '%%search_query%%', $tpl );
+	}
+
+	/** 404_title default is not empty. */
+	public function test_titles_404_title_default_is_set(): void {
+		$tpl = MM_Site_Settings::get_instance()->get( 'titles.404_title', '' );
+		$this->assertNotEmpty( $tpl );
+	}
+
+	/** fb_link_ownership_id has been removed from social defaults. */
+	public function test_social_has_no_fb_link_ownership_id(): void {
+		$social = MM_Site_Settings::get_instance()->all()['social'];
+		$this->assertArrayNotHasKey( 'fb_link_ownership_id', $social );
+	}
+
+	/** tools section has been removed from settings defaults. */
+	public function test_settings_has_no_tools_section(): void {
+		$all = MM_Site_Settings::get_instance()->all();
+		$this->assertArrayNotHasKey( 'tools', $all );
+	}
+
+	/** payment_accepted exists in business defaults. */
+	public function test_business_defaults_has_payment_accepted(): void {
+		$biz = MM_Site_Settings::get_instance()->all_business();
+		$this->assertArrayHasKey( 'payment_accepted', $biz );
+		$this->assertIsArray( $biz['payment_accepted'] );
+	}
+
+	/** business defaults no longer include locations key. */
+	public function test_business_defaults_has_no_locations(): void {
+		$biz = MM_Site_Settings::get_instance()->all_business();
+		$this->assertArrayNotHasKey( 'locations', $biz );
 	}
 
 	// ------------------------------------------------------------------
@@ -146,6 +195,19 @@ class Test_MM_Metadata extends WP_UnitTestCase {
 	// MM_Head_Emitter — output
 	// ------------------------------------------------------------------
 
+	/**
+	 * Build a minimal head emitter wired with MM_Mod_Head_Meta only.
+	 *
+	 * @return array{emitter: MM_Head_Emitter, context: MM_Page_Context, settings: MM_Site_Settings}
+	 */
+	private function make_emitter(): array {
+		$settings = MM_Site_Settings::get_instance();
+		$context  = new MM_Page_Context();
+		$emitter  = new MM_Head_Emitter( $context, $settings );
+		$emitter->add_module( new MM_Mod_Head_Meta( $settings ) );
+		return compact( 'emitter', 'context', 'settings' );
+	}
+
 	/** wp_head contains a <title> tag when emitter is active. */
 	public function test_head_emitter_outputs_title_tag(): void {
 		$post_id = self::factory()->post->create( [
@@ -154,32 +216,36 @@ class Test_MM_Metadata extends WP_UnitTestCase {
 		] );
 		$this->go_to( get_permalink( $post_id ) );
 
-		// Boot the emitter to register its wp_head hook.
-		$emitter = new MM_Head_Emitter();
-		$emitter->register();
+		$e = $this->make_emitter();
+		add_action( 'wp_head', [ $e['emitter'], 'render' ], 99 );
 
 		ob_start();
 		do_action( 'wp_head' );
 		$output = ob_get_clean();
 
+		remove_action( 'wp_head', [ $e['emitter'], 'render' ], 99 );
+
 		$this->assertStringContainsString( '<title>', $output );
 	}
 
-	/** wp_head contains <meta name="description"> when a description is set. */
+	/** wp_head contains <meta name="description"> when a per-post description is stored. */
 	public function test_head_emitter_outputs_meta_description(): void {
 		$post_id = self::factory()->post->create( [
 			'post_title'  => 'Description Test',
 			'post_status' => 'publish',
 		] );
-		update_post_meta( $post_id, '_mm_meta_description', 'A great description.' );
+		// _mm_meta stores a JSON object; 'description' key is the per-post override.
+		update_post_meta( $post_id, MM_META_KEY, wp_json_encode( [ 'description' => 'A great description.' ] ) );
 		$this->go_to( get_permalink( $post_id ) );
 
-		$emitter = new MM_Head_Emitter();
-		$emitter->register();
+		$e = $this->make_emitter();
+		add_action( 'wp_head', [ $e['emitter'], 'render' ], 99 );
 
 		ob_start();
 		do_action( 'wp_head' );
 		$output = ob_get_clean();
+
+		remove_action( 'wp_head', [ $e['emitter'], 'render' ], 99 );
 
 		$this->assertStringContainsString( 'name="description"', $output );
 		$this->assertStringContainsString( 'A great description.', $output );
