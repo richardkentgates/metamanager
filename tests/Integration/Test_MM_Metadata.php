@@ -12,6 +12,8 @@
  * @package Metamanager\Tests\Integration
  */
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * @covers MM_Site_Settings
  * @covers MM_Page_Context

@@ -12,6 +12,8 @@
  * @package Metamanager\Tests\Integration
  */
 
+defined( 'ABSPATH' ) || exit;
+
 class Test_MM_Settings extends WP_UnitTestCase {
 
 	public function set_up(): void {
