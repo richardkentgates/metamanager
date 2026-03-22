@@ -763,21 +763,21 @@ class MM_Admin {
 		if ( ! empty( $_REQUEST['mm_bulk_compress'] ) ) {
 			$n = absint( $_REQUEST['mm_bulk_compress'] );
 			echo '<div class="notice notice-success is-dismissible"><p>'
-				. sprintf(
+				. esc_html( sprintf(
 					/* translators: %d: number of media files */
-					esc_html__( 'Metamanager: Compression queued for %d media file(s).', 'metamanager' ),
-					$n
-				)
+					__( 'Metamanager: Compression queued for %d media file(s).', 'metamanager' ),
+					absint( $n )
+				) )
 				. '</p></div>';
 		}
 		if ( ! empty( $_REQUEST['mm_bulk_site_info'] ) ) {
 			$n = absint( $_REQUEST['mm_bulk_site_info'] );
 			echo '<div class="notice notice-success is-dismissible"><p>'
-				. sprintf(
+				. esc_html( sprintf(
 					/* translators: %d: number of media files */
-					esc_html__( 'Metamanager: Site provenance info (Publisher + Website) injected for %d media file(s).', 'metamanager' ),
-					$n
-				)
+					__( 'Metamanager: Site provenance info (Publisher + Website) injected for %d media file(s).', 'metamanager' ),
+					absint( $n )
+				) )
 				. '</p></div>';
 		}
 		// phpcs:enable
@@ -1528,8 +1528,8 @@ class MM_Admin {
 			wp_send_json_error( 'Permission denied.' );
 		}
 
-		$raw_ids      = (array) ( $_POST['ids'] ?? [] );
-		$raw_fields   = (array) ( $_POST['fields'] ?? [] );
+		$raw_ids      = array_map( 'absint', (array) ( $_POST['ids'] ?? [] ) );
+		$raw_fields   = (array) wp_unslash( $_POST['fields'] ?? [] );
 		$also_compress = ! empty( $_POST['also_compress'] );
 
 		$allowed_fields = [
@@ -1591,7 +1591,7 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	public static function render_jobs_content(): void {
-		echo '<input type="hidden" class="mm-paged" value="' . esc_attr( (string) max( 1, (int) ( $_REQUEST['paged'] ?? 1 ) ) ) . '">'; // phpcs:ignore WordPress.Security.NonceVerification
+		echo '<input type="hidden" class="mm-paged" value="' . esc_attr( (string) max( 1, absint( wp_unslash( $_REQUEST['paged'] ?? '1' ) ) ) ) . '">'; // phpcs:ignore WordPress.Security.NonceVerification
 		self::render_history_section();
 	}
 
@@ -1642,8 +1642,9 @@ class MM_Admin {
 
 		// Prev arrow.
 		if ( $paged > 1 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $prev_data built with esc_attr, $prev_href is esc_url'd or literal '#'
 			$prev_data = 'ajax' === $type ? ' class="mm-page-link button" data-paged="' . esc_attr( (string) ( $paged - 1 ) ) . '"' : ' class="button"';
-			echo '<a' . $prev_data . ' href="' . $prev_href . '" aria-label="' . esc_attr__( 'Previous page', 'metamanager' ) . '">‹</a>';
+			echo '<a' . $prev_data . ' href="' . $prev_href . '" aria-label="' . esc_attr__( 'Previous page', 'metamanager' ) . '">‹</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		} else {
 			echo '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">‹</span>';
 		}
@@ -1659,8 +1660,9 @@ class MM_Admin {
 
 		// Next arrow.
 		if ( $paged < $total_pages ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $next_data built with esc_attr, $next_href is esc_url'd or literal '#'
 			$next_data = 'ajax' === $type ? ' class="mm-page-link button" data-paged="' . esc_attr( (string) ( $paged + 1 ) ) . '"' : ' class="button"';
-			echo '<a' . $next_data . ' href="' . $next_href . '" aria-label="' . esc_attr__( 'Next page', 'metamanager' ) . '">›</a>';
+			echo '<a' . $next_data . ' href="' . $next_href . '" aria-label="' . esc_attr__( 'Next page', 'metamanager' ) . '">›</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		} else {
 			echo '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">›</span>';
 		}
@@ -1673,8 +1675,8 @@ class MM_Admin {
 	 */
 	private static function render_history_section(): void {
 		// phpcs:disable WordPress.Security.NonceVerification
-		$search = sanitize_text_field( $_REQUEST['s'] ?? '' );
-		$paged  = max( 1, (int) ( $_REQUEST['paged'] ?? 1 ) );
+		$search = sanitize_text_field( wp_unslash( $_REQUEST['s'] ?? '' ) );
+		$paged  = max( 1, absint( wp_unslash( $_REQUEST['paged'] ?? '1' ) ) );
 		// phpcs:enable
 
 		$per_page = 25;
@@ -1702,14 +1704,15 @@ class MM_Admin {
 			. ' <span>' . sprintf(
 				/* translators: %d: completed/failed count */
 				esc_html__( '%d completed', 'metamanager' ),
-				$done_total
+				absint( $done_total )
 			) . '</span>'
 			. '</h2>'
 			. '</div><div class="inside">';
 
 		// Search form.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field returns safe HTML
 		echo '<form class="mm-search-form" style="margin-bottom:1em;display:flex;gap:8px;">'
-			. wp_nonce_field( 'mm_jobs_refresh', '_wpnonce', true, false )
+			. wp_nonce_field( 'mm_jobs_refresh', '_wpnonce', true, false ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			. '<input type="search" name="s" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr__( 'Search by file or type…', 'metamanager' ) . '" class="regular-text">'
 			. '<button class="button">' . esc_html__( 'Search', 'metamanager' ) . '</button>'
 			. ( $search ? ' <a class="button" href="' . esc_url( remove_query_arg( 's' ) ) . '">' . esc_html__( 'Clear', 'metamanager' ) . '</a>' : '' )
@@ -1730,7 +1733,7 @@ class MM_Admin {
 		if ( ! empty( $pending_jobs ) ) {
 			echo $table_header; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- assembled from escaped parts above
 			foreach ( $pending_jobs as $job ) {
-				echo self::render_job_row( $job );
+				echo self::render_job_row( $job ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_job_row builds output with esc_* functions
 			}
 			echo '</tbody></table>';
 		}
@@ -1744,7 +1747,7 @@ class MM_Admin {
 			}
 			echo $table_header; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- assembled from escaped parts above
 			foreach ( $done_jobs as $job ) {
-				echo self::render_job_row( $job );
+				echo self::render_job_row( $job ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_job_row builds output with esc_* functions
 			}
 			echo '</tbody></table>';
 
@@ -1752,7 +1755,7 @@ class MM_Admin {
 				echo '<div class="tablenav bottom"><div class="tablenav-pages">'
 					. '<span class="displaying-num">' . sprintf(
 						/* translators: %d: item count */
-						esc_html__( '%d items', 'metamanager' ), $done_total
+						esc_html__( '%d items', 'metamanager' ), absint( $done_total )
 					) . '</span>';
 				self::render_pagination( $paged, $total_pages, 'ajax' );
 				echo '</div></div>';
@@ -1864,8 +1867,8 @@ class MM_Admin {
 		}
 
 		// phpcs:disable WordPress.Security.NonceVerification
-		$paged  = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
-		$search = sanitize_text_field( $_GET['s'] ?? '' );
+		$paged  = max( 1, absint( wp_unslash( $_GET['paged'] ?? '1' ) ) );
+		$search = sanitize_text_field( wp_unslash( $_GET['s'] ?? '' ) );
 		// phpcs:enable
 		$per_page = 24;
 
@@ -1979,16 +1982,13 @@ class MM_Admin {
 						<span style="font-size:12px;color:#50575e;margin-left:4px;">
 							<?php
 							/* translators: %d: total image count */
-							printf( esc_html__( '%d images', 'metamanager' ), $total );
-							?>
-						</span>
-					</div>
+						printf( esc_html__( '%d images', 'metamanager' ), absint( $total ) );
+						?>
+					</span>
+				</div>
 
-					<?php if ( empty( $ids ) ) : ?>
-						<p><?php esc_html_e( 'No images found.', 'metamanager' ); ?></p>
-					<?php else : ?>
-
-						<!-- Thumbnail grid -->
+				<?php if ( empty( $ids ) ) : ?>
+					<p><?php esc_html_e( 'No images found.', 'metamanager' ); ?></p>
 						<div id="mm-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;">
 							<?php foreach ( $ids as $id ) :
 								$id       = (int) $id;
@@ -2044,7 +2044,7 @@ class MM_Admin {
 								<span class="displaying-num">
 									<?php
 									/* translators: %d: total image count */
-									printf( esc_html__( '%d images', 'metamanager' ), $total );
+									printf( esc_html__( '%d images', 'metamanager' ), absint( $total ) );
 									?>
 								</span>
 								<?php self::render_pagination( $paged, $total_pages, 'url', [ 's' => $search, 'page' => 'metamanager-bulk-meta' ] ); ?>

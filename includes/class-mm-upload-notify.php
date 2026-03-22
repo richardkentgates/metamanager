@@ -190,6 +190,7 @@ class MM_Upload_Notify {
 			foreach ( $by_user as $uid => $ids ) {
 				$user        = $uid > 0 ? get_userdata( $uid ) : false;
 				$uploader    = $user ? $user->display_name . ' <' . $user->user_email . '>' : __( '(unknown user)', 'metamanager' );
+				/* translators: %s: uploader display name and email address */
 				$intro_lines[] = sprintf( __( 'Uploaded by: %s', 'metamanager' ), $uploader );
 				foreach ( $ids as $id ) {
 					$title = html_entity_decode( (string) get_the_title( $id ), ENT_QUOTES );
@@ -217,6 +218,7 @@ class MM_Upload_Notify {
 		$extra = MM_Settings::get_upload_notify_extra_emails();
 		if ( ! empty( $extra ) ) {
 			$subject = sprintf(
+				/* translators: 1: site name, 2: number of images uploaded */
 				_n(
 					'[%1$s] Upload Receipt — %2$d image uploaded',
 					'[%1$s] Upload Receipt — %2$d images uploaded',
@@ -341,6 +343,7 @@ class MM_Upload_Notify {
 			$retry_nonce   = wp_create_nonce( 'mm_retry_upload_notice_' . $key );
 			$dismiss_nonce = wp_create_nonce( 'mm_dismiss_upload_notice_' . $key );
 
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- all values are escaped: $key via esc_attr, $to via esc_html, $count is int, $retries is int, $date via esc_html
 			printf(
 				'<div class="notice notice-error" id="mm-upload-fail-%s" style="display:flex;align-items:flex-start;gap:16px;padding:.75em 1em;">
 					<div style="flex:1;">
@@ -357,13 +360,19 @@ class MM_Upload_Notify {
 				esc_attr( $key ),
 				esc_html__( '[Metamanager] Upload receipt email failed:', 'metamanager' ),
 				sprintf(
-					/* translators: 1: recipient, 2: image count */
+					/* translators: 1: recipient email address, 2: number of images */
 					esc_html__( 'Could not send receipt to %1$s for %2$d image(s).', 'metamanager' ),
 					'<strong>' . $to . '</strong>',
-					$count
+					absint( $count )
 				),
-				sprintf( esc_html__( 'Failed: %s', 'metamanager' ), esc_html( $date ) ),
-				sprintf( esc_html__( 'Retries: %d', 'metamanager' ), $retries ),
+				sprintf(
+					/* translators: %s: date and time when the email failed */
+					esc_html__( 'Failed: %s', 'metamanager' ), esc_html( $date )
+				),
+				sprintf(
+					/* translators: %d: number of send retry attempts */
+					esc_html__( 'Retries: %d', 'metamanager' ), absint( $retries )
+				),
 				esc_html__( 'The email will not be re-attempted automatically.', 'metamanager' ),
 				esc_attr( $key ), esc_attr( $retry_nonce ),   esc_html__( 'Retry', 'metamanager' ),
 				esc_attr( $key ), esc_attr( $dismiss_nonce ), esc_html__( 'Dismiss', 'metamanager' )

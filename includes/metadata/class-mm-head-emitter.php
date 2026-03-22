@@ -70,10 +70,13 @@ class MM_Head_Emitter {
 		foreach ( $data['meta'] as $meta ) {
 			$meta = array_map( 'esc_attr', $meta );
 			if ( isset( $meta['property'] ) ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- values pre-escaped by array_map( 'esc_attr' ) above
 				printf( '<meta property="%s" content="%s" />' . "\n", $meta['property'], $meta['content'] );
 			} elseif ( isset( $meta['name'] ) ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- values pre-escaped by array_map( 'esc_attr' ) above
 				printf( '<meta name="%s" content="%s" />' . "\n", $meta['name'], $meta['content'] );
 			} elseif ( isset( $meta['http-equiv'] ) ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- values pre-escaped by array_map( 'esc_attr' ) above
 				printf( '<meta http-equiv="%s" content="%s" />' . "\n", $meta['http-equiv'], $meta['content'] );
 			}
 		}

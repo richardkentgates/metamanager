@@ -373,8 +373,8 @@ function mm_import_completed_jobs(): void {
 	if ( ! empty( $failed_jobs ) && MM_Settings::get_notify_enabled() ) {
 		$to      = MM_Settings::get_notify_email();
 		$subject = sprintf(
-			/* translators: %d: failed job count */
-			__( '[Metamanager] %d job(s) failed on %s', 'metamanager' ),
+			/* translators: 1: number of failed jobs, 2: site name */
+			__( '[Metamanager] %1$d job(s) failed on %2$s', 'metamanager' ),
 			count( $failed_jobs ),
 			wp_specialchars_decode( get_option( 'blogname', '' ), ENT_QUOTES )
 		);
@@ -432,10 +432,10 @@ if ( is_admin() ) {
 		if ( empty( $_GET['mm_notice'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
-		$type    = in_array( $_GET['mm_notice_type'] ?? '', [ 'updated', 'error' ], true )
-			? sanitize_key( $_GET['mm_notice_type'] )
+		$type    = in_array( wp_unslash( $_GET['mm_notice_type'] ?? '' ), [ 'updated', 'error' ], true )
+			? sanitize_key( wp_unslash( $_GET['mm_notice_type'] ) )
 			: 'updated';
-		$message = sanitize_text_field( urldecode( $_GET['mm_notice'] ) );
+		$message = sanitize_text_field( urldecode( wp_unslash( $_GET['mm_notice'] ) ) );
 		printf(
 			'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
 			esc_attr( $type ),

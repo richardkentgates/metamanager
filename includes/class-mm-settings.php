@@ -293,12 +293,12 @@ class MM_Settings {
 				6       => esc_html__( '6 — High', 'metamanager' ),
 				default => esc_html__( '7 — Maximum (slowest)', 'metamanager' ),
 			};
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $i is an integer (%d); $label is pre-escaped via esc_html__()
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $i is an integer; esc_html() on $label is idempotent (pre-escaped in match above)
 			printf(
 				'<option value="%d"%s>%s</option>',
-				$i,
+				absint( $i ),
 				selected( $value, $i, false ),
-				$label
+				esc_html( $label )
 			);
 		}
 		echo '</select>';

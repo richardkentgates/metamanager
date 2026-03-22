@@ -521,7 +521,7 @@ class MM_Business_Contact_Widget extends WP_Widget {
 
 		if ( ! empty( $instance['title'] ) ) {
 			echo $args['before_title'] // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			     . apply_filters( 'widget_title', $instance['title'] )
+			     . esc_html( apply_filters( 'widget_title', $instance['title'] ) )
 			     . $args['after_title']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 

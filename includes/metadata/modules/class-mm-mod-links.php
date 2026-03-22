@@ -104,9 +104,10 @@ class MM_Mod_Links extends MM_Mod_Base {
 		foreach ( $links as $link ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->query( $wpdb->prepare(
-				"INSERT INTO {$table} (url, url_hash, post_id, anchor_text, link_type)
+				'INSERT INTO %i (url, url_hash, post_id, anchor_text, link_type)
 				 VALUES (%s, %s, %d, %s, %s)
-				 ON DUPLICATE KEY UPDATE anchor_text = VALUES(anchor_text)",
+				 ON DUPLICATE KEY UPDATE anchor_text = VALUES(anchor_text)',
+				$table,
 				$link['url'],
 				md5( $link['url'] ),
 				$post_id,
@@ -178,10 +179,11 @@ class MM_Mod_Links extends MM_Mod_Base {
 		// Pick the $batch_size links least-recently checked (NULL first).
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT id, url FROM {$table}
+			'SELECT id, url FROM %i
 			 WHERE is_ignored = 0
 			 ORDER BY last_checked ASC, id ASC
-			 LIMIT %d",
+			 LIMIT %d',
+			$table,
 			$batch_size
 		), ARRAY_A );
 

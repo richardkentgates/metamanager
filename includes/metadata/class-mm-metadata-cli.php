@@ -100,7 +100,7 @@ class MM_Metadata_CLI {
 		if ( $check_all ) {
 			global $wpdb;
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$total = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . MM_Mod_Links::table_name() . " WHERE is_ignored = 0" );
+			$total = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE is_ignored = 0', MM_Mod_Links::table_name() ) );
 			$batch = (int) $settings->get( 'links.batch_size', 50 );
 			$runs  = (int) ceil( $total / max( 1, $batch ) );
 
@@ -117,7 +117,7 @@ class MM_Metadata_CLI {
 		// Report broken count.
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$broken = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . MM_Mod_Links::table_name() . ' WHERE is_broken = 1 AND is_ignored = 0' );
+		$broken = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE is_broken = 1 AND is_ignored = 0', MM_Mod_Links::table_name() ) );
 		WP_CLI::success( "Done. Broken links: {$broken}." );
 	}
 

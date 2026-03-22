@@ -85,25 +85,25 @@ class MM_Post_Meta_Panel {
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified above.
 		$new = [
-			'title'          => sanitize_text_field( $_POST['mm_meta_title'] ?? '' ),
-			'description'    => sanitize_textarea_field( $_POST['mm_meta_description'] ?? '' ),
-			'canonical'      => esc_url_raw( $_POST['mm_meta_canonical'] ?? '' ),
-			'noindex'        => $this->sanitize_tristate( $_POST['mm_meta_noindex'] ?? '' ),
-			'nofollow'       => $this->sanitize_tristate( $_POST['mm_meta_nofollow'] ?? '' ),
-			'noarchive'      => $this->sanitize_tristate( $_POST['mm_meta_noarchive'] ?? '' ),
-			'nosnippet'      => $this->sanitize_tristate( $_POST['mm_meta_nosnippet'] ?? '' ),
-			'noimageindex'   => $this->sanitize_tristate( $_POST['mm_meta_noimageindex'] ?? '' ),
-			'og_title'       => sanitize_text_field( $_POST['mm_meta_og_title'] ?? '' ),
-			'og_description' => sanitize_textarea_field( $_POST['mm_meta_og_description'] ?? '' ),
+			'title'          => sanitize_text_field( wp_unslash( $_POST['mm_meta_title'] ?? '' ) ),
+			'description'    => sanitize_textarea_field( wp_unslash( $_POST['mm_meta_description'] ?? '' ) ),
+			'canonical'      => esc_url_raw( wp_unslash( $_POST['mm_meta_canonical'] ?? '' ) ),
+			'noindex'        => $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noindex'] ?? '' ) ),
+			'nofollow'       => $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_nofollow'] ?? '' ) ),
+			'noarchive'      => $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noarchive'] ?? '' ) ),
+			'nosnippet'      => $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_nosnippet'] ?? '' ) ),
+			'noimageindex'   => $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noimageindex'] ?? '' ) ),
+			'og_title'       => sanitize_text_field( wp_unslash( $_POST['mm_meta_og_title'] ?? '' ) ),
+			'og_description' => sanitize_textarea_field( wp_unslash( $_POST['mm_meta_og_description'] ?? '' ) ),
 			'og_image_id'    => (int) ( $_POST['mm_meta_og_image_id'] ?? 0 ),
-			'og_image_url'   => esc_url_raw( $_POST['mm_meta_og_image_url'] ?? '' ),
-			'schema_type'    => sanitize_key( $_POST['mm_meta_schema_type'] ?? '' ),
-			'breadcrumb_label' => sanitize_text_field( $_POST['mm_meta_breadcrumb_label'] ?? '' ),
+			'og_image_url'   => esc_url_raw( wp_unslash( $_POST['mm_meta_og_image_url'] ?? '' ) ),
+			'schema_type'    => sanitize_key( wp_unslash( $_POST['mm_meta_schema_type'] ?? '' ) ),
+			'breadcrumb_label' => sanitize_text_field( wp_unslash( $_POST['mm_meta_breadcrumb_label'] ?? '' ) ),
 			'exclude_sitemap'  => ! empty( $_POST['mm_meta_exclude_sitemap'] ),
 		];
 
 		// Schema field overrides.
-		$raw_schema_fields = $_POST['mm_meta_schema_fields'] ?? [];
+		$raw_schema_fields = wp_unslash( $_POST['mm_meta_schema_fields'] ?? [] );
 		if ( is_array( $raw_schema_fields ) ) {
 			$clean_schema_fields = [];
 			foreach ( $raw_schema_fields as $sf_key => $sf_val ) {

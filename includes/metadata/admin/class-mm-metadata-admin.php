@@ -290,7 +290,7 @@ $action = sanitize_key( $_POST['tools_action'] ?? '' );
 			case 'purge_links':
 				global $wpdb;
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-				$wpdb->query( 'TRUNCATE TABLE ' . MM_Mod_Links::table_name() );
+				$wpdb->query( $wpdb->prepare( 'TRUNCATE TABLE %i', MM_Mod_Links::table_name() ) );
 				wp_send_json_success( 'Link table purged.' );
 
 			default:

@@ -62,16 +62,16 @@ class MM_Term_Meta_Panel {
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
 		$clean = [];
-		$title = sanitize_text_field( $_POST['mm_meta_title'] ?? '' );
-		$desc  = sanitize_textarea_field( $_POST['mm_meta_description'] ?? '' );
-		$og_t  = sanitize_text_field( $_POST['mm_meta_og_title'] ?? '' );
-		$og_d  = sanitize_textarea_field( $_POST['mm_meta_og_description'] ?? '' );
+		$title = sanitize_text_field( wp_unslash( $_POST['mm_meta_title'] ?? '' ) );
+		$desc  = sanitize_textarea_field( wp_unslash( $_POST['mm_meta_description'] ?? '' ) );
+		$og_t  = sanitize_text_field( wp_unslash( $_POST['mm_meta_og_title'] ?? '' ) );
+		$og_d  = sanitize_textarea_field( wp_unslash( $_POST['mm_meta_og_description'] ?? '' ) );
 		$og_id = (int) ( $_POST['mm_meta_og_image_id'] ?? 0 );
-		$og_url = esc_url_raw( $_POST['mm_meta_og_image_url'] ?? '' );
-		$noindex    = $this->sanitize_tristate( $_POST['mm_meta_noindex']    ?? '' );
-		$nofollow   = $this->sanitize_tristate( $_POST['mm_meta_nofollow']   ?? '' );
-		$schema_type = sanitize_key( $_POST['mm_meta_schema_type'] ?? '' );
-		$breadcrumb_label = sanitize_text_field( $_POST['mm_meta_breadcrumb_label'] ?? '' );
+		$og_url = esc_url_raw( wp_unslash( $_POST['mm_meta_og_image_url'] ?? '' ) );
+		$noindex    = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noindex']    ?? '' ) );
+		$nofollow   = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_nofollow']   ?? '' ) );
+		$schema_type = sanitize_key( wp_unslash( $_POST['mm_meta_schema_type'] ?? '' ) );
+		$breadcrumb_label = sanitize_text_field( wp_unslash( $_POST['mm_meta_breadcrumb_label'] ?? '' ) );
 		$exclude_sitemap  = ! empty( $_POST['mm_meta_exclude_sitemap'] );
 		// phpcs:enable
 

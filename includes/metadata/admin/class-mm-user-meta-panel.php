@@ -69,9 +69,9 @@ class MM_User_Meta_Panel {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing
 		$clean = [];
 
-		$title = sanitize_text_field( $_POST['mm_meta_title'] ?? '' );
-		$desc  = sanitize_textarea_field( $_POST['mm_meta_description'] ?? '' );
-		$noindex = $this->sanitize_tristate( $_POST['mm_meta_noindex'] ?? '' );
+		$title = sanitize_text_field( wp_unslash( $_POST['mm_meta_title'] ?? '' ) );
+		$desc  = sanitize_textarea_field( wp_unslash( $_POST['mm_meta_description'] ?? '' ) );
+		$noindex = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noindex'] ?? '' ) );
 
 		if ( $title )           { $clean['title']       = $title; }
 		if ( $desc )            { $clean['description']  = $desc; }
@@ -79,7 +79,7 @@ class MM_User_Meta_Panel {
 
 		// Social profiles.
 		foreach ( array_keys( self::SOCIAL_FIELDS ) as $field ) {
-			$val = sanitize_text_field( $_POST[ 'mm_meta_social_' . $field ] ?? '' );
+			$val = sanitize_text_field( wp_unslash( $_POST[ 'mm_meta_social_' . $field ] ?? '' ) );
 			if ( $val ) {
 				if ( in_array( $field, [ 'linkedin', 'instagram', 'website' ], true ) ) {
 					$val = esc_url_raw( $val );

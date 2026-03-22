@@ -154,16 +154,16 @@ if ( empty($hours) ) { $hours = $hour_defaults; }
 						<?php foreach ( $days_all as $d ) : ?>
 							<label class="gcm-day-label">
 								<input type="checkbox"
-									name="<?php echo esc_attr($opt); ?>[hours][<?php echo $ri; ?>][days][]"
+			name="<?php echo esc_attr($opt); ?>[hours][<?php echo absint( $ri ); ?>][days][]"
 									value="<?php echo esc_attr($d); ?>"
 									<?php checked( in_array($d, $row_days, true) ); ?>>
 								<?php echo esc_html( substr($d,0,3) ); ?>
 							</label>
 						<?php endforeach; ?>
 					</td>
-					<td><input type="time" name="<?php echo esc_attr($opt); ?>[hours][<?php echo $ri; ?>][open]" value="<?php echo esc_attr($row['open']??''); ?>" class="gcm-time-input"></td>
-					<td><input type="time" name="<?php echo esc_attr($opt); ?>[hours][<?php echo $ri; ?>][close]" value="<?php echo esc_attr($row['close']??''); ?>" class="gcm-time-input"></td>
-					<td style="text-align:center"><input type="checkbox" name="<?php echo esc_attr($opt); ?>[hours][<?php echo $ri; ?>][closed]" value="1" <?php checked(!empty($row['closed'])); ?>></td>
+				<td><input type="time" name="<?php echo esc_attr($opt); ?>[hours][<?php echo absint( $ri ); ?>][open]" value="<?php echo esc_attr($row['open']??''); ?>" class="gcm-time-input"></td>
+				<td><input type="time" name="<?php echo esc_attr($opt); ?>[hours][<?php echo absint( $ri ); ?>][close]" value="<?php echo esc_attr($row['close']??''); ?>" class="gcm-time-input"></td>
+				<td style="text-align:center"><input type="checkbox" name="<?php echo esc_attr($opt); ?>[hours][<?php echo absint( $ri ); ?>][closed]" value="1" <?php checked(!empty($row['closed'])); ?>></td>
 					<td><button type="button" class="button-link gcm-repeater-remove">&times;</button></td>
 				</tr>
 				<?php endforeach; ?>
