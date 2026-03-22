@@ -155,42 +155,47 @@ class Test_MM_Metadata extends WP_UnitTestCase {
 	// MM_Page_Context
 	// ------------------------------------------------------------------
 
-	/** Returns 'home' on the front page. */
+	/** is_home() or is_front_page() is true on the home URL. */
 	public function test_page_context_home(): void {
 		$this->go_to( home_url( '/' ) );
-		// Front page is_home() or is_front_page() depending on settings.
-		$context = MM_Page_Context::resolve();
-		$this->assertContains( $context, [ 'home', 'front_page' ] );
+		$context = new MM_Page_Context();
+		$this->assertTrue( $context->is_home() || $context->is_front_page() );
 	}
 
-	/** Returns 'single' for a singular post. */
+	/** is_singular() is true for a published post. */
 	public function test_page_context_single_post(): void {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'publish' ] );
 		$this->go_to( get_permalink( $post_id ) );
-		$this->assertSame( 'single', MM_Page_Context::resolve() );
+		$context = new MM_Page_Context();
+		$this->assertTrue( $context->is_singular() );
+		$this->assertSame( 'post', $context->get_post_type() );
 	}
 
-	/** Returns 'page' for a singular page. */
+	/** is_singular() is true for a published page; post_type is 'page'. */
 	public function test_page_context_single_page(): void {
 		$page_id = self::factory()->post->create( [
 			'post_status' => 'publish',
 			'post_type'   => 'page',
 		] );
 		$this->go_to( get_permalink( $page_id ) );
-		$this->assertSame( 'page', MM_Page_Context::resolve() );
+		$context = new MM_Page_Context();
+		$this->assertTrue( $context->is_singular() );
+		$this->assertSame( 'page', $context->get_post_type() );
 	}
 
-	/** Returns 'search' for a search query. */
+	/** is_search() is true for a search query URL. */
 	public function test_page_context_search(): void {
 		$this->go_to( home_url( '/?s=test' ) );
-		$this->assertSame( 'search', MM_Page_Context::resolve() );
+		$context = new MM_Page_Context();
+		$this->assertTrue( $context->is_search() );
 	}
 
-	/** Returns 'category' for a category archive. */
+	/** is_category() is true for a category archive URL. */
 	public function test_page_context_category_archive(): void {
 		$cat_id = self::factory()->category->create();
 		$this->go_to( get_category_link( $cat_id ) );
-		$this->assertSame( 'category', MM_Page_Context::resolve() );
+		$context = new MM_Page_Context();
+		$this->assertTrue( $context->is_category() );
 	}
 
 	// ------------------------------------------------------------------
