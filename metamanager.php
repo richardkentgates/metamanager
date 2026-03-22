@@ -27,6 +27,16 @@ define( 'MM_PLUGIN_FILE', __FILE__ );
 define( 'MM_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'MM_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
 
+// Metadata subsystem constants (used by includes/metadata/** classes).
+define( 'MM_META_VERSION',      MM_VERSION );
+define( 'MM_META_FILE',         __FILE__ );
+define( 'MM_META_DIR',          MM_PLUGIN_DIR );
+define( 'MM_META_URL',          MM_PLUGIN_URL );
+define( 'MM_META_BASENAME',     plugin_basename( __FILE__ ) );
+define( 'MM_META_OPT_SETTINGS', 'mm_meta_settings' );
+define( 'MM_META_OPT_BUSINESS', 'mm_meta_business' );
+define( 'MM_META_KEY',          '_mm_meta' );
+
 /**
  * Job queue directories.
  *
@@ -64,15 +74,45 @@ require_once MM_PLUGIN_DIR . 'includes/class-mm-sitemap.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-upload-notify.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-admin.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-updater.php';
-require_once MM_PLUGIN_DIR . 'includes/class-mm-frontend.php';
 require_once MM_PLUGIN_DIR . 'includes/class-mm-cli.php';
 
-// Front-end schema / Open Graph output (not needed in admin context).
-if ( ! is_admin() ) {
-	MM_Frontend::init();
-}
+// ---------------------------------------------------------------------------
+// Metadata subsystem — page-level head output, structured data, social tags,
+// per-post/term/user metadata panels, sitemaps, robots.txt, and more.
+// ---------------------------------------------------------------------------
+require_once MM_META_DIR . 'includes/metadata/class-mm-mod-base.php';
+require_once MM_META_DIR . 'includes/metadata/class-mm-site-settings.php';
+require_once MM_META_DIR . 'includes/metadata/class-mm-page-context.php';
+require_once MM_META_DIR . 'includes/metadata/class-mm-head-emitter.php';
+require_once MM_META_DIR . 'includes/metadata/class-mm-schema-types.php';
+require_once MM_META_DIR . 'includes/metadata/class-mm-biz-card-css.php';
+require_once MM_META_DIR . 'includes/metadata/class-mm-importer.php';
+require_once MM_META_DIR . 'includes/metadata/class-mm-metadata-cli.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-head-meta.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-social.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-schema.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-sitemap.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-robots.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-author.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-hygiene.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-links.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-local.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-html-sitemap.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-business-contact.php';
+require_once MM_META_DIR . 'includes/metadata/admin/class-mm-metadata-help.php';
+require_once MM_META_DIR . 'includes/metadata/admin/class-mm-metadata-admin.php';
+require_once MM_META_DIR . 'includes/metadata/admin/class-mm-post-meta-panel.php';
+require_once MM_META_DIR . 'includes/metadata/admin/class-mm-term-meta-panel.php';
+require_once MM_META_DIR . 'includes/metadata/admin/class-mm-user-meta-panel.php';
+require_once MM_META_DIR . 'includes/metadata/class-mm-metadata-loader.php';
 
-// Sitemaps: rewrite rules, template_redirect, and admin settings registration.
+// Boot the metadata subsystem after all plugins are loaded so hooks fire in
+// the correct order.
+add_action( 'plugins_loaded', function (): void {
+	( new MM_Metadata_Loader() )->run();
+} );
+
+// Media sitemaps: rewrite rules and template_redirect for /sitemap-media.xml etc.
 MM_Sitemap::init();
 
 // Auto-clean job history when an attachment is deleted from the Media Library.
@@ -96,6 +136,22 @@ function mm_activate_single_site(): void {
 
 	if ( ! wp_next_scheduled( 'mm_import_completed_jobs' ) ) {
 		wp_schedule_event( time(), 'mm_every_minute', 'mm_import_completed_jobs' );
+	}
+
+	// Migrate option keys from old gcm-seo-core names to mm_meta_* keys.
+	// Safe to run on every activation — only copies when old key exists and new
+	// key does not, then removes the old key so it is a one-time migration.
+	$migrations = [
+		'gcm_seo_settings'     => MM_META_OPT_SETTINGS,
+		'gcm_seo_business'     => MM_META_OPT_BUSINESS,
+		'gcm_seo_contact_style' => 'mm_meta_contact_style',
+	];
+	foreach ( $migrations as $old_key => $new_key ) {
+		$old_value = get_option( $old_key, null );
+		if ( $old_value !== null && get_option( $new_key, null ) === null ) {
+			update_option( $new_key, $old_value, false );
+			delete_option( $old_key );
+		}
 	}
 
 	MM_Sitemap::add_rewrite_rules();

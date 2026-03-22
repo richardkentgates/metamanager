@@ -87,7 +87,7 @@ class MM_Admin {
 
 	public static function add_help_tabs( \WP_Screen $screen ): void {
 		// Jobs dashboard help.
-		if ( 'media_page_metamanager-jobs' === $screen->id ) {
+		if ( 'toplevel_page_metamanager' === $screen->id ) {
 			$screen->add_help_tab( [
 				'id'      => 'mm_help_overview',
 				'title'   => __( 'Overview', 'metamanager' ),
@@ -200,12 +200,12 @@ class MM_Admin {
 					'<li><strong style="color:#e54c3c;">' . esc_html__( 'Failed', 'metamanager' ) . '</strong> — ' . esc_html__( 'The last compression attempt failed. Go to Media → Metamanager to re-queue.', 'metamanager' ) . '</li>' .
 					'<li><strong style="color:#888;">' . esc_html__( 'Not compressed', 'metamanager' ) . '</strong> — ' . esc_html__( 'No compression job has run yet. Use Compress Lossless from the Bulk Actions menu.', 'metamanager' ) . '</li>' .
 					'</ul>' .
-					'<p><a href="' . esc_url( admin_url( 'upload.php?page=metamanager-jobs' ) ) . '">' . esc_html__( 'View Job Dashboard →', 'metamanager' ) . '</a></p>',
+					'<p><a href="' . esc_url( admin_url( 'admin.php?page=metamanager' ) ) . '">' . esc_html__( 'View Job Dashboard →', 'metamanager' ) . '</a></p>',
 			] );
 		}
 
 		// Settings page help.
-		if ( 'media_page_metamanager-settings' === $screen->id ) {
+		if ( 'metamanager_page_metamanager-settings' === $screen->id ) {
 			$screen->add_help_tab( [
 				'id'      => 'mm_help_settings_api',
 				'title'   => __( 'REST API Access', 'metamanager' ),
@@ -256,18 +256,32 @@ class MM_Admin {
 	// -----------------------------------------------------------------------
 
 	public static function add_menu(): void {
-		add_submenu_page(
-			'upload.php',
-			esc_html__( 'Metamanager Jobs', 'metamanager' ),
+		// Top-level Metamanager entry. MM_Admin owns the top-level registration so
+		// it can control position and icon. MM_Metadata_Admin registers its pages
+		// as submenus of this same 'metamanager' slug.
+		add_menu_page(
+			esc_html__( 'Metamanager', 'metamanager' ),
 			esc_html__( 'Metamanager', 'metamanager' ),
 			'edit_others_posts',
-			'metamanager-jobs',
+			'metamanager',
+			[ __CLASS__, 'render_jobs_page' ],
+			'dashicons-format-gallery',
+			58
+		);
+
+		// Rename the auto-generated duplicate top-level entry to "Dashboard".
+		add_submenu_page(
+			'metamanager',
+			esc_html__( 'Metamanager Dashboard', 'metamanager' ),
+			esc_html__( 'Dashboard', 'metamanager' ),
+			'edit_others_posts',
+			'metamanager',
 			[ __CLASS__, 'render_jobs_page' ]
 		);
 		add_submenu_page(
-			'upload.php',
+			'metamanager',
 			esc_html__( 'Batch Metadata', 'metamanager' ),
-			esc_html__( 'Batch Metadata', 'metamanager' ),
+			esc_html__( 'Media Processing', 'metamanager' ),
 			'edit_others_posts',
 			'metamanager-bulk-meta',
 			[ __CLASS__, 'render_bulk_meta_page' ]
@@ -280,7 +294,7 @@ class MM_Admin {
 
 	public static function status_banner(): void {
 		global $pagenow;
-		$is_mm_page   = isset( $_GET['page'] ) && 'metamanager-jobs' === sanitize_key( $_GET['page'] ); // phpcs:ignore WordPress.Security.NonceVerification
+		$is_mm_page   = isset( $_GET['page'] ) && in_array( sanitize_key( $_GET['page'] ), [ 'metamanager', 'metamanager-bulk-meta', 'metamanager-settings' ], true ); // phpcs:ignore WordPress.Security.NonceVerification
 		$is_media_lib = ( 'upload.php' === $pagenow );
 
 		if ( ! $is_mm_page && ! $is_media_lib ) {
@@ -1893,7 +1907,7 @@ class MM_Admin {
 		?>
 		<div class="wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Batch Metadata', 'metamanager' ); ?></h1>
-			<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-jobs' ) ); ?>" class="page-title-action">
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=metamanager' ) ); ?>" class="page-title-action">
 				<?php esc_html_e( '← Job Dashboard', 'metamanager' ); ?>
 			</a>
 			<hr class="wp-header-end">
@@ -1957,7 +1971,7 @@ class MM_Admin {
 								   style="width:180px;">
 							<button class="button"><?php esc_html_e( 'Search', 'metamanager' ); ?></button>
 							<?php if ( $search ) : ?>
-								<a href="<?php echo esc_url( admin_url( 'upload.php?page=metamanager-bulk-meta' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'metamanager' ); ?></a>
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=metamanager-bulk-meta' ) ); ?>" class="button"><?php esc_html_e( 'Clear', 'metamanager' ); ?></a>
 							<?php endif; ?>
 						</form>
 						<button id="mm-select-all" class="button button-small"><?php esc_html_e( 'Select All', 'metamanager' ); ?></button>

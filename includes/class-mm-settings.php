@@ -64,9 +64,9 @@ class MM_Settings {
 
 	public static function add_menu(): void {
 		add_submenu_page(
-			'upload.php',
+			'metamanager',
 			esc_html__( 'Metamanager Settings', 'metamanager' ),
-			esc_html__( 'MM Settings', 'metamanager' ),
+			esc_html__( 'Settings', 'metamanager' ),
 			'manage_options',
 			'metamanager-settings',
 			[ __CLASS__, 'render_page' ]

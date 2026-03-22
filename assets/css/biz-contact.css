@@ -1,0 +1,64 @@
+/**
+ * Metamanager — Business Contact Card base styles.
+ *
+ * Structural/accessibility rules that complement the inline generated CSS.
+ * Visual customisation (colours, sizes, shadows) is handled by MM_Biz_Card_CSS.
+ */
+
+.gcm-biz-card {
+	box-sizing: border-box;
+	font-family: inherit;
+}
+
+.gcm-biz-card *,
+.gcm-biz-card *::before,
+.gcm-biz-card *::after {
+	box-sizing: inherit;
+}
+
+/* Logo image */
+.gcm-biz-card__logo img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}
+
+/* Actions row */
+.gcm-biz-card__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* Action buttons */
+.gcm-biz-card__btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	text-decoration: none;
+	border: none;
+	transition: filter 0.15s ease;
+}
+
+.gcm-biz-card__btn .dashicons {
+	vertical-align: middle;
+	flex-shrink: 0;
+	line-height: 1;
+}
+
+.gcm-biz-card__btn:focus {
+	outline: 2px solid;
+	outline-offset: 2px;
+}
+
+.gcm-biz-card__btn:hover {
+	filter: brightness(0.9);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+	.gcm-biz-card {
+		max-width: 100% !important;
+	}
+}
