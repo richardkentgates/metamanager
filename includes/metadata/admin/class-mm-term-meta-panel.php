@@ -66,10 +66,10 @@ class MM_Term_Meta_Panel {
 		$desc  = sanitize_textarea_field( wp_unslash( $_POST['mm_meta_description'] ?? '' ) );
 		$og_t  = sanitize_text_field( wp_unslash( $_POST['mm_meta_og_title'] ?? '' ) );
 		$og_d  = sanitize_textarea_field( wp_unslash( $_POST['mm_meta_og_description'] ?? '' ) );
-		$og_id = (int) ( $_POST['mm_meta_og_image_id'] ?? 0 );
+		$og_id = absint( wp_unslash( $_POST['mm_meta_og_image_id'] ?? 0 ) );
 		$og_url = esc_url_raw( wp_unslash( $_POST['mm_meta_og_image_url'] ?? '' ) );
-		$noindex    = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noindex']    ?? '' ) );
-		$nofollow   = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_nofollow']   ?? '' ) );
+		$noindex    = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noindex']    ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitize_tristate() is a custom sanitizer
+		$nofollow   = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_nofollow']   ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$schema_type = sanitize_key( wp_unslash( $_POST['mm_meta_schema_type'] ?? '' ) );
 		$breadcrumb_label = sanitize_text_field( wp_unslash( $_POST['mm_meta_breadcrumb_label'] ?? '' ) );
 		$exclude_sitemap  = ! empty( $_POST['mm_meta_exclude_sitemap'] );

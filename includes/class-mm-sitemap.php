@@ -745,7 +745,9 @@ class MM_Sitemap {
 				. '<ol>'
 				. '<li>' . esc_html__( 'Open Google Search Console and select your property.', 'metamanager' ) . '</li>'
 				. '<li>' . esc_html__( 'Navigate to Indexing → Sitemaps.', 'metamanager' ) . '</li>'
+				// translators: %s is an XML sitemap filename wrapped in a code element.
 				. '<li>' . sprintf( esc_html__( 'Enter %s and click Submit.', 'metamanager' ), '<code>sitemap-media.xml</code>' ) . '</li>'
+				// translators: %s is an XML sitemap filename wrapped in a code element.
 				. '<li>' . sprintf( esc_html__( 'Repeat for %s.', 'metamanager' ), '<code>sitemap-video.xml</code>' ) . '</li>'
 				. '</ol>'
 				. '<p>' . esc_html__( 'Both sitemaps can be toggled and fine-tuned on this page under the Sitemaps section.', 'metamanager' ) . '</p>',

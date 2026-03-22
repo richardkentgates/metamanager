@@ -71,7 +71,7 @@ class MM_User_Meta_Panel {
 
 		$title = sanitize_text_field( wp_unslash( $_POST['mm_meta_title'] ?? '' ) );
 		$desc  = sanitize_textarea_field( wp_unslash( $_POST['mm_meta_description'] ?? '' ) );
-		$noindex = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noindex'] ?? '' ) );
+		$noindex = $this->sanitize_tristate( wp_unslash( $_POST['mm_meta_noindex'] ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitize_tristate() is a custom sanitizer
 
 		if ( $title )           { $clean['title']       = $title; }
 		if ( $desc )            { $clean['description']  = $desc; }

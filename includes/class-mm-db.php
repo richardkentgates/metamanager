@@ -96,6 +96,7 @@ class MM_DB {
 
 		// Skip on a fresh install — the table doesn't exist yet and dbDelta will
 		// create it with the UNIQUE KEY already in place.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- SHOW TABLES is a DDL check; caching is unsuitable
 		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
 			return;
 		}
@@ -107,15 +108,12 @@ class MM_DB {
 		}
 
 		// Keep only the latest row per (attachment_id, job_type, size).
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query(
-			"DELETE t1 FROM {$table} t1
-			 INNER JOIN {$table} t2
-			    ON  t1.attachment_id = t2.attachment_id
-			    AND t1.job_type      = t2.job_type
-			    AND t1.size          = t2.size
-			    AND t1.id            < t2.id"
-		);
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare(
+			'DELETE t1 FROM %i t1 INNER JOIN %i t2 ON t1.attachment_id = t2.attachment_id AND t1.job_type = t2.job_type AND t1.size = t2.size AND t1.id < t2.id',
+			$table,
+			$table
+		) );
 	}
 
 	/**
@@ -247,7 +245,7 @@ class MM_DB {
 		global $wpdb;
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $job_id ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $job_id ) );
 	}
 
 	/**
@@ -308,7 +306,8 @@ class MM_DB {
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (bool) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM {$table} WHERE attachment_id = %d AND job_type = 'compression' AND size = %s AND status = 'completed'",
+			'SELECT COUNT(*) FROM %i WHERE attachment_id = %d AND job_type = \'compression\' AND size = %s AND status = \'completed\'',
+			$table,
 			$attachment_id,
 			$size
 		) );
@@ -326,7 +325,8 @@ class MM_DB {
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (bool) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM {$table} WHERE attachment_id = %d AND job_type = 'metadata' AND status = 'completed'",
+			'SELECT COUNT(*) FROM %i WHERE attachment_id = %d AND job_type = \'metadata\' AND status = \'completed\'',
+			$table,
 			$attachment_id
 		) );
 	}
@@ -378,7 +378,8 @@ class MM_DB {
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (bool) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM {$table} WHERE attachment_id = %d AND status = 'completed'",
+			'SELECT COUNT(*) FROM %i WHERE attachment_id = %d AND status = \'completed\'',
+			$table,
 			$attachment_id
 		) );
 	}
@@ -395,7 +396,8 @@ class MM_DB {
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$types = $wpdb->get_col( $wpdb->prepare(
-			"SELECT DISTINCT job_type FROM {$table} WHERE attachment_id = %d AND status = 'pending'",
+			'SELECT DISTINCT job_type FROM %i WHERE attachment_id = %d AND status = \'pending\'',
+			$table,
 			$attachment_id
 		) );
 		return is_array( $types ) ? $types : [];
@@ -413,7 +415,8 @@ class MM_DB {
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$ids = $wpdb->get_col( $wpdb->prepare(
-			"SELECT DISTINCT attachment_id FROM {$table} WHERE job_type = %s AND status = 'completed'",
+			'SELECT DISTINCT attachment_id FROM %i WHERE job_type = %s AND status = \'completed\'',
+			$table,
 			$job_type
 		) );
 		return $ids ? array_map( 'intval', $ids ) : [];
@@ -426,7 +429,7 @@ class MM_DB {
 		global $wpdb;
 		$table = self::table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$wpdb->query( "TRUNCATE TABLE {$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( 'TRUNCATE TABLE %i', $table ) );
 	}
 }
 

@@ -362,7 +362,7 @@ class MM_Upload_Notify {
 				sprintf(
 					/* translators: 1: recipient email address, 2: number of images */
 					esc_html__( 'Could not send receipt to %1$s for %2$d image(s).', 'metamanager' ),
-					'<strong>' . $to . '</strong>',
+					'<strong>' . esc_html( $to ) . '</strong>',
 					absint( $count )
 				),
 				sprintf(

@@ -187,6 +187,7 @@ class MM_Mod_Business_Contact extends MM_Mod_Base {
 		$fp = fopen( 'php://output', 'wb' );
 		fputcsv( $fp, $headers );
 		fputcsv( $fp, $row );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- php://output stream; WP_Filesystem has no equivalent
 		fclose( $fp );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo ob_get_clean();

@@ -4,7 +4,7 @@
  * Plugin URI:   https://github.com/richardkentgates/metamanager
  * Description:  Lossless image compression and standards-compliant metadata embedding (EXIF, IPTC, XMP) via OS-level daemons. Expands the WordPress Media Library with native metadata editing, bulk operations, and a real-time job dashboard.
  * Version:      2.1.7
- * Requires at least: 6.0
+ * Requires at least: 6.2
  * Requires PHP: 8.0
  * Author:       Richard Kent Gates
  * Author URI:   https://github.com/richardkentgates
@@ -432,10 +432,12 @@ if ( is_admin() ) {
 		if ( empty( $_GET['mm_notice'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only GET param set by MM_Updater
 		$type    = in_array( wp_unslash( $_GET['mm_notice_type'] ?? '' ), [ 'updated', 'error' ], true )
-			? sanitize_key( wp_unslash( $_GET['mm_notice_type'] ) )
+			? sanitize_key( wp_unslash( $_GET['mm_notice_type'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			: 'updated';
-		$message = sanitize_text_field( urldecode( wp_unslash( $_GET['mm_notice'] ) ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized below via sanitize_text_field
+		$message = sanitize_text_field( wp_unslash( urldecode( $_GET['mm_notice'] ) ) );
 		printf(
 			'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
 			esc_attr( $type ),

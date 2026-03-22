@@ -313,13 +313,13 @@ class MM_Admin {
 
 		echo '<div class="notice notice-info mm-banner" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:10px 16px;">';
 		echo '<strong>' . esc_html__( 'Metamanager', 'metamanager' ) . ':</strong> &nbsp;';
-		echo 'ExifTool '  . $icon( $status['exiftool'],        'ExifTool found',   'ExifTool missing — metadata embedding disabled' );
-		echo ' &nbsp;jpegtran ' . $icon( $status['jpegtran'],  'jpegtran found',   'jpegtran missing — JPEG lossless compression disabled' );
-		echo ' &nbsp;optipng '  . $icon( $status['optipng'],   'optipng found',    'optipng missing — PNG lossless compression disabled' );
-		echo ' &nbsp;cwebp '    . $icon( $status['cwebp'],     'cwebp found',      'cwebp missing — WebP lossless compression disabled' );
-		echo ' &nbsp;ffmpeg '   . $icon( $status['ffmpeg'],    'ffmpeg found',     'ffmpeg missing — video remux disabled' );
-		echo ' &nbsp;Compress daemon ' . $icon( $status['compress_daemon'], 'Compression daemon running', 'Compression daemon not running' );
-		echo ' &nbsp;Metadata daemon ' . $icon( $status['meta_daemon'],     'Metadata daemon running',    'Metadata daemon not running' );
+		echo 'ExifTool '  . $icon( $status['exiftool'],        'ExifTool found',   'ExifTool missing — metadata embedding disabled' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $icon closure returns esc_attr-escaped HTML
+		echo ' &nbsp;jpegtran ' . $icon( $status['jpegtran'],  'jpegtran found',   'jpegtran missing — JPEG lossless compression disabled' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo ' &nbsp;optipng '  . $icon( $status['optipng'],   'optipng found',    'optipng missing — PNG lossless compression disabled' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo ' &nbsp;cwebp '    . $icon( $status['cwebp'],     'cwebp found',      'cwebp missing — WebP lossless compression disabled' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo ' &nbsp;ffmpeg '   . $icon( $status['ffmpeg'],    'ffmpeg found',     'ffmpeg missing — video remux disabled' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo ' &nbsp;Compress daemon ' . $icon( $status['compress_daemon'], 'Compression daemon running', 'Compression daemon not running' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo ' &nbsp;Metadata daemon ' . $icon( $status['meta_daemon'],     'Metadata daemon running',    'Metadata daemon not running' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '</div>';
 	}
 
@@ -686,7 +686,7 @@ class MM_Admin {
 					. sprintf(
 						/* translators: 1: file name, 2: size slug(s) */
 						esc_html__( 'Metamanager: A compression job for “%1$s” (%2$s) is already in the queue — your request was not duplicated.', 'metamanager' ),
-						$name,
+						esc_html( $name ),
 						esc_html( $sizes )
 					)
 					. '</p></div>';
@@ -696,7 +696,7 @@ class MM_Admin {
 					. sprintf(
 						/* translators: 1: file name, 2: size slug(s) */
 						esc_html__( 'Metamanager: A metadata job for “%1$s” (%2$s) is already in the queue — your update has been added and will run in sequence after it.', 'metamanager' ),
-						$name,
+						esc_html( $name ),
 						esc_html( $sizes )
 					)
 					. '</p></div>';
@@ -1414,8 +1414,8 @@ class MM_Admin {
 			wp_send_json_error( 'Permission denied.' );
 		}
 
-		$offset     = max( 0, (int) ( $_POST['offset']     ?? 0 ) );
-		$batch_size = max( 1, min( 200, (int) ( $_POST['batch_size'] ?? 50 ) ) );
+		$offset     = max( 0, (int) wp_unslash( $_POST['offset']     ?? 0 ) );
+		$batch_size = max( 1, min( 200, (int) wp_unslash( $_POST['batch_size'] ?? 50 ) ) );
 
 		// Include images plus all supported video and audio MIME types.
 		$all_mime_types = array_merge(
@@ -1529,7 +1529,7 @@ class MM_Admin {
 		}
 
 		$raw_ids      = array_map( 'absint', (array) ( $_POST['ids'] ?? [] ) );
-		$raw_fields   = (array) wp_unslash( $_POST['fields'] ?? [] );
+		$raw_fields   = (array) wp_unslash( $_POST['fields'] ?? [] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- fields are validated against $allowed_fields allowlist below
 		$also_compress = ! empty( $_POST['also_compress'] );
 
 		$allowed_fields = [

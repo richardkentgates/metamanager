@@ -265,7 +265,8 @@ if [[ "${UPDATE_ONLY}" == true ]]; then
     fi
 
     # Sync plugin files only — leave daemons/ untouched in the plugin dir.
-    rsync -a --exclude='daemons/' --exclude='.git/' --exclude='metamanager-install.sh' \
+    # --delete removes stale files that no longer exist in the source.
+    rsync -a --delete --exclude='daemons/' --exclude='.git/' --exclude='metamanager-install.sh' \
         --exclude='docs/' --exclude='*.md' --exclude='*.gitignore' \
         "${TMP_UPDATE}/" "${PLUGIN_DEST}/"
     success "Plugin files updated."
