@@ -55,6 +55,9 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-suggest
 
+      - name: Install ExifTool
+        run: sudo apt-get install -y libimage-exiftool-perl
+
       - name: Download WordPress ${{ matrix.wp }}
         run: |
           WP_VERSION="${{ matrix.wp }}"
@@ -62,6 +65,20 @@ jobs:
             curl -sL https://wordpress.org/latest.tar.gz | tar -xz -C /tmp
           else
             curl -sL "https://wordpress.org/wordpress-${WP_VERSION}.tar.gz" | tar -xz -C /tmp
+          fi
+
+      - name: Create WP_PHPMailer compat stub if missing
+        run: |
+          STUB="/tmp/wordpress/wp-includes/class-wp-phpmailer.php"
+          if [ ! -f "$STUB" ]; then
+            {
+              echo "<?php"
+              echo "// Compatibility stub: class-wp-phpmailer.php was removed from WP core in a later"
+              echo "// version; this stub lets wp-phpunit's mock-mailer.php find and load the class."
+              echo "if ( ! class_exists( 'WP_PHPMailer', false ) ) {"
+              echo "    class WP_PHPMailer extends PHPMailer\\PHPMailer\\PHPMailer {}"
+              echo "}"
+            } > "$STUB"
           fi
 
       - name: Create WordPress test database and config

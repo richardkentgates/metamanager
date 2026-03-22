@@ -1,6 +1,6 @@
 <!-- ── Hero ──────────────────────────────────────────────────────────────── -->
 <section class="hero" id="hero">
-    <div class="hero-badge">Open Source &middot; GPL v3 &middot; WordPress 6.0+</div>
+    <div class="hero-badge">Open Source &middot; GPL-2.0-or-later &middot; WordPress 6.2+</div>
     <h1>Your Site's Metadata.<br><span class="accent">Completely Managed.</span></h1>
     <p class="hero-subtitle">
         Metamanager covers both layers — the files themselves and your web presence.
@@ -14,6 +14,7 @@
         <span class="hero-pill">🔍 Schema.org &mdash; 20+ structured data types</span>
         <span class="hero-pill">📡 Open Graph &mdash; all content types</span>
         <span class="hero-pill">🗺 Sitemaps &mdash; XML (pages + media + video) + HTML</span>
+        <span class="hero-pill">📰 RSS feed cleanup &mdash; strips noise, custom title &amp; copyright</span>
         <span class="hero-pill">🔗 Link checker &mdash; async, dashboard-integrated</span>
         <span class="hero-pill">🏢 Business profile &mdash; schema, contact card, local</span>
         <span class="hero-pill">📍 GPS coordinates from camera EXIF</span>
@@ -107,7 +108,7 @@
             <tr><td><strong>Admin UI</strong></td><td><code>MM_Admin</code>, <code>MM_Settings</code></td><td>Top-level menu, job dashboard, bulk actions</td></tr>
             <tr><td><strong>Site config</strong></td><td><code>MM_Site_Settings</code></td><td>Site-level and page-level metadata settings storage</td></tr>
             <tr><td><strong>Head emitter</strong></td><td><code>MM_Head_Emitter</code>, <code>MM_Page_Context</code></td><td>Renders <code>&lt;meta&gt;</code>, OG tags, and JSON-LD into <code>wp_head</code></td></tr>
-            <tr><td><strong>Modules</strong></td><td><code>MM_Mod_*</code> (10 classes)</td><td>Head meta, social, schema, sitemaps, robots, authors, hygiene, links, local, HTML sitemap, business contact</td></tr>
+            <tr><td><strong>Modules</strong></td><td><code>MM_Mod_*</code> (11 classes)</td><td>Head meta, social, schema, sitemaps, robots, authors, hygiene, links, local, HTML sitemap, business contact, RSS feed</td></tr>
             <tr><td><strong>Metaboxes</strong></td><td><code>MM_Post_Meta_Panel</code>, <code>MM_Term_Meta_Panel</code>, <code>MM_User_Meta_Panel</code></td><td>Per-post, per-term, per-user metadata editing panels</td></tr>
             <tr><td><strong>Sitemaps</strong></td><td><code>MM_Sitemap</code> (media), <code>MM_Mod_Sitemap_Web</code> (pages)</td><td>Media XML sitemap, web page sitemap, video sitemap</td></tr>
             <tr><td><strong>Daemons</strong></td><td><code>metamanager-compress-daemon.sh</code>, <code>metamanager-meta-daemon.sh</code></td><td>inotifywait loops; call jpegtran/optipng/cwebp/ffmpeg/ExifTool</td></tr>
@@ -566,7 +567,7 @@ sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon</code
 <!-- ── Contributing ──────────────────────────────────────────────────────── -->
 <section id="contributing">
     <h2>Contributing</h2>
-    <p class="section-lead">Metamanager is open source under GPL v3. Contributions of all kinds are welcome.</p>
+    <p class="section-lead">Metamanager is open source under GPL-2.0-or-later. Contributions of all kinds are welcome.</p>
 
     <h3>Branch structure</h3>
     <table>

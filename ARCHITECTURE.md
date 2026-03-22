@@ -65,7 +65,8 @@ metamanager/
 │           ├── class-mm-mod-local.php         LocalBusiness JSON-LD and contact card data
 │           ├── class-mm-mod-author.php        Author archive Person JSON-LD
 │           ├── class-mm-mod-hygiene.php       Head cleanup and content audit tools
-│           └── class-mm-mod-business-contact.php  Contact card block, widget, and shortcode
+│           ├── class-mm-mod-business-contact.php  Contact card block, widget, and shortcode
+│           └── class-mm-mod-rss.php            RSS 2.0 feed cleanup — strips noise tags via output buffering
 │
 ├── daemons/
 │   ├── metamanager-compress-daemon.sh    Bash: inotifywait loop — jpegtran/optipng/cwebp/ffmpeg
@@ -427,6 +428,7 @@ All SEO and web-layer settings are stored in a single WordPress option under the
 | `authors` | Author archive behaviour; Person schema toggle |
 | `links` | Broken link checker configuration |
 | `hygiene` | Head tag cleanup toggles |
+| `feed` | RSS 2.0 feed cleanup — generator tag, comment elements, excerpt/full-content toggle, custom title and copyright |
 
 Business profile data is stored separately under option key `mm_meta_business`.
 
@@ -489,6 +491,8 @@ Two rewrite rules are registered on activation:
 - `sitemap-video\.xml$` → `index.php?mm_sitemap=video`
 
 `template_redirect` intercepts these query vars and outputs XML directly, suppressing the theme template. Both sitemaps are generated fresh on every request (no static caching).
+
+The web-layer XML sitemaps module (`MM_Mod_Sitemap`) generates the SEO sitemap index at `/sitemap.xml` with per-post-type, per-taxonomy, and video sub-sitemaps. Generated XML is cached in a WordPress transient (1-hour TTL, option key `mm_sitemap_cache_v{version}`) and flushed automatically on `save_post`, `deleted_post`, and `added_term`/`edited_term`/`delete_term` hooks.
 
 ---
 
@@ -579,6 +583,35 @@ The `wp metamanager` command group provides:
 - Each site has its own `{prefix}metamanager_jobs` table.
 - Settings are per-site (`get_option` / `update_option` — not network-wide).
 - The job queue directory (`wp-content/metamanager-jobs/`) is shared across all sites on the same WordPress installation (single `WP_CONTENT_DIR`).
+
+---
+
+## RSS Feed Module (`MM_Mod_Rss`)
+
+The RSS feed cleanup module intercepts WordPress's `feed-rss2.php` output via `ob_start()` on `template_redirect` (fires only when `is_feed()` is true) and strips noise that WordPress hardcodes with no available action hook:
+
+| Stripped element | Why |
+|-----------------|-----|
+| `<wfw:commentRss>` | Exposes internal URL structure |
+| `<slash:comments>` | Comment-count leakage |
+| `xmlns:wfw` namespace declaration | Orphaned after above removal |
+| `xmlns:slash` namespace declaration | Orphaned after above removal |
+| `<atom:link rel="self">` | Self-referential redundancy |
+
+The generator tag (`<generator>`) is removed via the standard `the_generator` filter rather than output buffering.
+
+**Output buffering rationale:** WordPress's `feed-rss2.php` template hardcodes `<wfw:commentRss>`, `<slash:comments>`, and namespace declarations as inline PHP `echo` statements with no surrounding action hooks. `ob_start()` on `template_redirect` is the only way to operate on this output before it reaches the client.
+
+### Settings
+
+| Key (`feed.*`) | Default | Description |
+|----------------|---------|-------------|
+| `cleanup_enabled` | `true` | Master switch — all hooks are skipped when false |
+| `remove_generator` | `true` | Remove `<generator>` via `the_generator` filter |
+| `remove_comments_elements` | `true` | Strip `wfw:commentRss`, `slash:comments`, namespace declarations, and `atom:link self` via output buffer |
+| `use_excerpt` | `false` | Replace `<content:encoded>` with `<description>` (excerpt only) |
+| `feed_title` | `''` | Override the channel `<title>` |
+| `feed_copyright` | `''` | Add `<copyright>` to the channel |
 
 ---
 

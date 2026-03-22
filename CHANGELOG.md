@@ -64,6 +64,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Settings renamed to Preferences** — the Metamanager Preferences submenu page
   (formerly Settings) now appears at the bottom of the admin sub-navigation stack.
 
+- **RSS feed cleanup module** — new `MM_Mod_Rss` module strips WordPress's default
+  RSS 2.0 noise: `<wfw:commentRss>`, `<slash:comments>`, their namespace
+  declarations, and `<atom:link rel="self">`. Output buffering is used because
+  WordPress hardcodes these elements in `feed-rss2.php` with no surrounding
+  action hooks. Additional settings: remove generator tag, excerpt vs full
+  content, custom channel title and copyright. All controlled from
+  **Metamanager → RSS Feed** in the admin.
+
+- **XML sitemap transient caching** — the SEO XML sitemap index and sub-sitemaps
+  are now cached in a WordPress transient (1-hour TTL) and rebuilt only when
+  content changes. The cache is automatically flushed on `save_post`,
+  `deleted_post`, `added_term`, `edited_term`, and `delete_term`.
+
+- **Admin UI** — Metamanager admin menu now shows the plugin icon (SVG dashicon)
+  instead of a generic settings gear. Navigation dropdown in the top admin bar
+  links to all major sections. Settings and metadata admin pages display section
+  badges for faster visual scanning. A "License & Credits" section was added to
+  the plugin information page.
+
 - **PHPUnit CI workflow** — new `.github/workflows/phpunit.yml` runs the full
   integration test suite against PHP 8.1/8.2/8.3 and WordPress 6.4/6.5/latest
   on every push to `main`.
@@ -71,8 +90,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **GitHub Pages redesign** — rebuilt with the j-make template; responsive top
   nav with nested dropdowns replacing the previous sidebar navigation.
 
----
+### Fixed
 
+- **Image grid rendered in wrong branch** — the Media Library image grid was
+  accidentally placed inside the `if(empty($ids))` branch instead of the `else`
+  branch, so the grid only appeared when there were no images and was hidden
+  when images were present. (`class-mm-admin.php`).
 ## [2.1.7] — 2026-03-15
 
 ### Added
