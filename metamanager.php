@@ -8,8 +8,8 @@
  * Requires PHP: 8.0
  * Author:       Richard Kent Gates
  * Author URI:   https://github.com/richardkentgates
- * License:      GPLv3 or later
- * License URI:  https://www.gnu.org/licenses/gpl-3.0.html
+ * License:      GPL-2.0-or-later
+ * License URI:  https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:  metamanager
  * Domain Path:  /languages
  *
@@ -99,6 +99,7 @@ require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-links.php';
 require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-local.php';
 require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-html-sitemap.php';
 require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-business-contact.php';
+require_once MM_META_DIR . 'includes/metadata/modules/class-mm-mod-rss.php';
 require_once MM_META_DIR . 'includes/metadata/admin/class-mm-metadata-help.php';
 require_once MM_META_DIR . 'includes/metadata/admin/class-mm-metadata-admin.php';
 require_once MM_META_DIR . 'includes/metadata/admin/class-mm-post-meta-panel.php';

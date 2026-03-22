@@ -265,7 +265,7 @@ class MM_Admin {
 			'edit_others_posts',
 			'metamanager',
 			[ __CLASS__, 'render_jobs_page' ],
-			'dashicons-format-gallery',
+			'dashicons-media-code',
 			58
 		);
 

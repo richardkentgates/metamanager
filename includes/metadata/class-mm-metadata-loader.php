@@ -38,6 +38,7 @@ class MM_Metadata_Loader {
 		( new MM_Mod_Links( $this->settings ) )->register_hooks();
 		( new MM_Mod_Html_Sitemap( $this->settings ) )->register_hooks();
 		( new MM_Mod_Business_Contact( $this->settings ) )->register_hooks();
+		( new MM_Mod_Rss( $this->settings ) )->register_hooks();
 
 		// --- Admin ---------------------------------------------------------------
 		if ( is_admin() ) {

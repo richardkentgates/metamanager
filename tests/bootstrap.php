@@ -151,6 +151,7 @@ require_once $mm_meta . 'modules/class-mm-mod-links.php';
 require_once $mm_meta . 'modules/class-mm-mod-local.php';
 require_once $mm_meta . 'modules/class-mm-mod-html-sitemap.php';
 require_once $mm_meta . 'modules/class-mm-mod-business-contact.php';
+require_once $mm_meta . 'modules/class-mm-mod-rss.php';
 require_once $mm_meta . 'admin/class-mm-metadata-help.php';
 require_once $mm_meta . 'admin/class-mm-metadata-admin.php';
 require_once $mm_meta . 'admin/class-mm-post-meta-panel.php';

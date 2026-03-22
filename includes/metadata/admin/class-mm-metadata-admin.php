@@ -35,6 +35,7 @@ private array $pages = [
 'mm-meta-robots'   => [ 'label' => 'Robots.txt', 'option_group' => 'mm_meta_robots_group',    'section' => 'robots',  'template' => 'robots',    'inner_form' => false ],
 'mm-meta-authors'  => [ 'label' => 'Authors',    'option_group' => 'mm_meta_authors_group',   'section' => 'authors', 'template' => 'authors',   'inner_form' => false ],
 'mm-meta-hygiene'  => [ 'label' => 'Hygiene',    'option_group' => 'mm_meta_hygiene_group',   'section' => 'hygiene', 'template' => 'hygiene',   'inner_form' => false ],
+'mm-meta-feed'     => [ 'label' => 'RSS Feed',   'option_group' => 'mm_meta_feed_group',      'section' => 'feed',    'template' => 'feed',      'inner_form' => false ],
 'mm-meta-links'    => [ 'label' => 'Links',      'option_group' => 'mm_meta_links_group',     'section' => 'links',   'template' => 'links',     'inner_form' => true  ],
 'mm-meta-tools'    => [ 'label' => 'Tools',      'option_group' => null,                      'section' => null,      'template' => 'tools',     'inner_form' => true  ],
 'mm-meta-contact'  => [ 'label' => 'Contact Card', 'option_group' => 'mm_meta_contact_group', 'section' => null, 'template' => 'contact', 'inner_form' => false ],
@@ -68,6 +69,7 @@ add_submenu_page( 'metamanager', 'Sitemaps — Metamanager',   'Sitemaps',   'ma
 add_submenu_page( 'metamanager', 'Robots.txt — Metamanager', 'Robots.txt', 'manage_options', 'mm-meta-robots',   fn() => $this->render( 'mm-meta-robots' ) );
 add_submenu_page( 'metamanager', 'Authors — Metamanager',    'Authors',    'manage_options', 'mm-meta-authors',  fn() => $this->render( 'mm-meta-authors' ) );
 add_submenu_page( 'metamanager', 'Hygiene — Metamanager',    'Hygiene',    'manage_options', 'mm-meta-hygiene',  fn() => $this->render( 'mm-meta-hygiene' ) );
+add_submenu_page( 'metamanager', 'RSS Feed — Metamanager',   'RSS Feed',   'manage_options', 'mm-meta-feed',     fn() => $this->render( 'mm-meta-feed' ) );
 add_submenu_page( 'metamanager', 'Links — Metamanager',      'Links',      'manage_options', 'mm-meta-links',    fn() => $this->render( 'mm-meta-links' ) );
 add_submenu_page( 'metamanager', 'Tools — Metamanager',      'Tools',      'manage_options', 'mm-meta-tools',    fn() => $this->render( 'mm-meta-tools' ) );
 add_submenu_page( 'metamanager', 'Contact Card — Metamanager', 'Contact Card', 'manage_options', 'mm-meta-contact', fn() => $this->render( 'mm-meta-contact' ) );
@@ -91,8 +93,7 @@ $section_groups = [
 'mm_meta_sitemaps_group' => 'sitemap',
 'mm_meta_robots_group'   => 'robots',
 'mm_meta_authors_group'  => 'authors',
-'mm_meta_hygiene_group'  => 'hygiene',
-'mm_meta_links_group'    => 'links',
+'mm_meta_hygiene_group'  => 'hygiene',			'mm_meta_feed_group'     => 'feed','mm_meta_links_group'    => 'links',
 ];
 
 foreach ( $section_groups as $group => $section ) {
@@ -236,6 +237,7 @@ $gcm_hooks = [
 'metamanager_page_mm-meta-robots',
 'metamanager_page_mm-meta-authors',
 'metamanager_page_mm-meta-hygiene',
+'metamanager_page_mm-meta-feed',
 'metamanager_page_mm-meta-links',
 'metamanager_page_mm-meta-tools',
 'metamanager_page_mm-meta-contact',
@@ -316,6 +318,7 @@ public function add_help_tabs( \WP_Screen $screen ): void {
 		'metamanager_page_mm-meta-robots'       => 'robots',
 		'metamanager_page_mm-meta-authors'      => 'authors',
 		'metamanager_page_mm-meta-hygiene'      => 'hygiene',
+		'metamanager_page_mm-meta-feed'         => 'feed',
 		'metamanager_page_mm-meta-links'        => 'links',
 		'metamanager_page_mm-meta-tools'        => 'tools',
 		'metamanager_page_mm-meta-contact'      => 'contact',

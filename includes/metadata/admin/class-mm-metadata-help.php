@@ -47,6 +47,9 @@ class MM_Metadata_Help {
 			'hygiene' => '<p>' . esc_html__( 'The Hygiene page has two sections: head cleanup and content audits. Head cleanup removes WordPress-generated tags that add noise, expose version information, or are unsupported by modern search engines.', 'metamanager' ) . '</p>' .
 				'<p>' . esc_html__( 'Content audits scan published posts for SEO issues: orphan pages (no internal links pointing to them), thin content (below the configured word-count floor), and duplicate titles (multiple posts sharing the same title template output).', 'metamanager' ) . '</p>',
 
+			'feed' => '<p>' . esc_html__( 'The RSS Feed page controls what WordPress includes in its RSS 2.0 output. By default WordPress appends comment-API elements to every feed item and discloses the WordPress version — neither is needed by any modern feed reader.', 'metamanager' ) . '</p>' .
+				'<p>' . esc_html__( 'Enable RSS Cleanup is the master switch. The individual toggles let you keep any element you rely on while stripping the rest. The text fields let you override the channel title and add a copyright notice without editing theme files.', 'metamanager' ) . '</p>',
+
 			'links' => '<p>' . esc_html__( 'The Links page shows all internal and external links extracted from your post content and their last-checked HTTP status code. Broken links (4xx/5xx) are highlighted in red.', 'metamanager' ) . '</p>' .
 				'<p>' . esc_html__( 'Links are extracted automatically when a post is saved. The WP-Cron checker runs twice daily by default, checking a configurable batch size to avoid server timeouts.', 'metamanager' ) . '</p>' .
 				'<p>' . esc_html__( 'You can ignore individual links or entire domains. The "Re-check" button forces an immediate HEAD request for a single URL. Use WP-CLI (wp metamanager check-links --all) for a full one-shot scan.', 'metamanager' ) . '</p>',
@@ -223,6 +226,22 @@ class MM_Metadata_Help {
 					'<li><strong>' . esc_html__( 'Pingback header', 'metamanager' ) . '</strong> — ' . esc_html__( 'Removes X-Pingback HTTP header and wp_really_simple_discovery from head.', 'metamanager' ) . '</li>' .
 					'<li><strong>' . esc_html__( 'X-Powered-By header', 'metamanager' ) . '</strong> — ' . esc_html__( 'Removes the PHP version disclosure header.', 'metamanager' ) . '</li>' .
 					'<li><strong>' . esc_html__( 'DNS prefetch', 'metamanager' ) . '</strong> — ' . esc_html__( 'Removes wp_resource_hints which adds DNS prefetch links for WordPress.com CDN etc.', 'metamanager' ) . '</li>' .
+					'</ul>',
+			];
+		}
+
+		if ( 'feed' === $page ) {
+			$tabs[] = [
+				'id'      => 'mm_meta_feed_elements',
+				'title'   => __( 'What Gets Removed', 'metamanager' ),
+				'content' =>
+					'<p>' . esc_html__( 'Elements stripped when cleanup is enabled:', 'metamanager' ) . '</p>' .
+					'<ul>' .
+					'<li><strong>' . esc_html__( 'Generator', 'metamanager' ) . '</strong> — <code>&lt;generator&gt;https://wordpress.org/?v=X.X&lt;/generator&gt;</code> ' . esc_html__( 'in the channel block.', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( 'Comment RSS link', 'metamanager' ) . '</strong> — <code>&lt;wfw:commentRss&gt;…&lt;/wfw:commentRss&gt;</code> ' . esc_html__( 'per item (Well-Formed Web comment API, obsolete).', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( 'Comment count', 'metamanager' ) . '</strong> — <code>&lt;slash:comments&gt;0&lt;/slash:comments&gt;</code> ' . esc_html__( 'per item (Slash namespace, no feed reader uses this).', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( 'Namespace declarations', 'metamanager' ) . '</strong> — <code>xmlns:wfw</code> ' . esc_html__( 'and', 'metamanager' ) . ' <code>xmlns:slash</code> ' . esc_html__( 'on the &lt;rss&gt; element (orphaned once the elements above are removed).', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( 'Full content (optional)', 'metamanager' ) . '</strong> — <code>&lt;content:encoded&gt;</code> ' . esc_html__( 'suppressed when "Use Excerpt Only" is on.', 'metamanager' ) . '</li>' .
 					'</ul>',
 			];
 		}

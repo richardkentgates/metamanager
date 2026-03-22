@@ -332,6 +332,15 @@ class MM_Site_Settings {
 				'remove_wp_dns_prefetch' => true,
 			],
 
+			'feed' => [
+				'cleanup_enabled'          => true,
+				'remove_generator'         => true,
+				'remove_comments_elements' => true,
+				'use_excerpt'              => false,
+				'feed_title'               => '',
+				'feed_copyright'           => '',
+			],
+
 		];
 	}
 

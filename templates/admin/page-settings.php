@@ -20,7 +20,6 @@ $label    = $page_cfg['label'];
 <div class="wrap mm-meta-wrap">
 
 <h1 class="mm-meta-page-title">
-<span class="dashicons dashicons-search"></span>
 <?php echo esc_html( $label ); ?> <span class="mm-meta-dash">&#8212;</span> Metamanager
 <span class="mm-meta-version">v<?php echo esc_html( MM_META_VERSION ); ?></span>
 </h1>

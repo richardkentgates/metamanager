@@ -8,7 +8,7 @@
   --dark-3:        #1a2233;
   --mid:           #333344;
   --muted:         #6b7a99;
-  --nav-text:      #8fa4c8;
+  --nav-text:      #c8d8f0;
   --nav-dim:       rgba(255,255,255,0.05);
   --border:        #e4eaf4;
   --bg:            #f8fafc;
@@ -160,16 +160,16 @@ header {
   margin-left: 1px;
 }
 
-/* Dropdown panel */
+/* Dropdown panel — top:100% with padding bridges the gap so hover stays active */
 .nav-dropdown {
   display: none;
   position: absolute;
-  top: calc(100% + 8px);
+  top: 100%;
   left: 0;
   background: var(--dark-2);
   border: 1px solid rgba(255,255,255,0.09);
   border-radius: 8px;
-  padding: 6px 0;
+  padding: 8px 0 6px;
   min-width: 180px;
   box-shadow: 0 8px 28px rgba(0,0,0,.4);
   z-index: 300;
@@ -344,7 +344,8 @@ article section:last-child {
 .hero-install code {
   font-family: var(--mono);
   font-size: 13px;
-  color: #82cfff;
+  color: #e0f4ff;
+  background: transparent;
 }
 
 /* ── Section headings ──────────────────────────────────────────────────── */

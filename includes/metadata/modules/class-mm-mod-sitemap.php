@@ -37,6 +37,14 @@ class MM_Mod_Sitemap_Web extends MM_Mod_Base {
 		// Ping on publish (async).
 		add_action( 'transition_post_status', [ $this, 'schedule_ping' ], 10, 3 );
 		add_action( 'mm_meta_sitemap_ping', [ $this, 'send_ping' ] );
+
+		// Bust the sitemap cache whenever content or taxonomy changes.
+		foreach ( [ 'save_post', 'deleted_post', 'add_attachment', 'delete_attachment' ] as $hook ) {
+			add_action( $hook, [ $this, 'flush_sitemap_cache' ] );
+		}
+		foreach ( [ 'created_term', 'edited_term', 'delete_term' ] as $hook ) {
+			add_action( $hook, [ $this, 'flush_sitemap_cache' ] );
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -65,24 +73,45 @@ class MM_Mod_Sitemap_Web extends MM_Mod_Base {
 			return;
 		}
 
-		nocache_headers();
+		$sub       = sanitize_key( get_query_var( 'mm_meta_sitemap_type' ) );
+		$cache_key = 'mm_sm_' . $this->get_cache_version() . '_' . $type . ( $sub ? "_$sub" : '' );
+
 		header( 'Content-Type: application/xml; charset=UTF-8' );
 		header( 'X-Robots-Tag: noindex, follow' );
 
+		$cached = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			echo $cached; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			exit;
+		}
+
 		switch ( $type ) {
 			case 'index':
-				echo $this->render_index(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				$output = $this->render_index();
 				break;
 			case 'post':
-				$pt = sanitize_key( get_query_var( 'mm_meta_sitemap_type' ) );
-				echo $this->render_post_sitemap( $pt ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				$output = $this->render_post_sitemap( $sub );
 				break;
 			case 'tax':
-				$taxonomy = sanitize_key( get_query_var( 'mm_meta_sitemap_type' ) );
-				echo $this->render_tax_sitemap( $taxonomy ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				$output = $this->render_tax_sitemap( $sub );
 				break;
+			default:
+				$output = '';
 		}
+
+		set_transient( $cache_key, $output, HOUR_IN_SECONDS );
+		echo $output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		exit;
+	}
+
+	/** Returns a version stamp used to scope all sitemap cache keys. */
+	private function get_cache_version(): int {
+		return (int) get_option( 'mm_sitemap_cache_ver', 0 );
+	}
+
+	/** Bust all sitemap transients cheaply by incrementing the version stamp. */
+	public function flush_sitemap_cache(): void {
+		update_option( 'mm_sitemap_cache_ver', time(), false );
 	}
 
 	// -------------------------------------------------------------------------
