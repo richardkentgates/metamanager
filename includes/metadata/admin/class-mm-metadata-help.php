@@ -54,10 +54,10 @@ class MM_Metadata_Help {
 				'<p>' . esc_html__( 'Flush Rewrites re-registers all sitemap URL patterns in the WordPress rewrite table — run this after activating the plugin on a new server or after changing permalink settings.', 'metamanager' ) . '</p>' .
 				'<p>' . esc_html__( 'Reset Settings wipes all Metamanager options back to factory defaults. This cannot be undone. Export your settings first if you need a backup.', 'metamanager' ) . '</p>',
 
-			'contact' => '<p>' . esc_html__( 'The Contact Card page controls the Business Contact Card displayed via the GCM Business Contact Card widget, the Business Contact Card Gutenberg block, or the [gcm_business_contact] shortcode.', 'metamanager' ) . '</p>' .
+			'contact' => '<p>' . esc_html__( 'The Contact Card page controls the Business Contact Card displayed via the Metamanager Business Contact widget, the Business Contact Gutenberg block, or the [gcm_business_contact] shortcode.', 'metamanager' ) . '</p>' .
 				'<p>' . esc_html__( 'Visible Actions determine which buttons appear on every card. Any action whose corresponding data is missing from your Business Profile (e.g. no phone number set) is automatically hidden regardless of this setting.', 'metamanager' ) . '</p>' .
 				'<p>' . esc_html__( 'Card and Button Appearance controls are sitewide — they apply to every widget, block, and shortcode instance at once. Each card also emits an inline schema.org JSON-LD node scoped to that placement.', 'metamanager' ) . '</p>' .
-				'<p>' . esc_html__( 'Download endpoints (vCard, JSON, CSV) are served from /gcm-biz-export/{format}/ and can be linked to directly. If these URLs return 404 after activation, go to SEO → Tools and click Flush Rewrite Rules.', 'metamanager' ) . '</p>',
+				'<p>' . esc_html__( 'Download endpoints (vCard, JSON, CSV) are served from /gcm-biz-export/{format}/ and can be linked to directly. If these URLs return 404 after activation, go to Metamanager → Tools and click Flush Rewrite Rules.', 'metamanager' ) . '</p>',
 		];
 
 		return $texts[ $page ] ?? '';

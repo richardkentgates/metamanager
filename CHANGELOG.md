@@ -7,6 +7,72 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.2.0] — 2026-03-22
+
+### Added
+
+- **Web-layer metadata subsystem** — the full gcm-seo-core feature set is now
+  integrated directly into Metamanager, completing the two-layer architecture:
+  **Layer 1 (Media)** handles file-embedded EXIF/IPTC/XMP/ID3/QuickTime/Vorbis
+  metadata and lossless compression via OS daemons.
+  **Layer 2 (Web)** covers everything that is served in the HTML `<head>` and
+  as structured data to crawlers.
+
+- **Titles & descriptions** — per-post/term/user SEO meta with token variables
+  (`%%post_title%%`, `%%sitetitle%%`, `%%sep%%`, etc.) and global fallback templates.
+
+- **Open Graph & Twitter/X Card** — all content types, per-post image override,
+  default fallback image, `sameAs` social profile array on the knowledge entity.
+
+- **Schema.org JSON-LD** — 20+ structured data types including Article,
+  BlogPosting, Product, FAQ, HowTo, VideoObject, Event, LocalBusiness, Person,
+  Organization, BreadcrumbList, SiteLinksSearchBox, and more. Custom JSON-LD
+  escape hatch per post.
+
+- **XML sitemaps** — sitemap index at `/sitemap.xml` referencing per-post-type,
+  per-taxonomy, and video sub-sitemaps. WP 5.5+ built-in sitemap auto-disabled.
+  Google and Bing search-engine ping on publish. Sitemap excluded from robots.txt.
+
+- **Dynamic robots.txt** — live-served (no static file), fully customisable,
+  with auto-appended `Sitemap:` directive.
+
+- **HTML sitemap** — `[mm_sitemap]` shortcode with configurable post types and
+  taxonomy groups.
+
+- **Link checker** — async HEAD-request crawler; broken links flagged in admin
+  dashboard. Per-link and per-domain ignore lists. WP-CLI one-shot scan.
+
+- **Business profile** — LocalBusiness JSON-LD, contact card Gutenberg block,
+  classic widget, and `[gcm_business_contact]` shortcode. vCard/JSON/CSV export
+  endpoints. Opening-hours schema support.
+
+- **Author profiles** — Person JSON-LD on author archives; per-author overrides
+  from the WordPress user profile screen.
+
+- **Head hygiene** — removes WordPress noise tags (RSD link, wlwmanifest,
+  generator meta, etc.). Orphan/thin content/duplicate-title content audits.
+
+- **WP-CLI metadata commands** — `wp metamanager metadata *` command group for
+  import, export, and bulk operations on the web-layer settings.
+
+- **Per-post SEO metabox** — title, description, canonical, robots, OG image,
+  and Schema type override on every post/page edit screen.
+
+- **Term and user SEO panels** — per-category/tag and per-author SEO field
+  overrides registered via the standard WP Taxonomy and User meta APIs.
+
+- **Settings renamed to Preferences** — the Metamanager Preferences submenu page
+  (formerly Settings) now appears at the bottom of the admin sub-navigation stack.
+
+- **PHPUnit CI workflow** — new `.github/workflows/phpunit.yml` runs the full
+  integration test suite against PHP 8.1/8.2/8.3 and WordPress 6.4/6.5/latest
+  on every push to `main`.
+
+- **GitHub Pages redesign** — rebuilt with the j-make template; responsive top
+  nav with nested dropdowns replacing the previous sidebar navigation.
+
+---
+
 ## [2.1.7] — 2026-03-15
 
 ### Added

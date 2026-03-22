@@ -29,13 +29,43 @@ metamanager/
 │   ├── class-mm-job-queue.php    Job file write/read/cleanup (filesystem only — no DB)
 │   ├── class-mm-metadata.php     Field constants, WP field sync, daemon job payload builder
 │   ├── class-mm-admin.php        All wp-admin integration: columns, panes, bulk, dashboard, help tabs
-│   ├── class-mm-frontend.php     wp_head output: Schema.org JSON-LD, Open Graph, license link
-│   ├── class-mm-settings.php     Settings page registration and rendering (Media → MM Settings)
-│   ├── class-mm-sitemap.php      XML sitemap endpoints (/sitemap-media.xml, /sitemap-video.xml)
+│   ├── class-mm-frontend.php     Legacy wp_head scaffold; main head output now delegated to metadata subsystem
+│   ├── class-mm-settings.php     Media/compression Preferences page registration and rendering
+│   ├── class-mm-sitemap.php      Media sitemap endpoints (/sitemap-media.xml, /sitemap-video.xml)
 │   ├── class-mm-status.php       Dependency detection (ExifTool, jpegtran, optipng, cwebp, ffmpeg, daemons)
 │   ├── class-mm-upload-notify.php  Upload receipt emails with 60-second batching and retry
 │   ├── class-mm-updater.php      Native WordPress update pipeline integration (GitHub releases)
-│   └── class-mm-cli.php          WP-CLI command group: compress, embed, import, queue, scan, stats
+│   ├── class-mm-cli.php          WP-CLI command group: compress, embed, import, queue, scan, stats
+│   │
+│   └── metadata/                 Web-layer metadata subsystem (integrated from gcm-seo-core)
+│       ├── class-mm-metadata-loader.php   Bootstraps all metadata modules
+│       ├── class-mm-site-settings.php     Centralised settings store (option key: mm_meta_settings)
+│       ├── class-mm-page-context.php      WP query resolver — returns context string for each request type
+│       ├── class-mm-head-emitter.php      wp_head coordinator — assembles title, meta, canonical, OG, JSON-LD
+│       ├── class-mm-schema-types.php      Schema.org type registry and JSON-LD builder
+│       ├── class-mm-importer.php          Bulk import: migrates from third-party SEO plugins
+│       ├── class-mm-metadata-cli.php      WP-CLI commands: mm metadata *
+│       ├── class-mm-biz-card-css.php      Dynamic CSS for the business contact card block
+│       │
+│       ├── admin/                         Admin screens for all metadata settings
+│       │   ├── class-mm-metadata-admin.php    Submenu registration + tabbed settings page renderer
+│       │   ├── class-mm-metadata-help.php     Contextual help tab content for all metadata pages
+│       │   ├── class-mm-post-meta-panel.php   Per-post SEO metabox
+│       │   ├── class-mm-term-meta-panel.php   Per-term SEO fields
+│       │   └── class-mm-user-meta-panel.php   Per-author SEO fields
+│       │
+│       └── modules/                       Output modules — each extends MM_Mod_Base
+│           ├── class-mm-mod-head-meta.php     Title, description, canonical, robots per-page meta
+│           ├── class-mm-mod-social.php        Open Graph and Twitter/X Card tags
+│           ├── class-mm-mod-schema.php        Schema.org JSON-LD (20+ types)
+│           ├── class-mm-mod-sitemap.php       XML sitemap index + per-type sub-sitemaps
+│           ├── class-mm-mod-robots.php        Dynamic robots.txt generation
+│           ├── class-mm-mod-html-sitemap.php  [mm_sitemap] shortcode
+│           ├── class-mm-mod-links.php         Async broken link checker
+│           ├── class-mm-mod-local.php         LocalBusiness JSON-LD and contact card data
+│           ├── class-mm-mod-author.php        Author archive Person JSON-LD
+│           ├── class-mm-mod-hygiene.php       Head cleanup and content audit tools
+│           └── class-mm-mod-business-contact.php  Contact card block, widget, and shortcode
 │
 ├── daemons/
 │   ├── metamanager-compress-daemon.sh    Bash: inotifywait loop — jpegtran/optipng/cwebp/ffmpeg
@@ -58,7 +88,7 @@ metamanager/
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| `MM_VERSION` | `'2.1.4'` | Displayed in help sidebars; used by the updater |
+| `MM_VERSION` | `'2.1.7'` | Displayed in help sidebars; used by the updater |
 | `MM_PLUGIN_FILE` | `__FILE__` | Passed to activation/deactivation hooks |
 | `MM_PLUGIN_DIR` | `plugin_dir_path(__FILE__)` | Absolute filesystem path |
 | `MM_PLUGIN_URL` | `plugin_dir_url(__FILE__)` | URL for enqueuing assets |
@@ -75,7 +105,7 @@ metamanager/
 
 1. Define constants.
 2. `require_once` all class files (no autoloader — simpler, no Composer dependency at runtime).
-3. Register `plugins_loaded` hooks for `MM_Admin::init()`, `MM_Settings::init()`, `MM_Upload_Notify::init()`.
+3. Register `plugins_loaded` hooks for `MM_Admin::init()`, `MM_Settings::init()`, `MM_Upload_Notify::init()`, and `MM_Metadata_Loader::boot()` (initialises the full web-layer metadata subsystem).
 4. Register `rest_api_init` hook for REST routes unconditionally (REST requests are not `is_admin()`).
 5. Register `admin_init` hook for `MM_DB::create_or_update_table()` (safe to run on every request — `dbDelta` is a no-op when no schema changes are needed).
 6. Register WP-Cron intervals and the `mm_import_completed_jobs` event handler.
