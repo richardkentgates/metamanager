@@ -224,14 +224,16 @@ class Test_MM_Mod_Rss extends WP_UnitTestCase {
 		$this->assertNotFalse( has_filter( 'the_content_feed' ) );
 	}
 
-	/** the_content_feed filter is NOT added when use_excerpt is false. */
+	/** the_content_feed __return_empty_string is NOT added when use_excerpt is false. */
 	public function test_register_hooks_skips_content_feed_filter_when_excerpt_off(): void {
 		$mod = $this->make_module( [
 			'feed' => [ 'cleanup_enabled' => true, 'use_excerpt' => false ],
 		] );
 		$mod->register_hooks();
 
-		$this->assertFalse( (bool) has_filter( 'the_content_feed' ) );
+		// Core may register its own the_content_feed filters; check only that
+		// our __return_empty_string handler was not added.
+		$this->assertFalse( (bool) has_filter( 'the_content_feed', '__return_empty_string' ) );
 	}
 
 	// -----------------------------------------------------------------------
@@ -313,13 +315,18 @@ class Test_MM_Mod_Rss extends WP_UnitTestCase {
 		$this->assertStringContainsString( '&lt;b&gt;', $output );
 	}
 
-	/** rss2_head action is NOT added when feed_copyright is empty. */
+	/** Our copyright action is NOT added when feed_copyright is empty. */
 	public function test_register_hooks_skips_copyright_when_empty(): void {
 		$mod = $this->make_module( [
 			'feed' => [ 'cleanup_enabled' => true, 'feed_copyright' => '' ],
 		] );
 		$mod->register_hooks();
 
-		$this->assertFalse( (bool) has_action( 'rss2_head' ) );
+		// Capture output — if our hook fired there would be a <copyright> element.
+		ob_start();
+		do_action( 'rss2_head' );
+		$output = ob_get_clean();
+
+		$this->assertStringNotContainsString( '<copyright>', $output );
 	}
 }

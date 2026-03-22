@@ -120,6 +120,15 @@ require_once $plugin_includes . 'class-mm-settings.php';
 require_once $plugin_includes . 'class-mm-frontend.php';
 
 // Metadata subsystem constants (normally set in metamanager.php).
+if ( ! defined( 'MM_META_VERSION' ) ) {
+	define( 'MM_META_VERSION', MM_VERSION );
+}
+if ( ! defined( 'MM_META_DIR' ) ) {
+	define( 'MM_META_DIR', MM_PLUGIN_DIR );
+}
+if ( ! defined( 'MM_META_URL' ) ) {
+	define( 'MM_META_URL', MM_PLUGIN_URL );
+}
 if ( ! defined( 'MM_META_OPT_SETTINGS' ) ) {
 	define( 'MM_META_OPT_SETTINGS', 'mm_meta_settings' );
 }
