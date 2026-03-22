@@ -7,7 +7,7 @@
 **Web layer** — per-post/page/term/user title and description control; Open Graph and Twitter/X card output for all content types; Schema.org JSON-LD for 20+ types (Article, LocalBusiness, Product, Event, FAQPage, Recipe, and more); XML sitemaps (pages, media, video); HTML sitemap shortcode; robots.txt management; async broken link checker; business profile with contact card block; author profiles with structured data.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-blue)](https://wordpress.org)
+[![WordPress](https://img.shields.io/badge/WordPress-6.2%2B-blue)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-purple)](https://php.net)
 [![Code Scanning](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml/badge.svg)](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)

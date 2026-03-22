@@ -2,7 +2,7 @@
 Contributors: richardkentgates
 Tags: seo, metadata, sitemap, schema, open-graph, exif, compression, media
 Requires at least: 6.2
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 8.0
 Stable tag: 2.1.7
 License: GPLv3 or later
