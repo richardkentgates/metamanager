@@ -17,8 +17,9 @@ class MM_Metadata_Help {
 	 */
 	public static function overview( string $page ): string {
 		$texts = [
-			'business' => '<p>' . esc_html__( 'The Business page stores your local business profile: name, type, address, phone, logo, geo-coordinates, and opening hours. This data feeds the LocalBusiness JSON-LD node that Google uses to build your Knowledge Panel.', 'metamanager' ) . '</p>' .
-				'<p>' . esc_html__( 'Select the most specific Schema.org business subtype that describes your organisation — the grouped dropdown maps to the full LocalBusiness hierarchy. Fill in every field you can; more complete data produces richer results.', 'metamanager' ) . '</p>',
+			'business' => '<p>' . esc_html__( 'The Business page stores your local business profile: name, type, address, phone, logo, geo-coordinates, opening hours, and accepted payment methods. This data feeds the LocalBusiness JSON-LD node that Google uses to build your Knowledge Panel.', 'metamanager' ) . '</p>' .
+				'<p>' . esc_html__( 'Select the most specific Schema.org business subtype that describes your organisation — the grouped dropdown maps to the full LocalBusiness hierarchy. Fill in every field you can; more complete data produces richer results.', 'metamanager' ) . '</p>' .
+				'<p>' . esc_html__( 'The Payment Accepted field maps to the schema:paymentAccepted property. Enter accepted payment methods (e.g. Cash, Credit Card, Visa, PayPal) as individual items.', 'metamanager' ) . '</p>',
 
 			'titles' => '<p>' . esc_html__( 'The Titles page controls every SEO title and meta description template across the site. Titles are assembled using token variables so you can build dynamic patterns without writing code.', 'metamanager' ) . '</p>' .
 				'<p>' . esc_html__( 'Tokens available: %%sitetitle%%, %%tagline%%, %%sep%%, %%post_title%%, %%term_title%%, %%author_name%%, %%page%%, %%current_year%%, %%post_type_label%%, %%search_query%%.', 'metamanager' ) . '</p>' .
@@ -47,7 +48,7 @@ class MM_Metadata_Help {
 				'<p>' . esc_html__( 'Content audits scan published posts for SEO issues: orphan pages (no internal links pointing to them), thin content (below the configured word-count floor), and duplicate titles (multiple posts sharing the same title template output).', 'metamanager' ) . '</p>',
 
 			'links' => '<p>' . esc_html__( 'The Links page shows all internal and external links extracted from your post content and their last-checked HTTP status code. Broken links (4xx/5xx) are highlighted in red.', 'metamanager' ) . '</p>' .
-				'<p>' . esc_html__( 'Links are extracted automatically when a post is saved. The WP-Cron checker runs every 6 hours by default, checking a configurable batch size to avoid server timeouts.', 'metamanager' ) . '</p>' .
+				'<p>' . esc_html__( 'Links are extracted automatically when a post is saved. The WP-Cron checker runs twice daily by default, checking a configurable batch size to avoid server timeouts.', 'metamanager' ) . '</p>' .
 				'<p>' . esc_html__( 'You can ignore individual links or entire domains. The "Re-check" button forces an immediate HEAD request for a single URL. Use WP-CLI (wp metamanager check-links --all) for a full one-shot scan.', 'metamanager' ) . '</p>',
 
 			'tools' => '<p>' . esc_html__( 'The Tools page provides one-click maintenance actions. Actions run via AJAX and report success or failure inline — no page reload required.', 'metamanager' ) . '</p>' .
@@ -73,6 +74,18 @@ class MM_Metadata_Help {
 		$tabs = [];
 
 		if ( 'titles' === $page ) {
+			$tabs[] = [
+				'id'      => 'mm_meta_special_pages',
+				'title'   => __( 'Special Pages', 'metamanager' ),
+				'content' =>
+					'<p>' . esc_html__( 'Two title templates are provided for pages that have no post object:', 'metamanager' ) . '</p>' .
+					'<ul>' .
+					'<li><strong>' . esc_html__( 'Search Results title', 'metamanager' ) . '</strong> — ' . esc_html__( 'Used on the search results page (?s=…). Supports the %%search_query%% token which inserts the visitor\'s search term.', 'metamanager' ) . '</li>' .
+					'<li><strong>' . esc_html__( '404 title', 'metamanager' ) . '</strong> — ' . esc_html__( 'Used when WordPress returns a 404 Not Found response. Keep it short and user-friendly.', 'metamanager' ) . '</li>' .
+					'</ul>' .
+					'<p>' . esc_html__( 'Defaults: search results → "Search Results for %%search_query%% %%sep%% %%sitetitle%%"; 404 → "Page Not Found %%sep%% %%sitetitle%%".', 'metamanager' ) . '</p>',
+			];
+
 			$tabs[] = [
 				'id'      => 'mm_meta_title_tokens',
 				'title'   => __( 'Token Reference', 'metamanager' ),
@@ -128,6 +141,23 @@ class MM_Metadata_Help {
 					'<li><code>/sitemap-tax-{taxonomy}.xml</code> — ' . esc_html__( 'One file per enabled taxonomy (e.g. /sitemap-tax-category.xml).', 'metamanager' ) . '</li>' .
 					'</ul>' .
 					'<p>' . esc_html__( 'If any sitemap URL returns 404, go to Settings → Tools and click "Flush Rewrite Rules".', 'metamanager' ) . '</p>',
+			];
+
+			$tabs[] = [
+				'id'      => 'mm_meta_html_sitemap',
+				'title'   => __( 'HTML Sitemap', 'metamanager' ),
+				'content' =>
+					'<p>' . esc_html__( 'The HTML sitemap shortcode embeds a formatted list of your site\'s pages and posts into any page or post.', 'metamanager' ) . '</p>' .
+					'<p>' . esc_html__( 'Add the shortcode to any page:', 'metamanager' ) . '</p>' .
+					'<pre><code>[mm_sitemap]</code></pre>' .
+					'<p>' . esc_html__( 'Available shortcode attributes (all optional — override the saved settings for this placement only):', 'metamanager' ) . '</p>' .
+					'<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Attribute', 'metamanager' ) . '</th><th>' . esc_html__( 'Example', 'metamanager' ) . '</th><th>' . esc_html__( 'Description', 'metamanager' ) . '</th></tr></thead><tbody>' .
+					'<tr><td><code>post_types</code></td><td><code>post_types="page,post"</code></td><td>' . esc_html__( 'Comma-separated post types to list.', 'metamanager' ) . '</td></tr>' .
+					'<tr><td><code>taxonomies</code></td><td><code>taxonomies="category"</code></td><td>' . esc_html__( 'Comma-separated taxonomies to include as grouped sections.', 'metamanager' ) . '</td></tr>' .
+					'<tr><td><code>columns</code></td><td><code>columns="2"</code></td><td>' . esc_html__( 'Number of columns (default: 1).', 'metamanager' ) . '</td></tr>' .
+					'<tr><td><code>depth</code></td><td><code>depth="2"</code></td><td>' . esc_html__( 'Maximum hierarchy depth for nested pages.', 'metamanager' ) . '</td></tr>' .
+					'<tr><td><code>exclude</code></td><td><code>exclude="5,12"</code></td><td>' . esc_html__( 'Comma-separated post/page IDs to exclude.', 'metamanager' ) . '</td></tr>' .
+					'</tbody></table>',
 			];
 		}
 

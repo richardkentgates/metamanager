@@ -47,7 +47,7 @@ PHP's role throughout is coordinator only: write the instruction, let the daemon
 
 ### Web layer
 
-- **Title & description control**: per-post/page/term/user override with template tokens (`{title}`, `{site_name}`, `{sep}`, `{year}`, `{page}`); configurable default template per post type
+- **Title & description control**: per-post/page/term/user override with template tokens (`%%post_title%%`, `%%sitetitle%%`, `%%sep%%`, `%%search_query%%`, and more); configurable default template per post type and taxonomy; dedicated templates for search results and 404 pages
 - **Open Graph**: `og:title`, `og:description`, `og:image` for all content; `og:image:width/height/type/alt` for media; `og:video` and `og:audio` for media attachments; `article:published_time` and `article:modified_time` for posts; Twitter/X card output
 - **Schema.org JSON-LD**: 20+ types — `Article`, `BlogPosting`, `WebPage`, `BreadcrumbList`, `ImageObject`, `VideoObject`, `AudioObject`, `DigitalDocument`, `Product`, `FAQPage`, `HowTo`, `Recipe`, `Event`, `Course`, `JobPosting`, `Review`, `Service`, `TouristTrip`, `RealEstateListing`, `Organization`, `LocalBusiness`, `Person`
 - **XML sitemaps**: `/sitemap.xml` (all public content), `/sitemap-media.xml` (images + video), `/sitemap-video.xml` (Google Video format); 1-hour transient caching; auto-flush on publish; configurable per post type and taxonomy; Google and Bing pinged on publish
@@ -55,7 +55,7 @@ PHP's role throughout is coordinator only: write the instruction, let the daemon
 - **Robots.txt**: active sitemaps appended as `Sitemap:` directives automatically; per-post-type global noindex; per-post noindex/nofollow/noarchive/nosnippet from the metadata panel
 - **Async link checker**: links stored in a lightweight DB table and checked via `wp_remote_head()` in background batches; HTTP codes recorded; broken links flagged in a dashboard; optional email alerts; per-link re-check and ignore
 - **Link hygiene**: global rules for `rel="nofollow"`, `rel="noopener noreferrer"`, `target="_blank"` on external links; applied at render time, not stored
-- **Business profile**: name, type, address, contact, hours, price range, geo; powers `Organization`/`LocalBusiness` JSON-LD on every page, the Business Contact Gutenberg block, and social profile `sameAs` links
+- **Business profile**: name, type, address, contact, hours, price range, accepted payment methods, geo; powers `Organization`/`LocalBusiness` JSON-LD on every page, the Business Contact Gutenberg block, and social profile `sameAs` links
 - **Contact card block**: `metamanager/business-contact` Gutenberg block renders address, phone, email, hours, and a map link from the business profile
 - **Author profiles**: per-user job title, biography, and social links (Twitter/X, LinkedIn, GitHub); `Person` JSON-LD on author archives and attributed posts
 - **Canonical URL**: per-post override; defaults to the WordPress permalink

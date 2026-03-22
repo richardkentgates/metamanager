@@ -279,7 +279,7 @@ wp metamanager compress --post-id=123</code></pre>
     <p>Metamanager adds a metadata panel to every post, page, custom post type edit screen, term editor, and user profile. Fields fall into three categories:</p>
 
     <h3>Title &amp; Description</h3>
-    <p>Override the default title and meta description for any individual post, page, or term. Default templates (configurable per post type) are used when no override is set. Variable tokens available: <code>{title}</code>, <code>{site_name}</code>, <code>{sep}</code>, <code>{year}</code>, <code>{page}</code>.</p>
+    <p>Override the default title and meta description for any individual post, page, or term. Default templates (configurable per post type) are used when no override is set. Variable tokens available: <code>%%post_title%%</code>, <code>%%sitetitle%%</code>, <code>%%sep%%</code>, <code>%%search_query%%</code>, <code>%%author_name%%</code>, <code>%%current_year%%</code>, and more. Dedicated templates are available for search results pages and 404 error pages.</p>
 
     <h3>Canonical URL</h3>
     <p>Set a custom canonical URL on any post or page. Defaults to the WordPress permalink. Useful for content syndication and paginated posts.</p>
@@ -319,7 +319,7 @@ wp metamanager compress --post-id=123</code></pre>
         <tbody>
             <tr><td><code>WebSite</code></td><td>Site settings</td><td>name, url, description, SearchAction (sitelinks searchbox)</td></tr>
             <tr><td><code>Organization</code></td><td>Business profile</td><td>name, url, logo, address, phone, email, sameAs (social profiles)</td></tr>
-            <tr><td><code>LocalBusiness</code></td><td>Business profile</td><td>All Organization fields + openingHours, priceRange, geo, areaServed</td></tr>
+            <tr><td><code>LocalBusiness</code></td><td>Business profile</td><td>All Organization fields + openingHours, priceRange, paymentAccepted, geo, areaServed</td></tr>
             <tr><td><code>Article</code></td><td>Post editor</td><td>headline, description, author, datePublished, dateModified, image</td></tr>
             <tr><td><code>BlogPosting</code></td><td>Post editor</td><td>Same as Article</td></tr>
             <tr><td><code>NewsArticle</code></td><td>Post editor</td><td>Same as Article + dateline</td></tr>
@@ -402,7 +402,7 @@ wp metamanager compress --post-id=123</code></pre>
         <li>Address: street, city, state/region, postal code, country</li>
         <li>Contact: phone, email, website</li>
         <li>Social profiles: Facebook, Twitter/X, LinkedIn, Instagram, YouTube, Pinterest, TikTok</li>
-        <li>Business hours (per day), price range, area served</li>
+        <li>Business hours (per day), price range, accepted payment methods, area served</li>
         <li>Geo coordinates (latitude, longitude)</li>
     </ul>
 

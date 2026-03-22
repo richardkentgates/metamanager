@@ -409,7 +409,64 @@ All options are registered with `register_setting()` and sanitize callbacks. The
 | `mm_upload_notify_extra_email` | string | `''` | Extra CC address for upload receipt emails. |
 | `mm_upload_receipt` *(user meta)* | bool | true | Per-user upload receipt preference (stored in user meta, not options). |
 
-Sitemap options (`mm_sitemap_*`) are registered by `MM_Sitemap::register_settings()`.
+---
+
+## Metadata Subsystem Settings (`MM_Site_Settings`)
+
+All SEO and web-layer settings are stored in a single WordPress option under the key `mm_meta_settings` as a serialised array. `MM_Site_Settings` provides a dot-path accessor (`get('section.key', $default)`) so individual modules never call `get_option()` directly.
+
+### Top-level settings sections
+
+| Section | Description |
+|---------|-------------|
+| `titles` | Title/description templates per post type and taxonomy; pagination; noindex defaults |
+| `social` | Open Graph and Twitter/X Card configuration; social profile URLs |
+| `schema` | Schema.org entity type selection; breadcrumbs; custom JSON-LD |
+| `sitemap` | XML sitemap configuration; HTML sitemap (`[mm_sitemap]` shortcode) |
+| `robots` | Robots.txt rules; disallow/allow entries |
+| `authors` | Author archive behaviour; Person schema toggle |
+| `links` | Broken link checker configuration |
+| `hygiene` | Head tag cleanup toggles |
+
+Business profile data is stored separately under option key `mm_meta_business`.
+
+### Key settings reference
+
+| Dot path | Default | Description |
+|----------|---------|-------------|
+| `titles.separator` | `\|` | Title separator character used by `%%sep%%` token |
+| `titles.search_title` | `'Search Results for %%search_query%% %%sep%% %%sitetitle%%'` | Title template for search results pages |
+| `titles.404_title` | `'Page Not Found %%sep%% %%sitetitle%%'` | Title template for 404 error pages |
+| `sitemap.html_sitemap.enabled` | `true` | Enables the `[mm_sitemap]` shortcode output |
+| `sitemap.html_sitemap.post_types` | `['page', 'post']` | Post types included in the HTML sitemap |
+| `sitemap.html_sitemap.taxonomies` | `[]` | Taxonomies included in the HTML sitemap |
+| `sitemap.html_sitemap.columns` | `1` | Number of columns in the HTML sitemap layout |
+| `sitemap.html_sitemap.order_by` | `'menu_order'` | Sort order for HTML sitemap entries |
+| `sitemap.html_sitemap.exclude_ids` | `[]` | Post/page IDs excluded from the HTML sitemap |
+| `links.cron_frequency` | `'twicedaily'` | WP-Cron schedule key for the link checker run |
+| `links.batch_size` | `50` | Number of URLs checked per cron run |
+| `links.timeout` | `10` | HTTP request timeout in seconds per URL |
+
+Business profile key settings:
+
+| Dot path | Default | Description |
+|----------|---------|-------------|
+| `business.payment_accepted` | `[]` | Array of accepted payment methods; maps to `schema:paymentAccepted` |
+| `business.price_range` | `''` | Price range string (e.g. `$$`); maps to `schema:priceRange` |
+| `business.hours` | `[]` | Array of `OpeningHoursSpecification` rows |
+| `business.service_areas` | `[]` | Array of service area strings |
+
+### `[mm_sitemap]` shortcode
+
+`class-mm-mod-html-sitemap.php` registers the `[mm_sitemap]` shortcode. Attributes can override the stored settings for a specific placement:
+
+| Attribute | Example | Description |
+|-----------|---------|-------------|
+| `post_types` | `post_types="page,post"` | Comma-separated post types to list |
+| `taxonomies` | `taxonomies="category"` | Comma-separated taxonomies to include |
+| `columns` | `columns="2"` | Override column count |
+| `depth` | `depth="2"` | Maximum hierarchy depth |
+| `exclude` | `exclude="5,12"` | Comma-separated IDs to exclude |
 
 ---
 
