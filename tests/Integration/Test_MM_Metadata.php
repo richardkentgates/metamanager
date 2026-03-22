@@ -152,6 +152,73 @@ class Test_MM_Metadata extends WP_UnitTestCase {
 	}
 
 	// ------------------------------------------------------------------
+	// MM_Site_Settings — feed section defaults
+	// ------------------------------------------------------------------
+
+	/** feed section is present in settings defaults. */
+	public function test_settings_has_feed_section(): void {
+		$all = MM_Site_Settings::get_instance()->all();
+		$this->assertArrayHasKey( 'feed', $all );
+	}
+
+	/** feed.cleanup_enabled defaults to true. */
+	public function test_feed_cleanup_enabled_default_is_true(): void {
+		$this->assertTrue( MM_Site_Settings::get_instance()->get( 'feed.cleanup_enabled', false ) );
+	}
+
+	/** feed.remove_generator defaults to true. */
+	public function test_feed_remove_generator_default_is_true(): void {
+		$this->assertTrue( MM_Site_Settings::get_instance()->get( 'feed.remove_generator', false ) );
+	}
+
+	/** feed.remove_comments_elements defaults to true. */
+	public function test_feed_remove_comments_elements_default_is_true(): void {
+		$this->assertTrue( MM_Site_Settings::get_instance()->get( 'feed.remove_comments_elements', false ) );
+	}
+
+	/** feed.use_excerpt defaults to false. */
+	public function test_feed_use_excerpt_default_is_false(): void {
+		$this->assertFalse( MM_Site_Settings::get_instance()->get( 'feed.use_excerpt', true ) );
+	}
+
+	/** feed.feed_title defaults to an empty string. */
+	public function test_feed_title_default_is_empty(): void {
+		$this->assertSame( '', MM_Site_Settings::get_instance()->get( 'feed.feed_title', 'nonempty' ) );
+	}
+
+	/** feed.feed_copyright defaults to an empty string. */
+	public function test_feed_copyright_default_is_empty(): void {
+		$this->assertSame( '', MM_Site_Settings::get_instance()->get( 'feed.feed_copyright', 'nonempty' ) );
+	}
+
+	// ------------------------------------------------------------------
+	// MM_Mod_Sitemap_Web — cache versioning
+	// ------------------------------------------------------------------
+
+	/** flush_sitemap_cache() updates mm_sitemap_cache_ver to a positive integer. */
+	public function test_flush_sitemap_cache_updates_option(): void {
+		delete_option( 'mm_sitemap_cache_ver' );
+		$this->assertSame( 0, (int) get_option( 'mm_sitemap_cache_ver', 0 ) );
+
+		$mod = new MM_Mod_Sitemap_Web( MM_Site_Settings::get_instance() );
+		$mod->flush_sitemap_cache();
+
+		$this->assertGreaterThan( 0, (int) get_option( 'mm_sitemap_cache_ver', 0 ) );
+	}
+
+	/** Calling flush_sitemap_cache() twice produces a version ≥ first call. */
+	public function test_flush_sitemap_cache_version_advances(): void {
+		$mod = new MM_Mod_Sitemap_Web( MM_Site_Settings::get_instance() );
+		$mod->flush_sitemap_cache();
+		$v1 = (int) get_option( 'mm_sitemap_cache_ver', 0 );
+		// Guarantee time() advances by temporarily overriding the option.
+		update_option( 'mm_sitemap_cache_ver', $v1 - 1, false );
+		$mod->flush_sitemap_cache();
+		$v2 = (int) get_option( 'mm_sitemap_cache_ver', 0 );
+		$this->assertGreaterThanOrEqual( $v1, $v2 );
+	}
+
+	// ------------------------------------------------------------------
 	// MM_Page_Context
 	// ------------------------------------------------------------------
 

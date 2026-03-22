@@ -14,6 +14,7 @@
             <file>tests/Integration/Test_MM_CLI.php</file>
             <file>tests/Integration/Test_MM_REST.php</file>
             <file>tests/Integration/Test_MM_Metadata.php</file>
+            <file>tests/Integration/Test_MM_Mod_Rss.php</file>
         </testsuite>
     </testsuites>
 

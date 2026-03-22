@@ -1989,6 +1989,7 @@ class MM_Admin {
 
 				<?php if ( empty( $ids ) ) : ?>
 					<p><?php esc_html_e( 'No images found.', 'metamanager' ); ?></p>
+				<?php else : ?>
 						<div id="mm-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;">
 							<?php foreach ( $ids as $id ) :
 								$id       = (int) $id;
