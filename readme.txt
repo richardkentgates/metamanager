@@ -1,6 +1,6 @@
 === Metamanager ===
 Contributors: richardkentgates
-Tags: seo, metadata, sitemap, schema, open-graph, exif, compression, media
+Tags: seo, metadata, sitemap, schema, open-graph
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 8.0

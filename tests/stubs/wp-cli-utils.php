@@ -8,9 +8,9 @@
  * @package Metamanager\Tests\Stubs
  */
 
-// phpcs:ignore WordPress.Security.MissingDirectFileAccessProtection.MissingAbsPath -- test stub loaded only via PHPUnit, not directly accessible via web.
-
 namespace WP_CLI\Utils;
+
+defined( 'ABSPATH' ) || exit;
 
 function make_progress_bar( string $msg, int $count ): object {
 	return new class {
