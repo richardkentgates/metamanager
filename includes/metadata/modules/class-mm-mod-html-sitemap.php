@@ -22,7 +22,7 @@ class MM_Mod_Html_Sitemap extends MM_Mod_Base {
 	public function populate( array &$data, MM_Page_Context $context, MM_Site_Settings $settings ): void {}
 
 	public function register_hooks(): void {
-		if ( $this->settings->get( 'html_sitemap.enabled', true ) ) {
+		if ( $this->settings->get( 'sitemap.html_sitemap.enabled', true ) ) {
 			add_shortcode( 'mm_sitemap', [ $this, 'render_shortcode' ] );
 		}
 	}
@@ -32,7 +32,7 @@ class MM_Mod_Html_Sitemap extends MM_Mod_Base {
 	// -------------------------------------------------------------------------
 
 	public function render_shortcode( $atts ): string {
-		$cfg = $this->settings->get( 'html_sitemap', [] );
+		$cfg = $this->settings->get( 'sitemap.html_sitemap', [] );
 
 		$atts = shortcode_atts( [
 			'post_types' => implode( ',', (array) ( $cfg['post_types'] ?? [ 'page', 'post' ] ) ),

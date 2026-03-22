@@ -179,4 +179,28 @@ $template_vars_help = '%%sitetitle%% %%tagline%% %%sep%% %%post_title%% %%term_t
 	</div>
 	<?php endforeach; ?>
 
+	<h2>Special Pages</h2>
+	<table class="form-table gcm-form-table">
+		<tr>
+			<th><label for="gcm_title_search">Search Results Title</label></th>
+			<td>
+				<input type="text" id="gcm_title_search"
+					name="<?php echo esc_attr($opt); ?>[titles][search_title]"
+					value="<?php echo esc_attr( $s->get('titles.search_title', 'Search Results for %%search_query%% %%sep%% %%sitetitle%%') ); ?>"
+					class="large-text">
+				<p class="description">Available tokens: <code>%%search_query%%</code>, <code>%%sep%%</code>, <code>%%sitetitle%%</code></p>
+			</td>
+		</tr>
+		<tr>
+			<th><label for="gcm_title_404">404 Page Title</label></th>
+			<td>
+				<input type="text" id="gcm_title_404"
+					name="<?php echo esc_attr($opt); ?>[titles][404_title]"
+					value="<?php echo esc_attr( $s->get('titles.404_title', 'Page Not Found %%sep%% %%sitetitle%%') ); ?>"
+					class="large-text">
+				<p class="description">Available tokens: <code>%%sep%%</code>, <code>%%sitetitle%%</code></p>
+			</td>
+		</tr>
+	</table>
+
 </div>

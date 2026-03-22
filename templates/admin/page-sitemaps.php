@@ -157,4 +157,70 @@ unset($public_taxs['post_format']);
 		</tr>
 	</table>
 
+	<h2>HTML Sitemap</h2>
+	<?php
+	$html_s    = $s->get( 'sitemap.html_sitemap', [] );
+	$html_pts  = (array) ( $html_s['post_types'] ?? [ 'page', 'post' ] );
+	$html_taxs = (array) ( $html_s['taxonomies'] ?? [] );
+	?>
+	<table class="form-table gcm-form-table">
+		<tr>
+			<th>Enable Shortcode</th>
+			<td>
+				<label>
+					<input type="checkbox" name="<?php echo esc_attr($opt); ?>[sitemap][html_sitemap][enabled]" value="1"
+						<?php checked( $s->get('sitemap.html_sitemap.enabled', true) ); ?>>
+					Register the <code>[mm_sitemap]</code> shortcode
+				</label>
+			</td>
+		</tr>
+		<tr>
+			<th>Post Types</th>
+			<td>
+				<?php foreach ( $public_pts as $pt_slug => $pt_obj ) : ?>
+					<label style="display:block;margin-bottom:4px">
+						<input type="checkbox"
+							name="<?php echo esc_attr($opt); ?>[sitemap][html_sitemap][post_types][]"
+							value="<?php echo esc_attr($pt_slug); ?>"
+							<?php checked( in_array( $pt_slug, $html_pts, true ) ); ?>>
+						<?php echo esc_html($pt_obj->labels->name); ?> (<code><?php echo esc_html($pt_slug); ?></code>)
+					</label>
+				<?php endforeach; ?>
+			</td>
+		</tr>
+		<tr>
+			<th>Taxonomies</th>
+			<td>
+				<?php foreach ( $public_taxs as $tax_slug => $tax_obj ) : ?>
+					<label style="display:block;margin-bottom:4px">
+						<input type="checkbox"
+							name="<?php echo esc_attr($opt); ?>[sitemap][html_sitemap][taxonomies][]"
+							value="<?php echo esc_attr($tax_slug); ?>"
+							<?php checked( in_array( $tax_slug, $html_taxs, true ) ); ?>>
+						<?php echo esc_html($tax_obj->labels->name); ?> (<code><?php echo esc_html($tax_slug); ?></code>)
+					</label>
+				<?php endforeach; ?>
+			</td>
+		</tr>
+		<tr>
+			<th>Columns</th>
+			<td>
+				<input type="number" name="<?php echo esc_attr($opt); ?>[sitemap][html_sitemap][columns]"
+					value="<?php echo (int) ( $html_s['columns'] ?? 1 ); ?>"
+					min="1" max="4" class="small-text">
+				<p class="description">Number of columns in the sitemap layout (1–4).</p>
+			</td>
+		</tr>
+		<tr>
+			<th>Order By</th>
+			<td>
+				<select name="<?php echo esc_attr($opt); ?>[sitemap][html_sitemap][order_by]">
+					<?php foreach ( [ 'menu_order' => 'Menu Order', 'title' => 'Title', 'date' => 'Date Published' ] as $v => $l ) : ?>
+						<option value="<?php echo esc_attr($v); ?>" <?php selected( $html_s['order_by'] ?? 'menu_order', $v ); ?>><?php echo esc_html($l); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</td>
+		</tr>
+	</table>
+
 </div>

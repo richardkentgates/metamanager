@@ -232,8 +232,7 @@ class MM_Site_Settings {
 				'og_default_image_id'   => 0,
 				'og_locale'             => 'en_US',
 				'fb_app_id'             => '',
-				'fb_link_ownership_id'  => '',
-				'twitter_site'          => '',
+				'twitter_site'          => '',,
 				'twitter_card_type'     => 'summary_large_image',
 				'accounts'              => [
 					'facebook'  => '',
@@ -276,6 +275,14 @@ class MM_Site_Settings {
 				'records_per_file'           => 1000,
 				'ping_google'                => true,
 				'ping_bing'                  => true,
+				'html_sitemap'               => [
+					'enabled'     => true,
+					'post_types'  => [ 'page', 'post' ],
+					'taxonomies'  => [],
+					'columns'     => 1,
+					'order_by'    => 'menu_order',
+					'exclude_ids' => [],
+				],
 			],
 
 			'robots' => [
@@ -297,22 +304,13 @@ class MM_Site_Settings {
 
 			'links' => [
 				'enabled'        => true,
-				'cron_frequency' => 'mm_meta_6h',
+				'cron_frequency' => 'twicedaily',
 				'timeout'        => 10,
 				'batch_size'     => 50,
 				'check_external' => true,
 				'ignore_domains' => [],
 				'email_alerts'   => false,
 				'email_address'  => '',
-			],
-
-			'html_sitemap' => [
-				'enabled'     => true,
-				'post_types'  => [ 'page', 'post' ],
-				'taxonomies'  => [],
-				'columns'     => 1,
-				'order_by'    => 'menu_order',
-				'exclude_ids' => [],
 			],
 
 			'hygiene' => [
@@ -326,9 +324,6 @@ class MM_Site_Settings {
 				'remove_wp_dns_prefetch' => true,
 			],
 
-			'tools' => [
-				'remove_data_on_uninstall' => false,
-			],
 		];
 	}
 
@@ -353,7 +348,6 @@ class MM_Site_Settings {
 			'payment_accepted' => [],
 			'hours'            => [],
 			'service_areas'    => [],
-			'locations'        => [],
 			'accounts'         => [
 				'facebook'  => '',
 				'instagram' => '',

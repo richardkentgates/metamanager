@@ -169,14 +169,10 @@ class MM_Mod_Social extends MM_Mod_Base {
 			}
 		}
 
-		// Facebook app ID + link ownership.
+		// Facebook app ID.
 		$fb_app_id = $settings->get( 'social.fb_app_id', '' );
 		if ( $fb_app_id ) {
 			$this->add_meta( $data, [ 'property' => 'fb:app_id', 'content' => $fb_app_id ] );
-		}
-		$fb_owner = $settings->get( 'social.fb_link_ownership_id', '' );
-		if ( $fb_owner ) {
-			$this->add_meta( $data, [ 'property' => 'fb:pages', 'content' => $fb_owner ] );
 		}
 	}
 

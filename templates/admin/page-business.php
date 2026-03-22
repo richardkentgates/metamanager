@@ -91,6 +91,25 @@ if ( empty($hours) ) { $hours = $hour_defaults; }
 				</select>
 			</td>
 		</tr>
+		<tr>
+			<th>Payment Accepted</th>
+			<td>
+				<?php
+				$payment_methods = [ 'Cash', 'Check', 'Credit Card', 'Debit Card', 'Invoice', 'PayPal', 'Apple Pay', 'Google Pay', 'Venmo' ];
+				$accepted        = (array) ( $b['payment_accepted'] ?? [] );
+				foreach ( $payment_methods as $method ) :
+				?>
+					<label style="display:inline-block;margin-right:16px;margin-bottom:4px">
+						<input type="checkbox"
+							name="<?php echo esc_attr($opt); ?>[payment_accepted][]"
+							value="<?php echo esc_attr($method); ?>"
+							<?php checked( in_array( $method, $accepted, true ) ); ?>>
+						<?php echo esc_html($method); ?>
+					</label>
+				<?php endforeach; ?>
+				<p class="description">Emitted as <code>paymentAccepted</code> in LocalBusiness schema.</p>
+			</td>
+		</tr>
 	</table>
 
 	<h2>Address &amp; Location</h2>
