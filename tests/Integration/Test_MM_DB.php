@@ -12,6 +12,8 @@
  * @package Metamanager\Tests\Integration
  */
 
+defined( 'ABSPATH' ) || exit;
+
 class Test_MM_DB extends WP_UnitTestCase {
 
 	// -----------------------------------------------------------------------

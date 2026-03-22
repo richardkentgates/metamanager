@@ -1414,8 +1414,8 @@ class MM_Admin {
 			wp_send_json_error( 'Permission denied.' );
 		}
 
-		$offset     = max( 0, (int) wp_unslash( $_POST['offset']     ?? 0 ) );
-		$batch_size = max( 1, min( 200, (int) wp_unslash( $_POST['batch_size'] ?? 50 ) ) );
+		$offset     = max( 0, (int) wp_unslash( $_POST['offset']     ?? 0 ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- (int) cast is sanitization
+		$batch_size = max( 1, min( 200, (int) wp_unslash( $_POST['batch_size'] ?? 50 ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		// Include images plus all supported video and audio MIME types.
 		$all_mime_types = array_merge(

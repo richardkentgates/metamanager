@@ -14,6 +14,9 @@
  *   - Local install:       /var/www/html/wordpress/
  *   - CI (downloaded):     /tmp/wordpress/
  */
+
+defined( 'ABSPATH' ) || exit;
+
 define( 'ABSPATH',        '/path/to/wordpress/' );
 define( 'DB_NAME',        'wordpress_test' );
 define( 'DB_USER',        'db_user' );

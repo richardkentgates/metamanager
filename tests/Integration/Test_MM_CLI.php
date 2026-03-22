@@ -11,6 +11,8 @@
  * @package Metamanager\Tests\Integration
  */
 
+defined( 'ABSPATH' ) || exit;
+
 if ( ! defined( 'WP_CLI' ) ) {
 define( 'WP_CLI', true );
 }
@@ -29,7 +31,7 @@ self::$output[] = [ 'type' => 'success', 'msg' => $msg ];
 public static function error( string $msg, bool $exit = true ): void {
 self::$output[] = [ 'type' => 'error', 'msg' => $msg ];
 if ( $exit ) {
-throw new RuntimeException( 'WP_CLI::error: ' . $msg );
+throw new RuntimeException( 'WP_CLI::error: ' . esc_html( $msg ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test stub, not user-facing output
 }
 }
 public static function line( string $msg = '' ): void {
@@ -57,7 +59,7 @@ parent::set_up_before_class();
 MM_DB::create_or_update_table();
 foreach ( [ MM_JOB_COMPRESS, MM_JOB_META, MM_JOB_DONE, MM_JOB_FAILED ] as $dir ) {
 if ( ! is_dir( $dir ) ) {
-mkdir( $dir, 0755, true );
+mkdir( $dir, 0755, true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- test setup, WP_Filesystem not available
 }
 }
 }

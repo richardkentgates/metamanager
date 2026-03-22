@@ -437,7 +437,7 @@ if ( is_admin() ) {
 			? sanitize_key( wp_unslash( $_GET['mm_notice_type'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			: 'updated';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized below via sanitize_text_field
-		$message = sanitize_text_field( wp_unslash( urldecode( $_GET['mm_notice'] ) ) );
+			$message = sanitize_text_field( urldecode( wp_unslash( $_GET['mm_notice'] ) ) );
 		printf(
 			'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
 			esc_attr( $type ),

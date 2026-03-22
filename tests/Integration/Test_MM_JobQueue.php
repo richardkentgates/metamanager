@@ -11,6 +11,8 @@
  * @package Metamanager\Tests\Integration
  */
 
+defined( 'ABSPATH' ) || exit;
+
 class Test_MM_JobQueue extends WP_UnitTestCase {
 
 	/** Absolute paths of temporary media files created during a test. */
@@ -27,7 +29,7 @@ class Test_MM_JobQueue extends WP_UnitTestCase {
 		// Ensure all queue directories exist for the test run.
 		foreach ( [ MM_JOB_COMPRESS, MM_JOB_META, MM_JOB_DONE, MM_JOB_FAILED ] as $dir ) {
 			if ( ! is_dir( $dir ) ) {
-				mkdir( $dir, 0755, true );
+				mkdir( $dir, 0755, true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- test setup, WP_Filesystem not available
 			}
 		}
 	}

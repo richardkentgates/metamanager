@@ -46,6 +46,10 @@ if ( ! getenv( 'WP_PHPUNIT__TESTS_CONFIG' ) && ! file_exists( $_tests_config ) )
 // and installs a fresh test DB that is wiped per-test).
 require_once $_wp_phpunit_bootstrap;
 
+// ABSPATH is now defined by the WP test bootstrap above.
+// This guard satisfies the WP plugin checker's direct-access protection check.
+defined( 'ABSPATH' ) || exit;
+
 // Define filesystem constants that WP normally sets via wp-admin/includes/file.php.
 // The WP test bootstrap does not load the admin includes, so job-queue code
 // that writes .htaccess files needs these to be present.

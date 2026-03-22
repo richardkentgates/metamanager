@@ -20,6 +20,8 @@
  * @package Metamanager\Tests\Integration
  */
 
+defined( 'ABSPATH' ) || exit;
+
 // Load the admin class so its REST routes become available.
 require_once dirname( __DIR__, 2 ) . '/includes/class-mm-admin.php';
 
