@@ -1,0 +1,36 @@
+<div class="footer-badges">
+    <a href="https://www.gnu.org/licenses/gpl-3.0" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="GPL v3"></a>
+    <a href="https://wordpress.org" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/WordPress-6.0%2B-blue" alt="WordPress 6.0+"></a>
+    <a href="https://php.net" target="_blank" rel="noopener"><img src="https://img.shields.io/badge/PHP-8.0%2B-purple" alt="PHP 8.0+"></a>
+    <a href="https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml" target="_blank" rel="noopener"><img src="https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml/badge.svg" alt="Code Scanning"></a>
+</div>
+<p>Metamanager &mdash; Open Source under <a href="https://www.gnu.org/licenses/gpl-3.0" target="_blank" rel="noopener">GPL v3</a> &mdash; <a href="https://github.com/richardkentgates/metamanager" target="_blank" rel="noopener">GitHub</a> &mdash; <a href="https://github.com/richardkentgates/metamanager/wiki" target="_blank" rel="noopener">Wiki</a> &mdash; <a href="https://github.com/sponsors/richardkentgates" target="_blank" rel="noopener">Sponsor</a></p>
+<p class="tagline">Built by <a href="https://github.com/richardkentgates" target="_blank" rel="noopener">Richard Kent Gates</a></p>
+
+<script>
+(function () {
+    'use strict';
+    setTimeout(function () {
+        var sections = document.querySelectorAll('article section[id]');
+        var navLinks = document.querySelectorAll('aside nav a[href^="#"]');
+        if (!sections.length || !navLinks.length) return;
+
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    navLinks.forEach(function (a) { a.classList.remove('active'); });
+                    var id = entry.target.getAttribute('id');
+                    var link = document.querySelector('aside nav a[href="#' + id + '"]');
+                    if (link) {
+                        link.classList.add('active');
+                        var details = link.closest('details');
+                        if (details) { details.open = true; }
+                    }
+                }
+            });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+
+        sections.forEach(function (s) { observer.observe(s); });
+    }, 600);
+}());
+</script>

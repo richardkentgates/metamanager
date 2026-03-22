@@ -1,6 +1,10 @@
 # Metamanager
 
-**Metamanager** is a WordPress plugin that provides lossless compression for images, video, and audio; bidirectional metadata sync between WordPress fields and embedded file tags (EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP); PDF metadata import; and automatic front-end Schema.org JSON-LD and Open Graph output for all media types — all powered by OS-level daemons and native WordPress APIs.
+**Metamanager** is a WordPress plugin for complete metadata management at both layers of the stack — the files themselves and your web presence.
+
+**Media layer** — lossless compression for images, video, and audio; bidirectional metadata sync between WordPress fields and embedded file tags (EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP); PDF metadata import and write-back; GPS coordinate import; write-back verification — all via OS-level daemons using ExifTool and ffmpeg.
+
+**Web layer** — per-post/page/term/user title and description control; Open Graph and Twitter/X card output for all content types; Schema.org JSON-LD for 20+ types (Article, LocalBusiness, Product, Event, FAQPage, Recipe, and more); XML sitemaps (pages, media, video); HTML sitemap shortcode; robots.txt management; async broken link checker; business profile with contact card block; author profiles with structured data.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-blue)](https://wordpress.org)
@@ -9,45 +13,63 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
-📖 **[Full documentation → GitHub Wiki](https://github.com/richardkentgates/metamanager/wiki)**
+📖 **[Full documentation → metamanager.richardkentgates.com](https://metamanager.richardkentgates.com)** · **[Wiki](https://github.com/richardkentgates/metamanager/wiki)**
 
 ---
 
 ## Why Metamanager
 
-WordPress's built-in media handling is PHP-only. PHP cannot do lossless JPEG, PNG, or WebP compression, has no native video remux, and its metadata tools are limited to basic EXIF with no IPTC or XMP support. Metamanager offloads all media work to the OS where purpose-built tools — `jpegtran`, `optipng`, `cwebp`, `ffmpeg`, and `ExifTool` — do the job properly.
+WordPress's built-in metadata handling is limited at both layers.
 
-PHP's role is coordinator only: write the instruction, let the daemon execute it.
+**At the file level:** PHP cannot do lossless JPEG, PNG, or WebP compression, has no native video remux, and its metadata tools are limited to basic EXIF with no IPTC or XMP support. Metamanager offloads all media work to the OS where purpose-built tools — `jpegtran`, `optipng`, `cwebp`, `ffmpeg`, and `ExifTool` — do the job properly.
+
+**At the web level:** WordPress core has no built-in title/description control beyond the post title, no Open Graph output, no Schema.org structured data, no sitemap management, and no link health monitoring. Metamanager fills the entire gap — per-post metadata fields, 20+ Schema.org types, XML and HTML sitemaps, robots.txt control, a business profile powering both contact card output and LocalBusiness JSON-LD, author profiles with Person structured data, and an async link checker.
+
+PHP's role throughout is coordinator only: write the instruction, let the daemon or WordPress hook execute it.
 
 ---
 
 ## Features
+
+### Media layer
 
 - **Lossless image compression**: JPEG via `jpegtran` (no re-encoding), PNG via `optipng`, WebP via `cwebp -lossless`
 - **Video support**: metadata (title, description, creator, copyright, keywords, date) written as QuickTime atoms for MP4/MOV/M4A, XMP-only for AVI/WMV/WMA; video container remux via `ffmpeg`; read-only for MKV/WebM/OGV
 - **Audio support**: ID3 tags for MP3, QuickTime atoms for M4A, Vorbis comments for OGG/FLAC, XMP-only for WAV/WMA
 - **PDF support**: title, author, keywords, and creation date imported on upload; XMP fields written back by daemon; Schema.org `DigitalDocument` output
 - **Standards-compliant metadata**: EXIF, IPTC, and XMP written simultaneously via ExifTool for images; native tag formats used per file type
-- **Bidirectional metadata sync**: on upload, embedded tags are read from the file and populate WordPress fields automatically — existing user values are never overwritten
-- **Expanded metadata fields**: Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating (0–5 stars), City, State/Province, Country — stored as registered post meta, REST-exposed, and embedded by the daemon
-- **GPS coordinates**: latitude, longitude, and altitude read from camera-embedded GPS tags and stored automatically — no manual entry required
-- **Schema.org JSON-LD**: `ImageObject` for images (with `GeoCoordinates` when GPS data is present), `VideoObject` for video, `AudioObject` for audio, `DigitalDocument` for PDF — emitted on attachment pages and posts with a featured image
-- **Open Graph tags**: `og:image` / `og:video` / `og:audio` per media type; width, height, type, and alt where applicable
-- **License link**: `<link rel="license">` for URL-format copyright values, `<meta name="copyright">` for plain-text notices
-- **Native WordPress integration**: metadata fields on every image edit screen; compression status column in Media Library
-- **Grouped edit UI**: Attribution & Rights, Editorial, Classification, Location — clearly separated in the attachment editor
-- **Bulk operations**: compress all uncompressed images, or inject site provenance (Publisher + Website URL) into metadata
-- **Auto-embed site provenance control**: a checkbox setting (**Media → MM Settings → Metadata Embedding**) enables or disables automatic Publisher and Website embedding — on by default; uncheck to omit those fields without touching any other metadata
-- **Write-back verification**: after the metadata daemon embeds fields into a file, Metamanager automatically re-reads it with ExifTool to confirm the values were written correctly; any discrepancies are recorded and shown as an amber notice on the attachment edit screen
-- **No false attribution**: bulk actions never set Creator, Copyright, Owner, or any per-image field
-- **Real-time job dashboard**: live queue view and searchable/paginated history under Media → Metamanager
+- **Bidirectional metadata sync**: on upload, embedded tags populate empty WordPress fields — existing user values are never overwritten; edit a field in WordPress and the daemon writes it back into the file
+- **Expanded metadata fields**: Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating (0–5 stars), City, State/Province, Country — stored as registered post meta, REST-exposed, embedded by daemon
+- **GPS coordinates**: latitude, longitude, and altitude read from camera EXIF and stored automatically — included in `ImageObject` JSON-LD as `GeoCoordinates`
+- **Write-back verification**: after the daemon embeds fields, Metamanager re-reads the file with ExifTool to confirm values were written; discrepancies shown as an amber notice on the attachment edit screen
+- **Bulk operations**: compress all uncompressed attachments; inject site provenance (Publisher + Website URL) into all media
+- **Auto-embed site provenance control**: on/off checkbox in Settings; disabling omits Publisher and Website from all future jobs
+
+### Web layer
+
+- **Title & description control**: per-post/page/term/user override with template tokens (`{title}`, `{site_name}`, `{sep}`, `{year}`, `{page}`); configurable default template per post type
+- **Open Graph**: `og:title`, `og:description`, `og:image` for all content; `og:image:width/height/type/alt` for media; `og:video` and `og:audio` for media attachments; `article:published_time` and `article:modified_time` for posts; Twitter/X card output
+- **Schema.org JSON-LD**: 20+ types — `Article`, `BlogPosting`, `WebPage`, `BreadcrumbList`, `ImageObject`, `VideoObject`, `AudioObject`, `DigitalDocument`, `Product`, `FAQPage`, `HowTo`, `Recipe`, `Event`, `Course`, `JobPosting`, `Review`, `Service`, `TouristTrip`, `RealEstateListing`, `Organization`, `LocalBusiness`, `Person`
+- **XML sitemaps**: `/sitemap.xml` (all public content), `/sitemap-media.xml` (images + video), `/sitemap-video.xml` (Google Video format); 1-hour transient caching; auto-flush on publish; configurable per post type and taxonomy; Google and Bing pinged on publish
+- **HTML sitemap**: `[mm_sitemap]` shortcode embeds a formatted sitemap on any page; supports `post_types`, `taxonomies`, and `depth` attributes
+- **Robots.txt**: active sitemaps appended as `Sitemap:` directives automatically; per-post-type global noindex; per-post noindex/nofollow/noarchive/nosnippet from the metadata panel
+- **Async link checker**: links stored in a lightweight DB table and checked via `wp_remote_head()` in background batches; HTTP codes recorded; broken links flagged in a dashboard; optional email alerts; per-link re-check and ignore
+- **Link hygiene**: global rules for `rel="nofollow"`, `rel="noopener noreferrer"`, `target="_blank"` on external links; applied at render time, not stored
+- **Business profile**: name, type, address, contact, hours, price range, geo; powers `Organization`/`LocalBusiness` JSON-LD on every page, the Business Contact Gutenberg block, and social profile `sameAs` links
+- **Contact card block**: `metamanager/business-contact` Gutenberg block renders address, phone, email, hours, and a map link from the business profile
+- **Author profiles**: per-user job title, biography, and social links (Twitter/X, LinkedIn, GitHub); `Person` JSON-LD on author archives and attributed posts
+- **Canonical URL**: per-post override; defaults to the WordPress permalink
+
+### Infrastructure
+
+- **Real-time job dashboard**: live queue view and searchable/paginated history under Metamanager → Dashboard
 - **Re-queue on failure**: one-click retry for any failed job from the history table
 - **Daemon health indicator**: status banner shows whether each daemon is running (via PID file — no `systemctl` privilege required)
-- **REST API access control**: disable all Metamanager REST endpoints or restrict them to a comma-separated list of allowed IP addresses from Media → MM Settings — unauthorized requests receive a `403` before any capability check runs
-- **Upload receipt emails**: the site admin always receives a batched digest email after uploads (one email per 60-second window); every other WordPress user has an opt-in checkbox on their own profile page; configurable extra CC address; failed sends are surfaced as a dismissible admin notice with one-click retry
-- **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates; includes a manual "Check for Updates" link on the Plugins page; a notice reminds server admins to restart the OS daemons after every plugin update
-- **Multisite compatible**: network activation creates the DB table and schedules cron on every existing site; new blog creation is handled automatically via `wp_initialize_site`
-- **Clean uninstall**: an opt-in "Remove all data on uninstall" setting wipes all options, post meta, the job log table, the job queue directory, and the updater transient when the plugin is deleted — nothing is removed by default
+- **REST API access control**: disable all endpoints or restrict to a comma-separated IP allowlist; unauthorized requests receive a `403`
+- **Upload receipt emails**: batched digest email (one per 60-second window); per-user opt-in; configurable CC address; failed sends surfaced as a dismissible notice with retry
+- **Auto-updates**: native WordPress update pipeline integration — updates appear in Dashboard → Updates; includes "Check for Updates" link; notice prompts daemon restart after updates
+- **Multisite compatible**: network activation creates the DB table and schedules cron on every existing site; new blog creation handled via `wp_initialize_site`
+- **Clean uninstall**: opt-in "Remove all data on uninstall" setting wipes options, post meta, job log table, job queue directory, and updater transient — nothing removed by default
 
 ---
 
