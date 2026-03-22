@@ -13,7 +13,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** @var MM_Metadata_Admin $this */
-$page_cfg = $pages[ $current_page ] ?? $pages['metamanager'];
+$page_cfg = $pages[ $current_page ] ?? $pages['metamanager-business'];
 $template = $page_cfg['template'];
 $label    = $page_cfg['label'];
 ?>

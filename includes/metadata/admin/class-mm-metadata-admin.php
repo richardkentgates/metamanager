@@ -116,7 +116,7 @@ register_setting( MM_Mod_Business_Contact::OPT_GROUP, MM_Mod_Business_Contact::O
 
 /** Named callback — required for add_menu_page() and the Business submenu. */
 public function render_business(): void {
-$this->render( 'metamanager' );
+$this->render( 'metamanager-business' );
 }
 
 private function render( string $page_slug ): void {
@@ -124,7 +124,7 @@ if ( ! current_user_can( 'manage_options' ) ) {
 wp_die( esc_html__( 'Insufficient permissions.', 'metamanager' ) );
 }
 
-$page_cfg       = $this->pages[ $page_slug ] ?? $this->pages['metamanager'];
+$page_cfg       = $this->pages[ $page_slug ] ?? $this->pages['metamanager-business'];
 $settings       = $this->settings;
 $pages          = $this->pages;
 $current_page   = $page_slug;
