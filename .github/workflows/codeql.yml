@@ -56,7 +56,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # PHP — syntax check (all versions) + static analysis via PHPStan
   # ---------------------------------------------------------------------------
-   php-lint:
+  php-lint:
     name: PHP Static Analysis
     runs-on: ubuntu-latest
     permissions:
