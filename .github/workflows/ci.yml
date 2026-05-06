@@ -74,4 +74,4 @@ jobs:
         run: phpunit --configuration tests/phpunit.xml
 
       - name: Run PHPStan
-        run: phpstan analyse --configuration phpstan.neon --error-format=github/
+        run: phpstan analyse --configuration phpstan.neon --error-format=github
