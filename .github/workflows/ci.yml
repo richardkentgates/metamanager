@@ -8,6 +8,7 @@ on:
       - 'metamanager.php'
       - 'tests/**'
       - 'phpstan.neon'
+      - '.github/workflows/**'
   pull_request:
     branches: [ "main", "dev" ]
 
