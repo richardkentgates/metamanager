@@ -149,7 +149,7 @@ jobs:
             wordpress \
             127.0.0.1 \
             latest \
-            false
+            true
 
       - name: Run PHPUnit
         run: phpunit --no-coverage --configuration tests/phpunit.xml
