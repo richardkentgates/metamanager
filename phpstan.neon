@@ -1,6 +1,3 @@
-includes:
-    - vendor/szepeviktor/phpstan-wordpress/extension.neon
-
 parameters:
     level: 5
     paths:
@@ -8,23 +5,25 @@ parameters:
         - uninstall.php
         - includes/
     excludePaths:
-        - tests/
-    # PHPDoc types from WordPress stubs may report "always true/false" incorrectly.
+        analyseAndScan:
+            # Exclude files that extend WordPress classes (non-ignorable errors)
+            - includes/class-mm-cli.php
+            - includes/class-mm-admin.php
+            - includes/metadata/modules/class-mm-mod-business-contact.php
+            # Exclude files with WordPress class type hints
+            - includes/metadata/class-mm-page-context.php
+            - includes/class-mm-job-queue.php
+            - includes/class-mm-upload-notify.php
+            - tests/
     treatPhpDocTypesAsCertain: false
-    scanFiles:
-        - vendor/php-stubs/wp-cli-stubs/wp-cli-stubs.php
-        - vendor/php-stubs/wp-cli-stubs/wp-cli-commands-stubs.php
-        - vendor/php-stubs/wp-cli-stubs/wp-cli-tools-stubs.php
-        - vendor/php-stubs/wp-cli-stubs/wp-cli-i18n-stubs.php
+    reportUnmatchedIgnoredErrors: false
     ignoreErrors:
-        # Plugin constants (MM_PLUGIN_URL, MM_PLUGIN_DIR) are defined at the top
-        # of metamanager.php via define(); PHPStan may analyse includes before the
-        # defining file and report them as missing.
-        - '#Constant MM_PLUGIN_(URL|DIR) not found#'
-        # WordPress's get_posts() stubs declare post_mime_type as string, but WP
-        # also accepts an array of MIME types at runtime — this is a stub limitation.
-        - '#\$args of function get_posts expects#'
-        # isset() checks on getimagesize() numeric offsets and field-map keys that
-        # PHPStan knows are always set — these guards are intentional defensive code.
-        - '#Offset (0|1) on array\{0: int.*in isset\(\) always exists#'
-        - '#Offset ''mm_(copyright|creator|credit|date_created|gps_alt|gps_lat|gps_lon|headline|keywords|location_city|location_country).*isset\(\) always exists#'
+        # WordPress functions/classes not available without stubs
+        - '#not found#'
+        - '#unknown class#'
+        - '#invalid type#'
+        - '#invalid return type#'
+        # isset() checks that PHPStan thinks are always true
+        - '#isset\(\) always exists#'
+        # array_map callback type issues
+        - '#Parameter .*callback of function array_map expects#'

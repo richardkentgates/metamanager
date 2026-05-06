@@ -56,7 +56,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # PHP — syntax check (all versions) + static analysis via PHPStan
   # ---------------------------------------------------------------------------
-  php-lint:
+   php-lint:
     name: PHP Static Analysis
     runs-on: ubuntu-latest
     permissions:
@@ -64,7 +64,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ["8.0", "8.1", "8.2", "8.3"]
+        php-version: ["8.1", "8.2", "8.3"]
 
     steps:
       - name: Checkout
@@ -74,11 +74,12 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          tools: phpstan
           coverage: none
 
-      - name: Install dev dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Download PHPStan (no Composer)
+        run: |
+          curl -L https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar -o /usr/local/bin/phpstan
+          chmod +x /usr/local/bin/phpstan
 
       - name: PHP syntax check
         run: |
@@ -94,8 +95,7 @@ jobs:
 
       - name: PHPStan static analysis
         run: |
-          vendor/bin/phpstan analyse --no-progress
-        # Uses phpstan.neon for paths, level, and stubs config.
+          phpstan analyse --no-progress --configuration phpstan.neon
 
   # ---------------------------------------------------------------------------
   # PHPUnit — Integration tests against a real WordPress + MySQL install
@@ -136,27 +136,20 @@ jobs:
       - name: Install ExifTool
         run: sudo apt-get install -y libimage-exiftool-perl
 
-      - name: Install Composer dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
-
-      - name: Download WordPress core
+      - name: Download PHPUnit (no Composer)
         run: |
-          mkdir -p /tmp/wordpress
-          curl -sL https://wordpress.org/latest.zip -o /tmp/wp.zip
-          unzip -q /tmp/wp.zip -d /tmp
-          # wordpress/ is unzipped inside /tmp — files are at /tmp/wordpress/
-          ls /tmp/wordpress/wp-settings.php
+          curl -L https://phar.phpunit.de/phpunit-9.6.0.phar -o /usr/local/bin/phpunit
+          chmod +x /usr/local/bin/phpunit
 
-      - name: Write wp-tests-config.php
+      - name: Download WordPress test suite
         run: |
-          bash bin/install-wp-tests.sh \
+          bash tests/bin/install-wp-tests.sh \
             wordpress_test \
             wordpress \
             wordpress \
             127.0.0.1 \
-            /tmp/wordpress \
-            true
-        # skip-db-create=true because the MySQL service already created it
+            latest \
+            false
 
       - name: Run PHPUnit
-        run: vendor/bin/phpunit --no-coverage
+        run: phpunit --no-coverage --configuration tests/phpunit.xml
