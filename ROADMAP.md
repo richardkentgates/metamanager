@@ -165,3 +165,8 @@ as a fallback.
 - `class-mm-job-queue.php:114` — pending job dedup check
 - `class-mm-job-queue.php:362` — attachment deletion cleanup
 - `class-mm-job-queue.php:408-410` — queue status read (used `AppendIterator`)
+
+### Branch protection rules configured via GitHub API (2026-05-24)
+- `main`: PR + 1 approval required, enforce admins (no bypass), no force pushes
+- `test`: PR required, CI checks (PHP 8.1/8.2/8.3 matrix) must pass, strict mode, no force pushes
+- `dev`: PR required, CI checks (PHP 8.1/8.2/8.3 matrix) must pass, strict mode, no force pushes
