@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly USAGE="Usage: promote (stage|release) [--version X.Y.Z]"
+
+stage() {
+  local title="${1:-chore: promote dev → test}"
+  echo "==> Promoting dev → test"
+
+  # Ensure we're on dev and up to date
+  git fetch origin dev test
+  local behind
+  behind=$(git rev-list --count "origin/dev..origin/test" 2>/dev/null || echo 0)
+  if [ "$behind" -gt 0 ]; then
+    echo "!! test is $behind commit(s) AHEAD of dev — already promoted?"
+    exit 1
+  fi
+
+  # Check for existing PR
+  local existing
+  existing=$(gh pr list --head dev --base test --state open --json number --jq 'length' 2>/dev/null || echo 0)
+  if [ "$existing" -gt 0 ]; then
+    echo "!! There is already an open PR from dev → test."
+    echo "   Review and merge it, or close it first."
+    gh pr list --head dev --base test --state open --json title,url --jq '.[] | "   \(.title)\n   \(.url)"'
+    exit 1
+  fi
+
+  gh pr create --base test --head dev --title "$title" --body "Automated promotion of dev → test."
+  echo "==> PR created. CI will run on test. Merge with: gh pr merge --squash"
+}
+
+release() {
+  local version="${1:-}"
+  if [ -z "$version" ]; then
+    echo "!! --version is required for release (e.g. --version 2.2.0)"
+    exit 1
+  fi
+
+  echo "==> Promoting test → main (v$version)"
+
+  # Ensure we're on test and up to date
+  git fetch origin test main
+  local behind
+  behind=$(git rev-list --count "origin/test..origin/main" 2>/dev/null || echo 0)
+  if [ "$behind" -gt 0 ]; then
+    echo "!! main is $behind commit(s) AHEAD of test — already promoted?"
+    exit 1
+  fi
+
+  # Check for existing PR
+  local existing
+  existing=$(gh pr list --head test --base main --state open --json number --jq 'length' 2>/dev/null || echo 0)
+  if [ "$existing" -gt 0 ]; then
+    echo "!! There is already an open PR from test → main."
+    gh pr list --head test --base main --state open --json title,url --jq '.[] | "   \(.title)\n   \(.url)"'
+    exit 1
+  fi
+
+  gh pr create --base main --head test \
+    --title "release: v$version" \
+    --body "Automated release v$version — promoting test → main.
+
+## Pre-merge checklist
+- [ ] CI green on this PR
+- [ ] Version bumped to $version in metamanager.php (MM_VERSION)
+- [ ] CHANGELOG.md updated
+- [ ] Tag after merge: \`git tag v$version && git push origin v$version\`"
+  echo "==> PR created. After merge, tag with: git tag v$version && git push origin v$version"
+}
+
+main() {
+  if [ $# -eq 0 ]; then
+    echo "$USAGE"
+    exit 1
+  fi
+
+  local cmd="$1"
+  shift
+
+  case "$cmd" in
+    stage)
+      stage "$@"
+      ;;
+    release)
+      release "$@"
+      ;;
+    *)
+      echo "Unknown command: $cmd"
+      echo "$USAGE"
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

@@ -1,4 +1,4 @@
-name: CI Tests (No Composer)
+name: Tests
 
 on:
   push:
@@ -15,7 +15,26 @@ on:
     branches: [ "dev", "test", "main" ]
 
 jobs:
-  test:
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --configuration phpstan.neon --error-format=github
+
+  integration:
     name: PHP ${{ matrix.php }} / WP ${{ matrix.wp }}
     runs-on: ubuntu-latest
 
@@ -45,8 +64,7 @@ jobs:
             wp: "latest"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
@@ -54,16 +72,14 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
 
+      - name: Install Composer dependencies (PHPStan stubs)
+        run: composer install --no-interaction --no-progress
+
       - name: Download PHPUnit (no Composer)
         run: |
           curl -L https://phar.phpunit.de/phpunit-9.6.0.phar -o /usr/local/bin/phpunit
           chmod +x /usr/local/bin/phpunit
           phpunit --version
-
-      - name: Install PHPStan via Composer
-        run: |
-          composer install --no-interaction --no-progress
-          vendor/bin/phpstan --version
 
       - name: Setup WP test environment
         run: |
@@ -73,6 +89,3 @@ jobs:
 
       - name: Run PHPUnit
         run: phpunit --configuration tests/phpunit.xml
-
-      - name: Run PHPStan
-        run: vendor/bin/phpstan analyse --configuration phpstan.neon --error-format=github
