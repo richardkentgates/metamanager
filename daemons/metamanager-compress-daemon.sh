@@ -205,6 +205,14 @@ process_job() {
                 success=true
             fi
             ;;
+        avif)
+            # AVIF is typically already optimally compressed; skip.
+            orig_size=$(stat -c%s "${file_path}") || orig_size=0
+            new_size=${orig_size}
+            message="AVIF already optimal (${orig_size} bytes)"
+            log "${message}"
+            success=true
+            ;;
         *)
             message="Unsupported file type: .${ext} — skipped"
             log "${message}"
@@ -236,6 +244,8 @@ Time:    $(date '+%Y-%m-%d %H:%M:%S')" \
 }
 
 # Write a result JSON file for WP-Cron to pick up.
+# Writes to a .tmp file first, then atomically renames to .json so the
+# PHP cron handler never reads a partially-written result file.
 write_result() {
     local tmpfile="$1"
     local status="$2"
@@ -251,6 +261,7 @@ write_result() {
     fi
 
     local result_file="${out_dir}/$(basename "${tmpfile}" .processing)-result.json"
+    local result_tmp="${result_file}.tmp"
 
     # Merge the original job JSON with result fields including compression savings.
     jq --arg  status        "${status}" \
@@ -259,8 +270,10 @@ write_result() {
        --argjson bytes_before "${bytes_before}" \
        --argjson bytes_after  "${bytes_after}" \
        '. + {status: $status, completed_at: $ts, bytes_before: $bytes_before, bytes_after: $bytes_after, details: {message: $msg}}' \
-       "${tmpfile}" > "${result_file}" 2>/dev/null || true
+       "${tmpfile}" > "${result_tmp}" 2>/dev/null || true
 
+    # Atomic rename — only replaces .json once write is complete.
+    mv "${result_tmp}" "${result_file}" 2>/dev/null || true
     rm -f "${tmpfile}"
 }
 

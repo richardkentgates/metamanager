@@ -12,9 +12,9 @@ name: Code Scanning
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "dev", "test" ]
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "dev", "test", "main" ]
   schedule:
     - cron: "0 3 * * 0"
 

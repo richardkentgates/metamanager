@@ -286,6 +286,8 @@ function mm_import_completed_jobs(): void {
 	global $wp_filesystem;
 
 	foreach ( $result_dirs as $dir => $status ) {
+		// Only read fully-written .json files — skip .tmp (daemon mid-write),
+		// .unparseable (prior failure), and .processing (daemon-locked).
 		$files = glob( $dir . '*.json' );
 		if ( ! $files ) {
 			continue;
@@ -301,71 +303,85 @@ function mm_import_completed_jobs(): void {
 			}
 			$job = $raw ? json_decode( $raw, true ) : null;
 
-			if ( is_array( $job ) ) {
-				$job['status'] = $status;
+			if ( ! is_array( $job ) ) {
+				// Unparseable — likely a partial write or corrupted file.
+				// Rename so the admin can inspect, rather than silently deleting.
+				$backup = $filepath . '.unparseable';
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rename
+				rename( $filepath, $backup );
+				error_log( sprintf(
+					'[Metamanager] Unparseable result file renamed for inspection: %s',
+					$backup
+				) );
+				continue;
+			}
 
-				// Only delete the result file and act on the outcome once the DB
-				// record is confirmed written. If the insert fails the file is
-				// left in place so the next cron run can retry it.
-				if ( ! MM_DB::log_job( $job ) ) {
-					error_log( sprintf(
-						'[Metamanager] DB insert failed for result file: %s — will retry on next cron run.',
-						$filepath
-					) );
-					continue;
-				}
+			$job['status'] = $status;
 
-				// Import result: apply embedded tags to WP post meta, then queue
-				// the metadata write-back job so the daemon embeds the values.
-				if ( 'import' === ( $job['job_type'] ?? '' ) && 'completed' === $status ) {
-					$att_id  = (int) ( $job['attachment_id'] ?? 0 );
-					$tags    = is_array( $job['embedded_tags'] ?? null ) ? $job['embedded_tags'] : [];
-					$trigger = (string) ( $job['trigger'] ?? '' );
-					if ( $att_id > 0 ) {
-						if ( 'verify' === $trigger ) {
-							// Post-write-back verification: compare embedded tags against
-							// WP meta and record any discrepancies for display in the admin.
-							MM_Metadata::apply_verify_result( $att_id, $tags );
-						} else {
-							MM_Metadata::apply_import_result( $att_id, $tags );
+			// Only delete the result file and act on the outcome once the DB
+			// record is confirmed written. If the insert fails the file is
+			// left in place so the next cron run can retry it.
+			if ( ! MM_DB::log_job( $job ) ) {
+				error_log( sprintf(
+					'[Metamanager] DB insert failed for result file: %s — will retry on next cron run.',
+					$filepath
+				) );
+				continue;
+			}
 
-							// Now that WP fields are populated, queue the write-back job.
-							$file = get_attached_file( $att_id );
-							$mime = (string) get_post_mime_type( $att_id );
-							if ( $file && file_exists( $file ) && MM_Metadata::can_write_meta( $mime ) ) {
-								MM_Job_Queue::write_job( 'metadata', $att_id, $file, 'full', [ 'trigger' => 'import' ] );
-							}
+			// Import result: apply embedded tags to WP post meta, then queue
+			// the metadata write-back job so the daemon embeds the values.
+			if ( 'import' === ( $job['job_type'] ?? '' ) && 'completed' === $status ) {
+				$att_id  = (int) ( $job['attachment_id'] ?? 0 );
+				$tags    = is_array( $job['embedded_tags'] ?? null ) ? $job['embedded_tags'] : [];
+				$trigger = (string) ( $job['trigger'] ?? '' );
+				if ( $att_id > 0 ) {
+					if ( 'verify' === $trigger ) {
+						// Post-write-back verification: compare embedded tags against
+						// WP meta and record any discrepancies for display in the admin.
+						MM_Metadata::apply_verify_result( $att_id, $tags );
+					} else {
+						MM_Metadata::apply_import_result( $att_id, $tags );
 
-							// For images, also queue metadata write-back for all registered sizes.
-							if ( wp_attachment_is_image( $att_id ) ) {
-								$meta = wp_get_attachment_metadata( $att_id );
-								if ( is_array( $meta ) ) {
-									MM_Job_Queue::enqueue_all_sizes( $att_id, $meta, 'metadata', [ 'trigger' => 'import' ] );
-								}
+						// Now that WP fields are populated, queue the write-back job.
+						$file = get_attached_file( $att_id );
+						$mime = (string) get_post_mime_type( $att_id );
+						if ( $file && file_exists( $file ) && MM_Metadata::can_write_meta( $mime ) ) {
+							MM_Job_Queue::write_job( 'metadata', $att_id, $file, 'full', [ 'trigger' => 'import' ] );
+						}
+
+						// For images, also queue metadata write-back for all registered sizes.
+						if ( wp_attachment_is_image( $att_id ) ) {
+							$meta = wp_get_attachment_metadata( $att_id );
+							if ( is_array( $meta ) ) {
+								MM_Job_Queue::enqueue_all_sizes( $att_id, $meta, 'metadata', [ 'trigger' => 'import' ] );
 							}
 						}
 					}
 				}
+			}
 
-				// Metadata write-back completed: queue a verification read-back so
-				// the daemon re-reads the file and confirms all values stuck.
-				// Only queue for the 'full' size to avoid a verification storm on images.
-				if ( 'metadata' === ( $job['job_type'] ?? '' )
-					&& 'full' === ( $job['size'] ?? '' )
-					&& 'completed' === $status ) {
-					$att_id = (int) ( $job['attachment_id'] ?? 0 );
-					$file   = $att_id > 0 ? get_attached_file( $att_id ) : '';
-					if ( $att_id > 0 && $file && file_exists( $file ) && MM_Status::exiftool_available() ) {
-						MM_Job_Queue::write_job( 'import', $att_id, (string) $file, 'full', [ 'trigger' => 'verify' ] );
-					}
-				}
-
-				if ( 'failed' === $status ) {
-					$failed_jobs[] = $job;
+			// Metadata write-back completed: queue a verification read-back so
+			// the daemon re-reads the file and confirms all values stuck.
+			// Only queue for the 'full' size to avoid a verification storm on images.
+			if ( 'metadata' === ( $job['job_type'] ?? '' )
+				&& 'full' === ( $job['size'] ?? '' )
+				&& 'completed' === $status ) {
+				$att_id = (int) ( $job['attachment_id'] ?? 0 );
+				$file   = $att_id > 0 ? get_attached_file( $att_id ) : '';
+				if ( $att_id > 0 && $file && file_exists( $file ) && MM_Status::exiftool_available() ) {
+					MM_Job_Queue::write_job( 'import', $att_id, (string) $file, 'full', [ 'trigger' => 'verify' ] );
 				}
 			}
-			// wp_delete_file() silences errors internally; safe if the file was
-			// already removed by a concurrent request.
+
+			if ( 'failed' === $status ) {
+				$failed_jobs[] = $job;
+			}
+
+			// Clean up only after DB write is confirmed (the continue above
+			// left the file in place for a retry).  wp_delete_file() silences
+			// errors internally; safe if the file was already removed by a
+			// concurrent request.
 			wp_delete_file( $filepath );
 		}
 	}

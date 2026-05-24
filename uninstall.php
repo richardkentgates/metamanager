@@ -95,15 +95,6 @@ function _mm_uninstall_site(): void {
 		delete_post_meta_by_key( $key );
 	}
 
-	// Wildcard meta keys: _mm_compressed_{size} (written by class-mm-status.php).
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-	$wpdb->query(
-		$wpdb->prepare(
-			"DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s",
-			$wpdb->esc_like( '_mm_compressed_' ) . '%'
-		)
-	);
-
 	// Drop the plugin DB table.
 	$table = $wpdb->prefix . 'metamanager_jobs';
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, PluginCheck.Security.DirectDB.UnescapedDBParameter

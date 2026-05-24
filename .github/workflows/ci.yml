@@ -2,7 +2,7 @@ name: CI Tests (No Composer)
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "dev", "test" ]
     paths:
       - 'includes/**'
       - 'metamanager.php'
@@ -10,7 +10,7 @@ on:
       - 'phpstan.neon'
       - '.github/workflows/**'
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "dev", "test", "main" ]
 
 jobs:
   test:

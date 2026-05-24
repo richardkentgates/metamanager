@@ -134,6 +134,7 @@ class MM_Metadata {
 		'image/jpeg'       => 'full',
 		'image/png'        => 'full',
 		'image/webp'       => 'full',
+		'image/avif'       => 'full',
 		'image/gif'        => 'full',
 		'image/tiff'       => 'full',
 		// Video.
