@@ -8,6 +8,8 @@ on:
       - 'metamanager.php'
       - 'tests/**'
       - 'phpstan.neon'
+      - 'composer.json'
+      - 'composer.lock'
       - '.github/workflows/**'
   pull_request:
     branches: [ "dev", "test", "main" ]
@@ -58,11 +60,10 @@ jobs:
           chmod +x /usr/local/bin/phpunit
           phpunit --version
 
-      - name: Download PHPStan (no Composer)
+      - name: Install PHPStan via Composer
         run: |
-          curl -L https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar -o /usr/local/bin/phpstan
-          chmod +x /usr/local/bin/phpstan
-          phpstan --version
+          composer install --no-interaction --no-progress
+          vendor/bin/phpstan --version
 
       - name: Setup WP test environment
         run: |
@@ -74,4 +75,4 @@ jobs:
         run: phpunit --configuration tests/phpunit.xml
 
       - name: Run PHPStan
-        run: phpstan analyse --configuration phpstan.neon --error-format=github
+        run: vendor/bin/phpstan analyse --configuration phpstan.neon --error-format=github

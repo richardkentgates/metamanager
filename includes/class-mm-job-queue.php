@@ -111,9 +111,9 @@ class MM_Job_Queue {
 		$dir = ( 'compression' === $type ) ? MM_JOB_COMPRESS : MM_JOB_META;
 
 		// Check for unclaimed pending jobs for this attachment+size.
-		$pending = glob( $dir . $attachment_id . '-' . $size . '-*.json' ) ?: [];
+		$pending = new \GlobIterator( $dir . $attachment_id . '-' . $size . '-*.json' );
 
-		if ( ! empty( $pending ) ) {
+		if ( $pending->count() > 0 ) {
 			if ( 'compression' === $type ) {
 				// Do not write a duplicate compression job. Notify the user and stop.
 				self::push_queue_notice( 'skipped', 'compression', $attachment_id, $size );
@@ -165,7 +165,7 @@ class MM_Job_Queue {
 		$fs->put_contents( $filename, (string) wp_json_encode( $job ), FS_CHMOD_FILE );
 		MM_DB::log_pending_job( $job );
 
-		return ! empty( $pending ) ? 'queued' : 'written';
+		return $pending->count() > 0 ? 'queued' : 'written';
 	}
 
 	/**
@@ -359,8 +359,8 @@ class MM_Job_Queue {
 			if ( ! is_dir( $dir ) ) {
 				continue;
 			}
-			foreach ( glob( $dir . $attachment_id . '-*.json' ) ?: [] as $file ) {
-				wp_delete_file( $file );
+			foreach ( new \GlobIterator( $dir . $attachment_id . '-*.json' ) as $file ) {
+				wp_delete_file( (string) $file );
 			}
 		}
 
@@ -405,13 +405,12 @@ class MM_Job_Queue {
 			// Include both pending (.json) and in-progress (.json.processing) files
 			// so that daemon-locked jobs are visible in the dashboard rather than
 			// silently disappearing from the queue count.
-			$files = array_merge(
-				glob( $dir . '*.json' ) ?: [],
-				glob( $dir . '*.json.processing' ) ?: []
-			);
+			$files = new \AppendIterator();
+			$files->append( new \GlobIterator( $dir . '*.json' ) );
+			$files->append( new \GlobIterator( $dir . '*.json.processing' ) );
 			foreach ( $files as $file ) {
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-				$job = json_decode( file_get_contents( $file ), true );
+				$job = json_decode( file_get_contents( $file->getPathname() ), true );
 				if ( ! is_array( $job ) ) {
 					continue;
 				}

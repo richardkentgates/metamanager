@@ -288,8 +288,8 @@ function mm_import_completed_jobs(): void {
 	foreach ( $result_dirs as $dir => $status ) {
 		// Only read fully-written .json files — skip .tmp (daemon mid-write),
 		// .unparseable (prior failure), and .processing (daemon-locked).
-		$files = glob( $dir . '*.json' );
-		if ( ! $files ) {
+		$files = new \GlobIterator( $dir . '*.json', \FilesystemIterator::CURRENT_AS_PATHNAME );
+		if ( 0 === $files->count() ) {
 			continue;
 		}
 		foreach ( $files as $filepath ) {
