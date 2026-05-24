@@ -106,12 +106,15 @@ process_job() {
             return 1
         fi
         # Merge the embedded tag map into the result JSON under "embedded_tags".
+        # Write to .tmp then atomically rename to prevent partial reads by cron.
+        local _import_result="${JOB_DONE}/$(basename "${tmpfile}" .processing)-result.json"
         jq --arg status "completed" \
            --arg msg    "Read embedded tags from ${file_path}" \
            --arg ts     "$(date '+%Y-%m-%d %H:%M:%S')" \
            --argjson et  "${embedded_json}" \
            '. + {status: $status, completed_at: $ts, details: {message: $msg}, embedded_tags: $et}' \
-           "${tmpfile}" > "${JOB_DONE}/$(basename "${tmpfile}" .processing)-result.json" 2>/dev/null || true
+           "${tmpfile}" > "${_import_result}.tmp" 2>/dev/null || true
+        mv "${_import_result}.tmp" "${_import_result}" 2>/dev/null || true
         rm -f "${tmpfile}"
         log "OK: import read $(echo "${embedded_json}" | jq 'keys | length') tag(s) from ${file_path}"
         return 0
@@ -124,7 +127,7 @@ process_job() {
     ext="${ext,,}"
     local file_cat
     case "${ext}" in
-        jpg|jpeg|png|webp|gif|tiff|tif) file_cat="image"     ;;
+        jpg|jpeg|png|webp|avif|gif|tiff|tif) file_cat="image"     ;;
         mp3)                             file_cat="mp3"       ;;
         mp4|m4v|m4a|mov|3gp|3gpp|3g2)  file_cat="quicktime" ;;
         ogg|oga|flac)                   file_cat="vorbis"    ;;
@@ -321,6 +324,8 @@ process_job() {
 }
 
 # Write a result JSON file for WP-Cron to pick up.
+# Writes to a .tmp file first, then atomically renames to .json so the
+# PHP cron handler never reads a partially-written result file.
 write_result() {
     local tmpfile="$1"
     local status="$2"
@@ -334,13 +339,16 @@ write_result() {
     fi
 
     local result_file="${out_dir}/$(basename "${tmpfile}" .processing)-result.json"
+    local result_tmp="${result_file}.tmp"
 
     jq --arg status "${status}" \
        --arg msg    "${message}" \
        --arg ts     "$(date '+%Y-%m-%d %H:%M:%S')" \
        '. + {status: $status, completed_at: $ts, details: {message: $msg}}' \
-       "${tmpfile}" > "${result_file}" 2>/dev/null || true
+       "${tmpfile}" > "${result_tmp}" 2>/dev/null || true
 
+    # Atomic rename — only replaces .json once write is complete.
+    mv "${result_tmp}" "${result_file}" 2>/dev/null || true
     rm -f "${tmpfile}"
 }
 

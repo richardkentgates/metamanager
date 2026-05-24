@@ -60,7 +60,7 @@ class MM_CLI extends \WP_CLI_Command {
 		if ( 'all' === strtolower( $target ) ) {
 			// Images + video are compressible; audio and PDF have no compression step.
 			$compressible_mimes = array_merge(
-				[ 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/tiff' ],
+				[ 'image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/tiff' ],
 				MM_Metadata::VIDEO_MIME_TYPES
 			);
 			$ids = get_posts( [
@@ -152,7 +152,7 @@ class MM_CLI extends \WP_CLI_Command {
 
 		if ( 'all' === strtolower( $target ) ) {
 			$supported_mimes = array_merge(
-				[ 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/tiff' ],
+				[ 'image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/tiff' ],
 				MM_Metadata::VIDEO_MIME_TYPES,
 				MM_Metadata::AUDIO_MIME_TYPES,
 				MM_Metadata::PDF_MIME_TYPES

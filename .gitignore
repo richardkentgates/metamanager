@@ -3,23 +3,20 @@
 *.pid
 *.lock
 .DS_Store
-Thumbs.db
+Thumbs.db/
 
 # Job queue contents (never commit real job files)
-/wp-content/
+/wp-content//
 
 # PHP editor and IDE
 .idea/
 .vscode/
 *.swp
-*.swo
-
-# Composer — commit the lock file so CI and deployments use exact versions
-/vendor/
+*.swo/
 
 # Node (if ever used for build tooling)
 node_modules/
-package-lock.json
+package-lock.json/
 
 # Backup files created by install.sh
 *.bak.*
@@ -27,3 +24,7 @@ package-lock.json
 # PHPUnit
 .phpunit.cache/
 tests/wp-tests-config.php
+metamanager.code-workspace
+
+# Composer dev dependencies (not shipped to production)
+vendor/

@@ -25,27 +25,47 @@ class MM_Status {
 	/**
 	 * Candidate paths for ExifTool.
 	 */
-	private const EXIFTOOL_PATHS = [ '/usr/bin/exiftool', '/usr/local/bin/exiftool' ];
+	private const EXIFTOOL_PATHS = [
+		'/usr/bin/exiftool',
+		'/usr/local/bin/exiftool',
+		'/opt/homebrew/bin/exiftool',
+	];
 
 	/**
 	 * Candidate paths for jpegtran (libjpeg / libjpeg-turbo).
 	 */
-	private const JPEGTRAN_PATHS = [ '/usr/bin/jpegtran', '/usr/local/bin/jpegtran' ];
+	private const JPEGTRAN_PATHS = [
+		'/usr/bin/jpegtran',
+		'/usr/local/bin/jpegtran',
+		'/opt/homebrew/bin/jpegtran',
+	];
 
 	/**
 	 * Candidate paths for optipng.
 	 */
-	private const OPTIPNG_PATHS = [ '/usr/bin/optipng', '/usr/local/bin/optipng' ];
+	private const OPTIPNG_PATHS = [
+		'/usr/bin/optipng',
+		'/usr/local/bin/optipng',
+		'/opt/homebrew/bin/optipng',
+	];
 
 	/**
 	 * Candidate paths for cwebp (WebP lossless compression).
 	 */
-	private const CWEBP_PATHS = [ '/usr/bin/cwebp', '/usr/local/bin/cwebp' ];
+	private const CWEBP_PATHS = [
+		'/usr/bin/cwebp',
+		'/usr/local/bin/cwebp',
+		'/opt/homebrew/bin/cwebp',
+	];
 
 	/**
 	 * Candidate paths for ffmpeg (video container remux).
 	 */
-	private const FFMPEG_PATHS = [ '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg' ];
+	private const FFMPEG_PATHS = [
+		'/usr/bin/ffmpeg',
+		'/usr/local/bin/ffmpeg',
+		'/opt/homebrew/bin/ffmpeg',
+	];
 
 	/**
 	 * Check whether ExifTool is installed and executable.
@@ -188,16 +208,6 @@ class MM_Status {
 	// -----------------------------------------------------------------------
 	// Per-image compression status
 	// -----------------------------------------------------------------------
-
-	/**
-	 * Mark a specific image size as compressed in post meta.
-	 *
-	 * @param int    $attachment_id Attachment ID.
-	 * @param string $size          Size slug (e.g. 'full', 'thumbnail').
-	 */
-	public static function mark_compressed( int $attachment_id, string $size ): void {
-		// Status is now tracked exclusively in the job history table via MM_DB::log_job().
-	}
 
 	/**
 	 * Check whether a specific image size has been compressed.

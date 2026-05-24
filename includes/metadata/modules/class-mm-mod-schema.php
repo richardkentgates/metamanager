@@ -69,6 +69,57 @@ class MM_Mod_Schema extends MM_Mod_Base {
 		}
 
 		$this->add_node( $data, $node );
+
+		// SiteNavigationElement: emit when nav menus exist.
+		$this->add_navigation_node( $data );
+	}
+
+	// -------------------------------------------------------------------------
+	// SiteNavigationElement
+	// -------------------------------------------------------------------------
+
+	private function add_navigation_node( array &$data ): void {
+		$menus = wp_get_nav_menus();
+		if ( empty( $menus ) ) {
+			return;
+		}
+
+		$nav_items = [];
+		foreach ( $menus as $menu ) {
+			$menu_items = wp_get_nav_menu_items( $menu );
+			if ( ! is_array( $menu_items ) ) {
+				continue;
+			}
+			foreach ( $menu_items as $item ) {
+				if ( $item->url && $item->title ) {
+					$nav_items[] = [
+						'@type'    => 'SiteNavigationElement',
+						'name'     => $item->title,
+						'url'      => $item->url,
+						'position' => count( $nav_items ) + 1,
+					];
+				}
+			}
+		}
+
+		if ( empty( $nav_items ) ) {
+			return;
+		}
+
+		$this->add_node( $data, [
+			'@type'   => 'SiteNavigationElement',
+			'@id'     => $this->site_id( 'navigation' ),
+			'name'    => 'Main Navigation',
+			'hasPart' => $nav_items,
+		] );
+
+		// Link WebSite node to navigation.
+		foreach ( $data['schema'] as &$node ) {
+			if ( ( $node['@type'] ?? '' ) === 'WebSite' ) {
+				$node['hasPart'] = [ '@id' => $this->site_id( 'navigation' ) ];
+				break;
+			}
+		}
 	}
 
 	// -------------------------------------------------------------------------
