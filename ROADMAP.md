@@ -15,10 +15,10 @@ Workflows run on `dev` and `test`. Only Pages/docs deploy from `main`.
 ### Branch protection (GitHub repo settings)
 
 | Branch | Rule |
-|---|---|
-| `main` | Require PR with 1 approval. No direct pushes. Admin bypass disabled. |
-| `test` | Require PR from `dev`. CI must pass. No direct pushes. |
-| `dev` | Require PR from feature branches. CI must pass. |
+|---|---|---|
+| `main` | PR + 1 approval required. CI must pass. No admin bypass. No force pushes. |
+| `test` | PR required (dev→test). CI must pass. No admin bypass. No force pushes. |
+| `dev` | PR required (feature→dev). CI must pass. No admin bypass. No force pushes. |
 
 ---
 
@@ -149,3 +149,29 @@ as a fallback.
 - `ci.yml`: triggers on push to `dev`/`test`; PRs targeting `dev`/`test`/`main`
 - `codeql.yml`: triggers on push to `dev`/`test`; PRs targeting `dev`/`test`/`main`
 - `pages.yml`: unchanged (deploys from `main` only)
+- Later consolidated: see ### Workflow consolidation below
+
+### #4 — PHPStan WordPress stubs + WP-CLI stubs (2026-05-24)
+- Created `composer.json` with dev deps: phpstan, szepeviktor/phpstan-wordpress, php-stubs/wordpress-stubs, php-stubs/wp-cli-stubs
+- Added `vendor/` to `.gitignore`
+- Created `stubs/cli-progress-bar.php` for `cli\progress\Bar` (used by `make_progress_bar()`)
+- Removed `excludePaths` from phpstan.neon (files now analyzed, not excluded)
+- Removed broad catch-all `ignoreErrors` patterns
+- Updated CI workflow to use `composer install` + `vendor/bin/phpstan`
+- Cleaned up old `tools/phpstan-wordpress/` and `stubs/wp-cli/` dirs
+- **PHPStan level 5 now passes on all 40 source files with zero errors**
+
+### #9 — `glob()` replaced with `GlobIterator` for memory safety (2026-05-24)
+- `metamanager.php:291` — main cron loop (`mm_import_completed_jobs`)
+- `class-mm-job-queue.php:114` — pending job dedup check
+- `class-mm-job-queue.php:362` — attachment deletion cleanup
+- `class-mm-job-queue.php:408-410` — queue status read (used `AppendIterator`)
+
+### Workflow consolidation + strict branch protection (2026-05-24)
+- **ci.yml** renamed to "Tests", split into parallel `static-analysis` + `integration` jobs
+- **codeql.yml** stripped to CodeQL JS only (removed redundant PHP lint/PHPStan/PHPUnit)
+- **phpunit.yml** deleted (fully redundant with ci.yml)
+- **bin/promote** added — CLI for `stage` (dev→test) and `release` (test→main) promotions
+- **All 3 branches**: enforce_admins=true (no bypass), require PR + CI, no force pushes
+- **Required checks**: Static Analysis, PHP 8.1/WP 6.4, PHP 8.2/WP 6.5, PHP 8.3/WP latest
+- **main** additionally requires 1 approval before merge

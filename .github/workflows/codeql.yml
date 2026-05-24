@@ -1,29 +1,15 @@
-# CodeQL + PHP Static Analysis
-#
-# CodeQL supports: C/C++, C#, Go, Java/Kotlin, JavaScript/TypeScript, Python, Ruby, Swift.
-# PHP and bash are NOT CodeQL languages. PHP is covered by the separate php-lint job below.
-#
-# Runs on:
-#   - Every push to main
-#   - Every pull request targeting main
-#   - Weekly on Sunday at 03:00 UTC
-
-name: Code Scanning
+name: CodeQL
 
 on:
   push:
-    branches: [ "dev", "test" ]
+    branches: [ "dev", "test", "main" ]
   pull_request:
     branches: [ "dev", "test", "main" ]
   schedule:
     - cron: "0 3 * * 0"
 
 jobs:
-
-  # ---------------------------------------------------------------------------
-  # CodeQL — JavaScript (assets/js/)
-  # ---------------------------------------------------------------------------
-  codeql-javascript:
+  analyze:
     name: CodeQL — JavaScript
     runs-on: ubuntu-latest
     permissions:
@@ -39,7 +25,6 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
-          # Only scan the plugin's own JS — exclude docs assets if any are added later
           config: |
             paths:
               - assets/js
@@ -52,104 +37,3 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript-typescript"
-
-  # ---------------------------------------------------------------------------
-  # PHP — syntax check (all versions) + static analysis via PHPStan
-  # ---------------------------------------------------------------------------
-  php-lint:
-    name: PHP Static Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    strategy:
-      matrix:
-        php-version: ["8.1", "8.2", "8.3"]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up PHP ${{ matrix.php-version }}
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php-version }}
-          coverage: none
-
-      - name: Download PHPStan (no Composer)
-        run: |
-          curl -L https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar -o /usr/local/bin/phpstan
-          chmod +x /usr/local/bin/phpstan
-
-      - name: PHP syntax check
-        run: |
-          echo "Checking syntax on PHP ${{ matrix.php-version }}..."
-          find . -name "*.php" \
-            ! -path "./vendor/*" \
-            ! -path "./node_modules/*" \
-            -print0 | xargs -0 -P4 php -l | grep -v "No syntax errors" | tee /tmp/syntax-errors.txt
-          if [ -s /tmp/syntax-errors.txt ]; then
-            echo "Syntax errors found." && exit 1
-          fi
-          echo "All PHP files clean."
-
-      - name: PHPStan static analysis
-        run: |
-          phpstan analyse --no-progress --configuration phpstan.neon
-
-  # ---------------------------------------------------------------------------
-  # PHPUnit — Integration tests against a real WordPress + MySQL install
-  # ---------------------------------------------------------------------------
-  phpunit:
-    name: PHPUnit Integration Tests
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: wordpress_test
-          MYSQL_USER: wordpress
-          MYSQL_PASSWORD: wordpress
-        ports:
-          - 3306:3306
-        options: >
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up PHP 8.2
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.2"
-          extensions: mysqli
-          coverage: none
-
-      - name: Install ExifTool
-        run: sudo apt-get install -y libimage-exiftool-perl
-
-      - name: Download PHPUnit (no Composer)
-        run: |
-          curl -L https://phar.phpunit.de/phpunit-9.6.0.phar -o /usr/local/bin/phpunit
-          chmod +x /usr/local/bin/phpunit
-
-      - name: Download WordPress test suite
-        run: |
-          bash tests/bin/install-wp-tests.sh \
-            wordpress_test \
-            wordpress \
-            wordpress \
-            127.0.0.1 \
-            latest \
-            true
-
-      - name: Run PHPUnit
-        run: phpunit --no-coverage --configuration tests/phpunit.xml

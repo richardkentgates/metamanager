@@ -6,24 +6,13 @@ parameters:
         - includes/
     excludePaths:
         analyseAndScan:
-            # Exclude files that extend WordPress classes (non-ignorable errors)
-            - includes/class-mm-cli.php
-            - includes/class-mm-admin.php
-            - includes/metadata/modules/class-mm-mod-business-contact.php
-            # Exclude files with WordPress class type hints
-            - includes/metadata/class-mm-page-context.php
-            - includes/class-mm-job-queue.php
-            - includes/class-mm-upload-notify.php
             - tests/
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: false
+    bootstrapFiles:
+        - metamanager.php
+        - vendor/php-stubs/wp-cli-stubs/wp-cli-stubs.php
+        - stubs/cli-progress-bar.php
     ignoreErrors:
-        # WordPress functions/classes not available without stubs
-        - '#not found#'
-        - '#unknown class#'
-        - '#invalid type#'
-        - '#invalid return type#'
-        # isset() checks that PHPStan thinks are always true
         - '#isset\(\) always exists#'
-        # array_map callback type issues
-        - '#Parameter .*callback of function array_map expects#'
+        - '#Parameter \#1 \$args of function get_posts expects#'

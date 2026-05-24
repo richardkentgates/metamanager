@@ -23,4 +23,8 @@ package-lock.json/
 
 # PHPUnit
 .phpunit.cache/
-tests/wp-tests-config.php/
+tests/wp-tests-config.php
+metamanager.code-workspace
+
+# Composer dev dependencies (not shipped to production)
+vendor/
