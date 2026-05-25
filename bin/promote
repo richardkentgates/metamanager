@@ -7,12 +7,10 @@ stage() {
   local title="${1:-chore: promote dev → test}"
   echo "==> Promoting dev → test"
 
-  # Ensure we're on dev and up to date
   git fetch origin dev test
-  local behind
-  behind=$(git rev-list --count "origin/dev..origin/test" 2>/dev/null || echo 0)
-  if [ "$behind" -gt 0 ]; then
-    echo "!! test is $behind commit(s) AHEAD of dev — already promoted?"
+  # With squash merges, commit counts diverge. Compare trees instead.
+  if git diff --exit-code origin/dev origin/test >/dev/null 2>&1; then
+    echo "!! dev and test have identical trees — already promoted."
     exit 1
   fi
 
@@ -45,12 +43,9 @@ release() {
 
   echo "==> Promoting test → main (v$version)"
 
-  # Ensure we're on test and up to date
   git fetch origin test main
-  local behind
-  behind=$(git rev-list --count "origin/test..origin/main" 2>/dev/null || echo 0)
-  if [ "$behind" -gt 0 ]; then
-    echo "!! main is $behind commit(s) AHEAD of test — already promoted?"
+  if git diff --exit-code origin/test origin/main >/dev/null 2>&1; then
+    echo "!! test and main have identical trees — already promoted."
     exit 1
   fi
 
