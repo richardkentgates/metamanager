@@ -7,25 +7,30 @@ stage() {
   local title="${1:-chore: promote dev → test}"
   echo "==> Promoting dev → test"
 
+  local branch="promote/dev-to-test"
+
   git fetch origin dev test
-  # With squash merges, commit counts diverge. Compare trees instead.
   if git diff --exit-code origin/dev origin/test >/dev/null 2>&1; then
     echo "!! dev and test have identical trees — already promoted."
     exit 1
   fi
 
-  # Check for existing PR
-  local existing
-  existing=$(gh pr list --head dev --base test --state open --json number --jq 'length' 2>/dev/null || echo 0)
-  if [ "$existing" -gt 0 ]; then
-    echo "!! There is already an open PR from dev → test."
-    echo "   Review and merge it, or close it first."
-    gh pr list --head dev --base test --state open --json title,url --jq '.[] | "   \(.title)\n   \(.url)"'
-    exit 1
+  # Build a conflict-free merge branch off test, auto-resolving in favour of dev
+  git branch -D "$branch" 2>/dev/null || true
+  git checkout -b "$branch" origin/test
+  if ! git merge origin/dev --no-edit -X theirs 2>/dev/null; then
+    # If -X theirs didn't fully resolve, take dev's version of any remaining conflict
+    git checkout --theirs -- . 2>/dev/null || true
+    git add -A
+    git commit --no-edit 2>/dev/null || true
   fi
+  git push origin "$branch" --force
 
-  gh pr create --base test --head dev --title "$title" --body "Automated promotion of dev → test."
-  echo "==> PR created. CI will run on test. Merge with: gh pr merge --squash"
+  gh pr create --base test --head "$branch" \
+    --title "$title" \
+    --body "Automated promotion of dev → test."
+  echo "==> PR created at https://github.com/richardkentgates/metamanager/pull/$(gh pr view --json number --jq .number 2>/dev/null || echo '?')"
+  echo "   CI will run on test. Merge with: gh pr merge --squash"
 }
 
 release() {
@@ -40,8 +45,14 @@ release() {
     echo "!! --version is required for release (e.g. --version 2.2.0)"
     exit 1
   fi
+  if ! echo "$version" | grep -qxP '^\d+\.\d+\.\d+$'; then
+    echo "!! Version must be semver (e.g. 2.2.0), got: $version"
+    exit 1
+  fi
 
   echo "==> Promoting test → main (v$version)"
+
+  local branch="release/v$version"
 
   git fetch origin test main
   if git diff --exit-code origin/test origin/main >/dev/null 2>&1; then
@@ -49,16 +60,16 @@ release() {
     exit 1
   fi
 
-  # Check for existing PR
-  local existing
-  existing=$(gh pr list --head test --base main --state open --json number --jq 'length' 2>/dev/null || echo 0)
-  if [ "$existing" -gt 0 ]; then
-    echo "!! There is already an open PR from test → main."
-    gh pr list --head test --base main --state open --json title,url --jq '.[] | "   \(.title)\n   \(.url)"'
-    exit 1
+  git branch -D "$branch" 2>/dev/null || true
+  git checkout -b "$branch" origin/main
+  if ! git merge origin/test --no-edit -X theirs 2>/dev/null; then
+    git checkout --theirs -- . 2>/dev/null || true
+    git add -A
+    git commit --no-edit 2>/dev/null || true
   fi
+  git push origin "$branch" --force
 
-  gh pr create --base main --head test \
+  gh pr create --base main --head "$branch" \
     --title "release: v$version" \
     --body "Automated release v$version — promoting test → main.
 
@@ -67,7 +78,16 @@ release() {
 - [ ] Version bumped to $version in metamanager.php (MM_VERSION)
 - [ ] CHANGELOG.md updated
 - [ ] Tag after merge: \`git tag v$version && git push origin v$version\`"
-  echo "==> PR created. After merge, tag with: git tag v$version && git push origin v$version"
+  echo "==> PR created."
+  echo "   After merge, tag with: git tag v$version && git push origin v$version"
+}
+
+cleanup() {
+  local branch
+  branch=$(git symbolic-ref --short HEAD 2>/dev/null || true)
+  if [[ "$branch" == promote/* ]] || [[ "$branch" == release/* ]]; then
+    git checkout dev 2>/dev/null || git checkout test 2>/dev/null || true
+  fi
 }
 
 main() {
@@ -82,9 +102,11 @@ main() {
   case "$cmd" in
     stage)
       stage "$@"
+      cleanup
       ;;
     release)
       release "$@"
+      cleanup
       ;;
     *)
       echo "Unknown command: $cmd"
