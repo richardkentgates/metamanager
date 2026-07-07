@@ -58,6 +58,7 @@ fi
 
 WP_PATH=""
 UPDATE_ONLY=false
+NO_DEPS=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -69,10 +70,15 @@ while [[ $# -gt 0 ]]; do
             UPDATE_ONLY=true
             shift
             ;;
+        --no-deps)
+            NO_DEPS=true
+            shift
+            ;;
         --help|-h)
-            echo "Usage: sudo bash metamanager-install.sh [--update] [--wp-path /path/to/wordpress]"
+            echo "Usage: sudo bash metamanager-install.sh [--update] [--no-deps] [--wp-path /path/to/wordpress]"
             echo ""
             echo "  --update    Update plugin files only; skip daemons and dependencies."
+            echo "  --no-deps   Skip apt/dnf dependency install (use when deps are pre-provisioned, e.g. .deb postinst)."
             exit 0
             ;;
         *)
@@ -84,6 +90,9 @@ done
 
 if [[ "${UPDATE_ONLY}" == true ]]; then
     info "Running in UPDATE mode — daemons and dependencies will not be touched."
+fi
+if [[ "${NO_DEPS}" == true ]]; then
+    info "Skipping dependency install (--no-deps); dependencies must be pre-installed."
 fi
 
 # =============================================================================
@@ -211,7 +220,7 @@ install_deps() {
     fi
 }
 
-if [[ "${UPDATE_ONLY}" == false ]]; then
+if [[ "${UPDATE_ONLY}" == false && "${NO_DEPS}" == false ]]; then
     install_deps
 
     # Verify critical tools
