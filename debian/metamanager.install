@@ -1,0 +1,10 @@
+metamanager.php        usr/local/lib/metamanager
+index.php              usr/local/lib/metamanager
+uninstall.php          usr/local/lib/metamanager
+readme.txt             usr/local/lib/metamanager
+metamanager-install.sh usr/local/lib/metamanager
+includes               usr/local/lib/metamanager
+templates              usr/local/lib/metamanager
+assets                 usr/local/lib/metamanager
+languages              usr/local/lib/metamanager
+daemons                usr/local/lib/metamanager
