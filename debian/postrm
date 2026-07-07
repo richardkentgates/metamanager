@@ -1,0 +1,27 @@
+#!/bin/sh
+# MetaManager postrm — stop daemons and remove OS-level artifacts on remove.
+# Plugin files under wp-content/plugins/metamanager/ are owned by the web
+# server and left in place on remove (only removed on purge).
+
+set -e
+
+case "$1" in
+    remove)
+        for svc in metamanager-compress-daemon metamanager-meta-daemon; do
+            systemctl stop "$svc.service" 2>/dev/null || true
+            systemctl disable "$svc.service" 2>/dev/null || true
+            rm -f "/etc/systemd/system/$svc.service"
+            rm -f "/usr/local/bin/$svc.sh"
+        done
+        systemctl daemon-reload 2>/dev/null || true
+        echo "MetaManager daemons stopped and removed."
+        ;;
+    purge)
+        rm -rf /usr/local/lib/metamanager
+        rm -f /var/log/metamanager-compress.log /var/log/metamanager-meta.log
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

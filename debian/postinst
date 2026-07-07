@@ -1,0 +1,28 @@
+#!/bin/sh
+# MetaManager postinst — runs the installer from staged files.
+# The .deb's Depends handle OS packages, so --no-deps skips apt-get.
+# If WordPress is not yet present, the installer exits non-zero; we tolerate
+# that so `apt install metamanager` does not fail on a box where WP is
+# provisioned later (GCM provisions WP first, then calls this).
+
+set -e
+
+case "$1" in
+    configure)
+        MM_LIB="/usr/local/lib/metamanager"
+        if [ -f "$MM_LIB/metamanager-install.sh" ]; then
+            echo "Configuring MetaManager..."
+            cd "$MM_LIB" || exit 0
+            bash metamanager-install.sh --no-deps || {
+                echo "MetaManager: installer did not complete (WordPress may not be present yet)." >&2
+                echo "Re-run after WordPress is installed: cd $MM_LIB && sudo bash metamanager-install.sh --no-deps" >&2
+                exit 0
+            }
+        fi
+        ;;
+esac
+
+# dh_installdeb will replace this with shell code automatically generated.
+#DEBHELPER#
+
+exit 0

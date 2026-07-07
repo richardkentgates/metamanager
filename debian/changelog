@@ -1,0 +1,14 @@
+metamanager (2.3.0-1) unstable; urgency=medium
+
+  * Initial Debian package.
+  * Thin package: stages plugin tree, daemons, and systemd units to
+    /usr/local/lib/metamanager; postinst runs metamanager-install.sh --no-deps
+    to auto-detect WordPress, copy the plugin, patch daemons, enable services,
+    and activate the plugin via WP-CLI.
+  * Depends declare jq, inotify-tools, exiftool, jpegtran, optipng, webp,
+    ffmpeg so apt provisions them; the --no-deps flag keeps the postinst from
+    re-running apt-get.
+  * Syncs version strings (header 2.1.7 / constant 2.2.0 -> 2.3.0) and adds
+    the --no-deps flag to metamanager-install.sh.
+
+ -- Richard Kent Gates <mail@richardkentgates.com>  Tue, 07 Jul 2026 11:13:06 -0500
