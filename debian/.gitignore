@@ -1,0 +1,6 @@
+# debhelper build transients — do not commit
+*.log
+debhelper-build-stamp
+*.substvars
+metamanager/
+files
