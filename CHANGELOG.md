@@ -7,6 +7,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.3.0] — 2026-07-07
+
+### Added
+
+- **Debian package** — Metamanager is now distributable as a `.deb` so it can be
+  installed via `apt` from a hosted repository. The package is thin: it stages
+  the plugin tree, daemons, and systemd units to `/usr/local/lib/metamanager/`
+  and `postinst` runs `metamanager-install.sh --no-deps` to auto-detect the
+  WordPress content directory, copy the plugin into place, patch the daemon
+  scripts and systemd units with the detected path, enable and start both
+  daemons, and activate the plugin via WP-CLI. `Depends` declares
+  `jq`, `inotify-tools`, `libimage-exiftool-perl`, `libjpeg-turbo-progs`,
+  `optipng`, `webp`, `ffmpeg` so `apt` provisions the OS-level toolchain.
+- **`--no-deps` flag** for `metamanager-install.sh` — skips the apt/dnf
+  dependency install step, for reuse from contexts where dependencies are
+  already declared (e.g. a `.deb` postinst).
+- **GitHub Actions workflow** (`build-deb.yml`) — builds the `.deb` on `v*`
+  tags and attaches it to the GitHub release.
+
+### Fixed
+
+- **Version drift** — the plugin header and `readme.txt` stable tag were stuck
+  at `2.1.7` while the `MM_VERSION` constant had advanced to `2.2.0`. All three
+  version strings are now synchronised at `2.3.0`.
+
+---
+
 ## [2.2.0] — 2026-03-22
 
 ### Added
