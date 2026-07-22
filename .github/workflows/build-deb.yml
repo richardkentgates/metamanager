@@ -51,7 +51,7 @@ jobs:
             VERSION=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
             VERSION="${VERSION}~test$(date +%s)"
             DIST="bookworm-test"
-            POOL_DIR="pool-test"
+            POOL_DIR="pool"
           fi
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
@@ -81,8 +81,13 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${APT_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
 
+          # Ensure pool directory exists
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${APT_USER}@${APT_HOST}" \
+            "sudo mkdir -p /var/www/html/apt/pool/m/metamanager && sudo chown -R ${APT_USER}:${APT_USER} /var/www/html/apt/pool"
+
           # Upload .deb
-          scp -i ~/.ssh/deploy_key \
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ../metamanager_*.deb \
             "${APT_USER}@${APT_HOST}:/var/www/html/apt/${{ steps.version.outputs.pool_dir }}/m/metamanager/"
 
