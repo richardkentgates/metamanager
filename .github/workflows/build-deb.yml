@@ -1,7 +1,13 @@
-name: Build .deb Package
+name: Build .deb and Deploy to Apt Repo
 
 on:
   push:
+    branches: [ "test", "main" ]
+    paths:
+      - 'daemons/**'
+      - 'debian/**'
+      - 'metamanager-install.sh'
+      - '.github/workflows/build-deb.yml'
     tags:
       - 'v*'
 
@@ -16,6 +22,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,12 +32,83 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq debhelper dpkg-dev
 
+      - name: Determine version and distribution
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tagged release — use tag version
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+            DIST="bookworm"
+            POOL_DIR="pool"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            # Main branch — use debian/changelog version
+            VERSION=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
+            DIST="bookworm"
+            POOL_DIR="pool"
+          else
+            # Test branch — append ~test
+            VERSION=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
+            VERSION="${VERSION}~test$(date +%s)"
+            DIST="bookworm-test"
+            POOL_DIR="pool-test"
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "dist=${DIST}" >> $GITHUB_OUTPUT
+          echo "pool_dir=${POOL_DIR}" >> $GITHUB_OUTPUT
+
       - name: Build .deb
         run: |
           dpkg-buildpackage -us -uc -b
           ls -lh ../metamanager_*.deb
 
-      - name: Upload release asset
+      - name: Upload release asset (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: ../metamanager_*.deb
+
+      - name: Deploy to apt repo
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.APT_SSH_KEY }}
+          APT_HOST: ${{ secrets.APT_HOST }}
+          APT_USER: ${{ secrets.APT_USER }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${APT_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Upload .deb
+          scp -i ~/.ssh/deploy_key \
+            ../metamanager_*.deb \
+            "${APT_USER}@${APT_HOST}:/var/www/html/apt/${{ steps.version.outputs.pool_dir }}/m/metamanager/"
+
+          # Regenerate Packages index
+          ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
+            cd /var/www/html/apt
+
+            # Test distribution
+            if [ -d "dists/bookworm-test" ]; then
+              cd dists/bookworm-test/main/binary-amd64
+              dpkg-scanpackages ../../../../pool /dev/null > Packages
+              gzip -k -f Packages
+              cd ../../../..
+            fi
+
+            # Main distribution
+            if [ -d "dists/bookworm" ]; then
+              cd dists/bookworm/main/binary-amd64
+              dpkg-scanpackages ../../../../pool /dev/null > Packages
+              gzip -k -f Packages
+              cd ../../../..
+            fi
+
+            echo "Packages index regenerated"
+          REMOTE
+
+          echo "Deployed .deb to apt repo"
+          echo "Distribution: ${{ steps.version.outputs.dist }}"
+          echo "Version: ${{ steps.version.outputs.version }}"
