@@ -171,27 +171,27 @@ sudo apt update && sudo apt install metamanager
 - [x] 3.11 Update `.github/workflows/` — replace PHP CI with ShellCheck, remove CodeQL (no JS), remove Pages (no docs)
 - [x] 3.12 Commit and push (PR #22, merged to test)
 
-## Phase 4: Update Install Script
+## Phase 4: Update Install Script ✅
 
-- [ ] 4.1 Change GitHub clone URL from `metamanager` to `metamanager-plugin`
-- [ ] 4.2 Remove `daemons/` references from plugin copy logic (plugin repo won't have daemons/)
-- [ ] 4.3 Update `--update` mode to fetch from new repo URL
-- [ ] 4.4 Test install script locally (dry run)
+- [x] 4.1 Change GitHub clone URL from `metamanager` to `metamanager-plugin`
+- [x] 4.2 Remove `daemons/` references from plugin copy logic (plugin repo won't have daemons/)
+- [x] 4.3 Update `--update` mode to fetch from new repo URL
+- [x] 4.4 Test install script locally (dry run)
 
-## Phase 5: Add Daemon Hard-Fail to Plugin
+## Phase 5: Add Daemon Hard-Fail to Plugin ✅
 
-- [ ] 5.1 Add `MM_Status::daemon_package_installed()` — checks for `/usr/local/bin/metamanager-compress-daemon.sh`
-- [ ] 5.2 Add activation check in `mm_activate_single_site()` — if daemons missing, throw `WP_Error`
-- [ ] 5.3 Add persistent admin notice on `admin_init` — "Metamanager requires the daemon package. Install: `sudo apt install metamanager`"
-- [ ] 5.4 Write tests for daemon detection logic
+- [x] 5.1 Add `MM_Status::daemon_package_installed()` — checks for `/usr/local/bin/metamanager-compress-daemon.sh`
+- [x] 5.2 Add activation check in `mm_activate_single_site()` — if daemons missing, throw `WP_Error`
+- [x] 5.3 Add persistent admin notice on `admin_init` — "Metamanager requires the daemon package. Install: `sudo apt install metamanager`"
+- [x] 5.4 Write tests for daemon detection logic
 
-## Phase 6: Formalize Job Queue Contract
+## Phase 6: Formalize Job Queue Contract ✅
 
-- [ ] 6.1 Create `JOB_QUEUE_SPEC.md` with directory structure
-- [ ] 6.2 Document JSON job input schema (compress and metadata job types)
-- [ ] 6.3 Document JSON result output schema (completed and failed)
-- [ ] 6.4 Document atomic ownership claim protocol (`.processing` rename)
-- [ ] 6.5 Add spec to both repos
+- [x] 6.1 Create `JOB_QUEUE_SPEC.md` with directory structure
+- [x] 6.2 Document JSON job input schema (compress and metadata job types)
+- [x] 6.3 Document JSON result output schema (completed and failed)
+- [x] 6.4 Document atomic ownership claim protocol (`.processing` rename)
+- [x] 6.5 Add spec to both repos
 
 ## Phase 7: Server Setup — LMAP Stack + Security (apt.richardkentgates.com)
 
