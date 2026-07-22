@@ -137,39 +137,39 @@ sudo apt update && sudo apt install metamanager
 
 ---
 
-## Phase 1: Create New Plugin Repo
+## Phase 1: Create New Plugin Repo ✅
 
-- [ ] 1.1 Create `/home/richard/Public/Projects/metamanager-plugin/`
-- [ ] 1.2 `git init` in new directory
-- [ ] 1.3 Create GitHub repo `richardkentgates/metamanager-plugin`
-- [ ] 1.4 Add remote and push initial commit
+- [x] 1.1 Create `/home/richard/Public/Projects/metamanager-plugin/`
+- [x] 1.2 `git init` in new directory
+- [x] 1.3 Create GitHub repo `richardkentgates/metamanager-plugin`
+- [x] 1.4 Add remote and push initial commit
 
-## Phase 2: Migrate Plugin Files
+## Phase 2: Migrate Plugin Files ✅
 
-- [ ] 2.1 Copy `metamanager.php`, `uninstall.php`, `index.php`
-- [ ] 2.2 Copy `includes/` (all PHP classes — 18 core + 12 modules + 5 admin)
-- [ ] 2.3 Copy `templates/`, `assets/`, `languages/`
-- [ ] 2.4 Copy `tests/` and test config files
-- [ ] 2.5 Copy `composer.json`, `phpstan.neon`, `phpunit.xml.dist`, `tests/phpunit.xml`
-- [ ] 2.6 Copy docs: `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`
-- [ ] 2.7 Copy `LICENSE`, `.gitignore`, `.distignore`
-- [ ] 2.8 Update `README.md` for plugin-only context (Installation: "Install via apt, then activate plugin")
-- [ ] 2.9 Commit and push to GitHub
+- [x] 2.1 Copy `metamanager.php`, `uninstall.php`, `index.php`
+- [x] 2.2 Copy `includes/` (all PHP classes — 18 core + 12 modules + 5 admin)
+- [x] 2.3 Copy `templates/`, `assets/`, `languages/`
+- [x] 2.4 Copy `tests/` and test config files
+- [x] 2.5 Copy `composer.json`, `phpstan.neon`, `phpunit.xml.dist`, `tests/phpunit.xml`
+- [x] 2.6 Copy docs: `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`
+- [x] 2.7 Copy `LICENSE`, `.gitignore`, `.distignore`
+- [x] 2.8 Update `README.md` for plugin-only context (Installation: "Install via apt, then activate plugin")
+- [x] 2.9 Commit and push to GitHub
 
-## Phase 3: Strip Current Repo to Daemon-Only
+## Phase 3: Strip Current Repo to Daemon-Only ✅
 
-- [ ] 3.1 Remove `includes/`, `templates/`, `assets/`, `tests/`, `languages/`
-- [ ] 3.2 Remove `metamanager.php`, `uninstall.php`, `index.php`
-- [ ] 3.3 Remove `composer.json`, `composer.lock`, `phpstan.neon`, `phpunit.xml*`
-- [ ] 3.4 Remove `.distignore` (not needed for daemon repo)
-- [ ] 3.5 Remove `phpunit.xml.dist`, `tests/phpunit.xml`, `tests/bootstrap.php`, `tests/bin/`, `tests/stubs/`, `tests/Integration/`
-- [ ] 3.6 Update `README.md` for daemon-only context
-- [ ] 3.7 Update `ARCHITECTURE.md` for daemon-only context (remove PHP architecture, keep daemon architecture)
-- [ ] 3.8 Update `debian/metamanager.install` — remove plugin files, keep only `metamanager-install.sh` and `daemons`
-- [ ] 3.9 Update `debian/control` — update description to daemon-only
-- [ ] 3.10 Update `debian/changelog` — bump to 2.4.0
-- [ ] 3.11 Update `.github/workflows/build-deb.yml` if needed
-- [ ] 3.12 Commit and push
+- [x] 3.1 Remove `includes/`, `templates/`, `assets/`, `tests/`, `languages/`
+- [x] 3.2 Remove `metamanager.php`, `uninstall.php`, `index.php`
+- [x] 3.3 Remove `composer.json`, `composer.lock`, `phpstan.neon`, `phpunit.xml*`
+- [x] 3.4 Remove `.distignore` (not needed for daemon repo)
+- [x] 3.5 Remove `phpunit.xml.dist`, `tests/phpunit.xml`, `tests/bootstrap.php`, `tests/bin/`, `tests/stubs/`, `tests/Integration/`
+- [x] 3.6 Update `README.md` for daemon-only context
+- [x] 3.7 Update `ARCHITECTURE.md` for daemon-only context (remove PHP architecture, keep daemon architecture)
+- [x] 3.8 Update `debian/metamanager.install` — remove plugin files, keep only `metamanager-install.sh` and `daemons`
+- [x] 3.9 Update `debian/control` — update description to daemon-only
+- [x] 3.10 Update `debian/changelog` — bump to 2.4.0
+- [x] 3.11 Update `.github/workflows/` — replace PHP CI with ShellCheck, remove CodeQL (no JS), remove Pages (no docs)
+- [x] 3.12 Commit and push (PR #22, merged to test)
 
 ## Phase 4: Update Install Script
 

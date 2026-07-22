@@ -440,10 +440,10 @@ if [[ "${UPDATE_ONLY}" == true ]]; then
     else
         info "Fetching latest from GitHub..."
         if command -v git &>/dev/null; then
-            git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${TMP_UPDATE}"
+            git clone --depth=1 https://github.com/richardkentgates/metamanager-plugin.git "${TMP_UPDATE}"
         else
             TMP_ZIP=$(mktemp --suffix=.zip)
-            wget -qO "${TMP_ZIP}" https://github.com/richardkentgates/metamanager/archive/refs/heads/main.zip
+            wget -qO "${TMP_ZIP}" https://github.com/richardkentgates/metamanager-plugin/archive/refs/heads/main.zip
             unzip -q "${TMP_ZIP}" -d "${TMP_UPDATE}"
             # GitHub zip extracts to a subdirectory — flatten it
             shopt -s nullglob
@@ -460,7 +460,7 @@ if [[ "${UPDATE_ONLY}" == true ]]; then
 
     # Sync plugin files only — leave daemons/ untouched in the plugin dir.
     # --delete removes stale files that no longer exist in the source.
-    rsync -a --delete --exclude='daemons/' --exclude='.git/' --exclude='metamanager-install.sh' \
+    rsync -a --delete --exclude='.git/' --exclude='metamanager-install.sh' \
         --exclude='docs/' --exclude='*.md' --exclude='*.gitignore' \
         "${TMP_UPDATE}/" "${PLUGIN_DEST}/"
     success "Plugin files updated."
@@ -481,10 +481,10 @@ else
     else
         info "Cloning from GitHub..."
         if command -v git &>/dev/null; then
-            git clone --depth=1 https://github.com/richardkentgates/metamanager.git "${PLUGIN_DEST}"
+            git clone --depth=1 https://github.com/richardkentgates/metamanager-plugin.git "${PLUGIN_DEST}"
         else
             TMP_ZIP=$(mktemp --suffix=.zip)
-            wget -qO "${TMP_ZIP}" https://github.com/richardkentgates/metamanager/archive/refs/heads/main.zip
+            wget -qO "${TMP_ZIP}" https://github.com/richardkentgates/metamanager-plugin/archive/refs/heads/main.zip
             unzip -q "${TMP_ZIP}" -d "${PLUGIN_DEST}"
             # GitHub zip extracts to a subdirectory — flatten into PLUGIN_DEST
             shopt -s nullglob
