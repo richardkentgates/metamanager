@@ -25,5 +25,5 @@ jobs:
 
       - name: Lint daemon scripts
         run: |
-          shellcheck -S warning daemons/metamanager-health.sh
-          shellcheck -S warning daemons/metamanager-job-runner.sh
+          shellcheck -S warning daemons/metamanager-compress-daemon.sh
+          shellcheck -S warning daemons/metamanager-meta-daemon.sh
