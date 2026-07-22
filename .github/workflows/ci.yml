@@ -1,91 +1,29 @@
-name: Tests
+name: Lint
 
 on:
   push:
     branches: [ "dev", "test" ]
     paths:
-      - 'includes/**'
-      - 'metamanager.php'
-      - 'tests/**'
-      - 'phpstan.neon'
-      - 'composer.json'
-      - 'composer.lock'
+      - 'metamanager-install.sh'
+      - 'daemons/**'
       - '.github/workflows/**'
   pull_request:
     branches: [ "dev", "test", "main" ]
 
 jobs:
-  static-analysis:
-    name: Static Analysis
+  shellcheck:
+    name: ShellCheck
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PHP 8.2
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.2"
-          coverage: none
+      - name: Install ShellCheck
+        run: sudo apt-get install -y -qq shellcheck
 
-      - name: Install dependencies
-        run: composer install --no-interaction --no-progress
+      - name: Lint install script
+        run: shellcheck metamanager-install.sh
 
-      - name: PHPStan
-        run: vendor/bin/phpstan analyse --configuration phpstan.neon --error-format=github
-
-  integration:
-    name: PHP ${{ matrix.php }} / WP ${{ matrix.wp }}
-    runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: wordpress_test
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - php: "8.1"
-            wp: "6.4"
-          - php: "8.2"
-            wp: "6.5"
-          - php: "8.3"
-            wp: "latest"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP ${{ matrix.php }}
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php }}
-          coverage: none
-
-      - name: Install Composer dependencies (PHPStan stubs)
-        run: composer install --no-interaction --no-progress
-
-      - name: Download PHPUnit (no Composer)
+      - name: Lint daemon scripts
         run: |
-          curl -L https://phar.phpunit.de/phpunit-9.6.0.phar -o /usr/local/bin/phpunit
-          chmod +x /usr/local/bin/phpunit
-          phpunit --version
-
-      - name: Setup WP test environment
-        run: |
-          bash tests/bin/install-wp-tests.sh wordpress_test root root 127.0.0.1 latest true
-        env:
-          WP_TESTS_TAG: ${{ matrix.wp }}
-
-      - name: Run PHPUnit
-        run: phpunit --configuration tests/phpunit.xml
+          shellcheck daemons/metamanager-health.sh
+          shellcheck daemons/metamanager-job-runner.sh
