@@ -30,7 +30,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq debhelper dpkg-dev
+          sudo apt-get install -y -qq debhelper dpkg-dev build-essential
 
       - name: Determine version and distribution
         id: version
