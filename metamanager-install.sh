@@ -216,21 +216,206 @@ install_deps() {
 
     else
         warn "No known package manager found. Install these manually:"
-        warn "  jq, inotify-tools, exiftool, jpegtran, optipng"
+        warn "  jq, inotify-tools, exiftool, jpegtran, optipng, cwebp, ffmpeg"
+    fi
+}
+
+# =============================================================================
+# Pre-flight dependency checks
+#
+# Run before installing anything. Checks for OS, systemd, bash version, and
+# package manager. Hard-fails on blockers, warns on soft issues.
+# =============================================================================
+
+preflight_checks() {
+    info "Running pre-flight checks..."
+
+    # --- Linux only ---
+    if [[ "$(uname -s)" != "Linux" ]]; then
+        error "Metamanager requires Linux. Detected: $(uname -s)"
+        exit 1
+    fi
+
+    # --- systemd required ---
+    if ! command -v systemctl &>/dev/null; then
+        error "systemd is required for daemon management. Not found on this system."
+        exit 1
+    fi
+
+    # --- Package manager ---
+    if ! command -v apt-get &>/dev/null && ! command -v dnf &>/dev/null && ! command -v yum &>/dev/null; then
+        warn "No supported package manager found (apt, dnf, yum). Dependencies must be installed manually."
+    fi
+
+    # --- Check what's already installed and auto-install missing ---
+    local all_tools=("jq" "inotifywait" "exiftool" "jpegtran" "optipng" "cwebp" "ffmpeg")
+    local missing=()
+
+    for tool in "${all_tools[@]}"; do
+        if command -v "${tool}" &>/dev/null; then
+            success "Pre-flight: ${tool} OK"
+        else
+            missing+=("${tool}")
+        fi
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        warn "Missing tools: ${missing[*]}"
+        info "Auto-installing missing dependencies..."
+        install_missing_tools "${missing[@]}"
+    fi
+
+    info "Pre-flight checks complete."
+}
+
+# =============================================================================
+# Post-install dependency verification
+#
+# Run after installing dependencies. Hard-fails if any critical tool is missing.
+# =============================================================================
+
+verify_deps() {
+    info "Verifying all dependencies are installed..."
+
+    local critical_tools=("jq" "inotifywait" "exiftool" "jpegtran" "optipng")
+    local optional_tools=("cwebp" "ffmpeg")
+    local missing_critical=()
+    local missing_optional=()
+
+    for tool in "${critical_tools[@]}"; do
+        if command -v "${tool}" &>/dev/null; then
+            success "${tool}: $(command -v "${tool}")"
+        else
+            missing_critical+=("${tool}")
+        fi
+    done
+
+    for tool in "${optional_tools[@]}"; do
+        if command -v "${tool}" &>/dev/null; then
+            success "${tool}: $(command -v "${tool}")"
+        else
+            missing_optional+=("${tool}")
+        fi
+    done
+
+    # Auto-install any missing tools
+    local all_missing=("${missing_critical[@]}" "${missing_optional[@]}")
+    if [[ ${#all_missing[@]} -gt 0 ]]; then
+        warn "Missing tools detected: ${all_missing[*]}"
+        info "Attempting automatic installation..."
+        install_missing_tools "${all_missing[@]}"
+    fi
+
+    # Re-verify after install attempt
+    local failed=()
+    for tool in "${critical_tools[@]}"; do
+        if command -v "${tool}" &>/dev/null; then
+            success "${tool}: $(command -v "${tool}")"
+        else
+            failed+=("${tool}")
+        fi
+    done
+
+    for tool in "${optional_tools[@]}"; do
+        if command -v "${tool}" &>/dev/null; then
+            success "${tool}: $(command -v "${tool}")"
+        else
+            warn "${tool} not available — some features limited (WebP, video remux)."
+        fi
+    done
+
+    if [[ ${#failed[@]} -gt 0 ]]; then
+        error "Could not install critical dependencies: ${failed[*]}"
+        error "Install them manually and re-run this script."
+        exit 1
+    fi
+
+    info "All critical dependencies verified."
+}
+
+# =============================================================================
+# Install missing tools by name
+#
+# Maps tool names to their package names across apt/dnf/yum and installs them.
+# The OS package manager tracks these as installed packages, so future updates
+# are managed by the system (apt upgrade, dnf update, etc.).
+# =============================================================================
+
+install_missing_tools() {
+    local tools=("$@")
+    local apt_pkgs=()
+    local dnf_pkgs=()
+    local yum_pkgs=()
+
+    # Map tool names to package names per package manager
+    for tool in "${tools[@]}"; do
+        case "${tool}" in
+            jq)
+                apt_pkgs+=("jq")
+                dnf_pkgs+=("jq")
+                yum_pkgs+=("jq")
+                ;;
+            inotifywait)
+                apt_pkgs+=("inotify-tools")
+                dnf_pkgs+=("inotify-tools")
+                yum_pkgs+=("inotify-tools")
+                ;;
+            exiftool)
+                apt_pkgs+=("libimage-exiftool-perl")
+                dnf_pkgs+=("perl-Image-ExifTool")
+                yum_pkgs+=("perl-Image-ExifTool")
+                ;;
+            jpegtran)
+                apt_pkgs+=("libjpeg-turbo-progs")
+                dnf_pkgs+=("libjpeg-turbo-utils")
+                yum_pkgs+=("libjpeg-turbo-utils")
+                ;;
+            optipng)
+                apt_pkgs+=("optipng")
+                dnf_pkgs+=("optipng")
+                yum_pkgs+=("optipng")
+                ;;
+            cwebp)
+                apt_pkgs+=("webp")
+                dnf_pkgs+=("libwebp-tools")
+                yum_pkgs+=("libwebp-tools")
+                ;;
+            ffmpeg)
+                apt_pkgs+=("ffmpeg")
+                dnf_pkgs+=("ffmpeg")
+                yum_pkgs+=("ffmpeg")
+                ;;
+        esac
+    done
+
+    if command -v apt-get &>/dev/null && [[ ${#apt_pkgs[@]} -gt 0 ]]; then
+        info "Installing via apt: ${apt_pkgs[*]}"
+        apt-get update -qq
+        apt-get install -y "${apt_pkgs[@]}" 2>&1 | grep -E '(Installing|already|ERROR)' || true
+
+    elif command -v dnf &>/dev/null && [[ ${#dnf_pkgs[@]} -gt 0 ]]; then
+        info "Installing via dnf: ${dnf_pkgs[*]}"
+        dnf install -y epel-release 2>/dev/null || true
+        dnf config-manager --set-enabled crb 2>/dev/null || \
+            dnf config-manager --set-enabled powertools 2>/dev/null || true
+        _el_ver=$(rpm -E '%{rhel}' 2>/dev/null || echo '9')
+        dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${_el_ver}.noarch.rpm" 2>/dev/null || true
+        dnf install -y "${dnf_pkgs[@]}" || true
+
+    elif command -v yum &>/dev/null && [[ ${#yum_pkgs[@]} -gt 0 ]]; then
+        info "Installing via yum: ${yum_pkgs[*]}"
+        yum install -y epel-release 2>/dev/null || true
+        yum-config-manager --enable epel 2>/dev/null || true
+        _el_ver=$(rpm -E '%{rhel}' 2>/dev/null || echo '8')
+        yum install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${_el_ver}.noarch.rpm" 2>/dev/null || true
+        yum install -y "${yum_pkgs[@]}" || true
     fi
 }
 
 if [[ "${UPDATE_ONLY}" == false && "${NO_DEPS}" == false ]]; then
+    preflight_checks
     install_deps
-
-    # Verify critical tools
-    for tool in jq inotifywait exiftool jpegtran optipng cwebp ffmpeg; do
-        if command -v "${tool}" &>/dev/null; then
-            success "${tool}: $(command -v "${tool}")"
-        else
-            warn "${tool} not found after install. Some features may be limited."
-        fi
-    done
+    verify_deps
 fi
 
 # =============================================================================

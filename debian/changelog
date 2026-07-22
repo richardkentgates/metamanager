@@ -1,3 +1,16 @@
+metamanager (2.4.0-1) unstable; urgency=medium
+
+  * Separated plugin from daemon package.
+  * This package now ships only the OS-level daemons (compress + metadata),
+    systemd units, and the installer script.
+  * The WordPress plugin is now in a separate repository:
+    github.com/richardkentgates/metamanager-plugin
+  * Installer fetches plugin from the new repository.
+  * Updated debian/control description to reflect daemon-only scope.
+  * Updated debian/metamanager.install to exclude plugin files.
+
+ -- Richard Kent Gates <mail@richardkentgates.com>  Wed, 22 Jul 2026 12:00:00 -0500
+
 metamanager (2.3.0-1) unstable; urgency=medium
 
   * Initial Debian package.
