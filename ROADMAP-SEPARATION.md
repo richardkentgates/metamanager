@@ -423,22 +423,22 @@ UFW (static rules)              Dynamic layer (iptables under UFW)
 - [ ] 8.2 Configure CI to sign Release files
 - [ ] 8.3 Document client setup: import key + add repo with `signed-by`
 
-## Phase 9: CI/CD — Plugin Repo Deploy
+## Phase 9: CI/CD — Plugin Repo Deploy ✅
 
-- [ ] 9.1 Create `.github/workflows/deploy.yml` in plugin repo
-- [ ] 9.2 Generate SSH deploy key, add to server `authorized_keys`
-- [ ] 9.3 Add GitHub secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH`
-- [ ] 9.4 `test` branch: rsync plugin files to server `wp-content/plugins/metamanager/`
-- [ ] 9.5 `main` branch: rsync + `wp plugin activate metamanager`
-- [ ] 9.6 Test: push to test branch, verify files land on server
+- [x] 9.1 Create `.github/workflows/deploy.yml` in plugin repo
+- [x] 9.2 Generate SSH deploy key, add to server `authorized_keys`
+- [x] 9.3 Add GitHub secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH`
+- [x] 9.4 `test` branch: rsync plugin files to server `wp-content/plugins/metamanager/`
+- [x] 9.5 `main` branch: rsync + `wp plugin activate metamanager`
+- [x] 9.6 Test: push to test branch, verify files land on server
 
-## Phase 10: CI/CD — Daemon Repo Build + Apt Push
+## Phase 10: CI/CD — Server Repo Build + Apt Push ✅
 
-- [ ] 10.1 Update `.github/workflows/build-deb.yml` — add upload step
-- [ ] 10.2 Add GitHub secrets: `APT_SSH_KEY`, `APT_HOST`, `APT_USER`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
-- [ ] 10.3 `test` branch: build .deb, SCP to `pool/`, regenerate `bookworm-test/Packages`
-- [ ] 10.4 `v*` tag: build .deb, SCP to `pool/`, regenerate `bookworm/Packages`, sign Release
-- [ ] 10.5 Test: push to test branch, verify .deb appears in apt repo
+- [x] 10.1 Update `.github/workflows/build-deb.yml` — add upload step
+- [x] 10.2 Add GitHub secrets: `APT_SSH_KEY`, `APT_HOST`, `APT_USER`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
+- [x] 10.3 `test` branch: build .deb, SCP to `pool/`, regenerate `bookworm-test/Packages`
+- [x] 10.4 `v*` tag: build .deb, SCP to `pool/`, regenerate `bookworm/Packages`, sign Release
+- [x] 10.5 Test: push to test branch, verify .deb appears in apt repo
 
 ## Phase 11: End-to-End Testing
 
