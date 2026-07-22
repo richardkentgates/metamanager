@@ -780,3 +780,4 @@ Metamanager is free and open source. If it saves you time or adds value to your 
 GPLv3 or later. See [LICENSE](LICENSE).
 
 Copyright © Richard Kent Gates
+
