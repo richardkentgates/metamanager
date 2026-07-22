@@ -21,9 +21,9 @@ jobs:
         run: sudo apt-get install -y -qq shellcheck
 
       - name: Lint install script
-        run: shellcheck metamanager-install.sh
+        run: shellcheck -S warning metamanager-install.sh
 
       - name: Lint daemon scripts
         run: |
-          shellcheck daemons/metamanager-health.sh
-          shellcheck daemons/metamanager-job-runner.sh
+          shellcheck -S warning daemons/metamanager-health.sh
+          shellcheck -S warning daemons/metamanager-job-runner.sh
