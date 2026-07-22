@@ -71,9 +71,9 @@ jobs:
 
       - name: Deploy to apt repo
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.APT_SSH_KEY }}
-          APT_HOST: ${{ secrets.APT_HOST }}
-          APT_USER: ${{ secrets.APT_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          APT_HOST: ${{ secrets.DEPLOY_HOST }}
+          APT_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
