@@ -1,7 +1,7 @@
 # Metamanager Separation Roadmap
 
 **Date:** 2026-07-22
-**Goal:** Separate the WordPress plugin from the OS daemon layer into two independent repos, set up an apt repository, and configure automated deployments.
+**Goal:** Separate the WordPress plugin from the server infrastructure layer into two independent repos, set up an apt repository, and configure automated deployments.
 
 ---
 
@@ -53,7 +53,7 @@ Plugin Repo (metamanager-plugin)
   main branch  → rsync → server:/var/www/html/metamanager/ + build zip + update metadata.json
   WP auto-update: plugin checks server metadata.json, downloads zip from server
 
-Daemon Repo (metamanager)
+Server Repo (metamanager)
   test branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate bookworm-test/Packages
   main branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate bookworm/Packages
   Client: apt update && apt install metamanager (or apt upgrade)
@@ -178,11 +178,11 @@ sudo apt update && sudo apt install metamanager
 - [x] 4.3 Update `--update` mode to fetch from new repo URL
 - [x] 4.4 Test install script locally (dry run)
 
-## Phase 5: Add Daemon Hard-Fail to Plugin ✅
+## Phase 5: Add Daemon Detection to Plugin ✅
 
 - [x] 5.1 Add `MM_Status::daemon_package_installed()` — checks for `/usr/local/bin/metamanager-compress-daemon.sh`
-- [x] 5.2 Add activation check in `mm_activate_single_site()` — if daemons missing, throw `WP_Error`
-- [x] 5.3 Add persistent admin notice on `admin_init` — "Metamanager requires the daemon package. Install: `sudo apt install metamanager`"
+- [x] 5.2 Add activation check in `mm_activate_single_site()` — no hard-fail, plugin activates normally
+- [x] 5.3 Add persistent admin notice on `admin_init` — "Metamanager daemon package not installed. Compression and metadata features are disabled."
 - [x] 5.4 Write tests for daemon detection logic
 
 ## Phase 6: Formalize Job Queue Contract ✅
