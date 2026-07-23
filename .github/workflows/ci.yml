@@ -32,19 +32,25 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Bump patch version
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           CURRENT=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
           NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
           DATE=$(date -R)
-          python3 -c "
-          import sys
-          entry = f'metamanager ({NEW_VERSION}-1) unstable; urgency=medium\n\n  * Auto-incremented version from {CURRENT} to {NEW_VERSION}.\n\n -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  {DATE}\n'
-          with open('debian/changelog', 'r') as f:
+          export CURRENT NEW_VERSION DATE
+          python3 << 'PYEOF'
+          import os
+          current = os.environ["CURRENT"]
+          new_version = os.environ["NEW_VERSION"]
+          date = os.environ["DATE"]
+          entry = f"metamanager ({new_version}-1) unstable; urgency=medium\n\n  * Auto-incremented version from {current} to {new_version}.\n\n -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  {date}\n"
+          with open("debian/changelog", "r") as f:
               existing = f.read()
-          with open('debian/changelog', 'w') as f:
+          with open("debian/changelog", "w") as f:
               f.write(entry + existing)
-          "
+          PYEOF
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add debian/changelog
