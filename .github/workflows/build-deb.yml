@@ -84,21 +84,21 @@ jobs:
           # Ensure pool directory exists
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             "${APT_USER}@${APT_HOST}" \
-            "sudo mkdir -p /var/www/html/apt/pool/m/metamanager && sudo chown -R ${APT_USER}:${APT_USER} /var/www/html/apt/pool"
+            "sudo mkdir -p /var/www/html/pool/m/metamanager && sudo chown -R ${APT_USER}:${APT_USER} /var/www/html/pool"
 
           # Upload .deb
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ../metamanager_*.deb \
-            "${APT_USER}@${APT_HOST}:/var/www/html/apt/${{ steps.version.outputs.pool_dir }}/m/metamanager/"
+            "${APT_USER}@${APT_HOST}:/var/www/html/${{ steps.version.outputs.pool_dir }}/m/metamanager/"
 
           # Regenerate Packages index and sign Release files
           ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
-            cd /var/www/html/apt
+            cd /var/www/html
 
             # Test distribution
             if [ -d "dists/bookworm-test" ]; then
               cd dists/bookworm-test/main/binary-amd64
-              dpkg-scanpackages ../../../../pool /dev/null > Packages
+              dpkg-scanpackages --arch amd64 ../../../../pool /dev/null | sed 's|Filename: ../../../../pool/|Filename: pool/|' > Packages
               gzip -k -f Packages
               cd ../../..
               apt-ftparchive release . > Release
@@ -110,7 +110,7 @@ jobs:
             # Main distribution
             if [ -d "dists/bookworm" ]; then
               cd dists/bookworm/main/binary-amd64
-              dpkg-scanpackages ../../../../pool /dev/null > Packages
+              dpkg-scanpackages --arch amd64 ../../../../pool /dev/null | sed 's|Filename: ../../../../pool/|Filename: pool/|' > Packages
               gzip -k -f Packages
               cd ../../..
               apt-ftparchive release . > Release
