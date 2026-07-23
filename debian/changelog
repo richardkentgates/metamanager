@@ -1,3 +1,8 @@
+metamanager (2.4.1-1) unstable; urgency=medium
+
+  * Auto-incremented version from 2.4.0 to 2.4.1.
+
+ -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  Thu, 23 Jul 2026 06:50:01 +0000
 metamanager (2.4.0-1) unstable; urgency=medium
 
   * Separated plugin from daemon package.
