@@ -531,7 +531,7 @@ if [[ "${UPDATE_ONLY}" == false ]]; then
 # Patch and install daemon scripts
 # =============================================================================
 
-DAEMON_SRC="${PLUGIN_DEST}/daemons"
+DAEMON_SRC="/usr/local/lib/metamanager/daemons"
 
 for daemon in metamanager-compress-daemon metamanager-meta-daemon; do
     src="${DAEMON_SRC}/${daemon}.sh"
