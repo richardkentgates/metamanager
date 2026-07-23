@@ -2,33 +2,24 @@
 # =============================================================================
 # Metamanager — Server Installation Script
 #
+# Installs daemons, systemd units, and job queue directories.
+# The WordPress plugin is managed separately via the apt server.
+#
 # Usage:
-#   wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash
-# OR after cloning:
-#   sudo bash metamanager-install.sh [--wp-path /path/to/wordpress]
-#
-# To update only the plugin files (skip daemons and dependencies):
-#   sudo bash metamanager-install.sh --update [--wp-path /path/to/wordpress]
-#   wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update
-#
-# Both forms always fetch the latest code from GitHub. When run directly from
-# the installed plugin directory, the script detects this and fetches from
-# GitHub rather than copying from itself.
+#   wget -qO- http://apt.richardkentgates.com/metamanager-install.sh | sudo bash
+# OR:
+#   sudo bash metamanager-install.sh [--wp-path /path/to/wordpress] [--no-deps]
 #
 # What this script does:
 #   1. Detects or accepts the WordPress installation path
 #   2. Installs system dependencies (jpegtran, optipng, exiftool, inotify-tools, jq)
-#   3. Copies the plugin into wp-content/plugins/metamanager/
-#   4. Patches the daemon scripts with the correct WP_CONTENT_DIR path
-#   5. Copies daemon scripts to /usr/local/bin/ and makes them executable
-#   6. Patches and installs systemd service files
-#   7. Enables and starts both daemons
-#   8. Optionally activates the plugin via WP-CLI if available
-#
-# With --update, only steps 1, 3, and 8 run. Daemons are left untouched.
+#   3. Patches the daemon scripts with the correct WP_CONTENT_DIR path
+#   4. Copies daemon scripts to /usr/local/bin/ and makes them executable
+#   5. Patches and installs systemd service files
+#   6. Enables and starts both daemons
+#   7. Creates job queue directories
 #
 # Requires: systemd, bash 5+, apt or dnf (for dependency install)
-# Tested on: Ubuntu 22.04+, Debian 12+, RHEL/Rocky 9+
 # =============================================================================
 
 set -euo pipefail
@@ -57,7 +48,6 @@ fi
 # =============================================================================
 
 WP_PATH=""
-UPDATE_ONLY=false
 NO_DEPS=false
 
 while [[ $# -gt 0 ]]; do
@@ -66,19 +56,14 @@ while [[ $# -gt 0 ]]; do
             WP_PATH="$2"
             shift 2
             ;;
-        --update)
-            UPDATE_ONLY=true
-            shift
-            ;;
         --no-deps)
             NO_DEPS=true
             shift
             ;;
         --help|-h)
-            echo "Usage: sudo bash metamanager-install.sh [--update] [--no-deps] [--wp-path /path/to/wordpress]"
+            echo "Usage: sudo bash metamanager-install.sh [--no-deps] [--wp-path /path/to/wordpress]"
             echo ""
-            echo "  --update    Update plugin files only; skip daemons and dependencies."
-            echo "  --no-deps   Skip apt/dnf dependency install (use when deps are pre-provisioned, e.g. .deb postinst)."
+            echo "  --no-deps   Skip apt/dnf dependency install (use when deps are pre-provisioned)."
             exit 0
             ;;
         *)
@@ -88,9 +73,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ "${UPDATE_ONLY}" == true ]]; then
-    info "Running in UPDATE mode — daemons and dependencies will not be touched."
-fi
 if [[ "${NO_DEPS}" == true ]]; then
     info "Skipping dependency install (--no-deps); dependencies must be pre-installed."
 fi
@@ -100,8 +82,6 @@ fi
 # =============================================================================
 
 find_wp() {
-    # Common locations to probe — require wp-content/ AND wp-includes/ so a
-    # bare Apache default dir with an empty wp-content folder doesn't match.
     local candidates=(
         "/var/www/html"
         "/srv/www/wordpress"
@@ -114,12 +94,6 @@ find_wp() {
             return
         fi
     done
-    # Deeper search: find proper WordPress roots (must have both wp-content and
-    # wp-includes so we don't mistake a default Apache docroot for WordPress).
-    # Also search /home for cPanel/DirectAdmin/shared-hosting layouts.
-    # Use process substitution (not a pipe) so the while loop runs in the
-    # current shell and `return` works correctly — piping to `while` runs it
-    # in a subshell where `return` raises an error with set -e active.
     local inc root
     while IFS= read -r inc; do
         root="$(dirname "${inc}")"
@@ -130,24 +104,18 @@ find_wp() {
     done < <(find /var/www /srv/www /opt /home -type d -name "wp-includes" -maxdepth 7 2>/dev/null)
 }
 
-# Resolve the actual WordPress root from a path that may be the wp-config.php
-# parent (one directory above the real root — a common hardening technique).
-# Accepts: any directory; returns: the dir that contains wp-content/.
 resolve_wp_root() {
     local p="$1"
-    # Given path already has wp-content — use it directly
     if [[ -d "${p}/wp-content" ]]; then
         echo "${p}"
         return
     fi
-    # wp-config.php is one level above; look for a subdir with wp-content
     for sub in "${p}"/*/; do
         if [[ -d "${sub}wp-content" ]]; then
             echo "${sub%/}"
             return
         fi
     done
-    # Fall back — caller will catch the missing wp-content error
     echo "${p}"
 }
 
@@ -156,8 +124,6 @@ if [[ -z "${WP_PATH}" ]]; then
     WP_PATH=$(find_wp)
 fi
 
-# If the user supplied (or detection returned) a dir whose wp-config.php lives
-# one level above the actual WordPress files, resolve to the real root.
 WP_PATH=$(resolve_wp_root "${WP_PATH}")
 
 if [[ -z "${WP_PATH}" || ! -d "${WP_PATH}/wp-content" ]]; then
@@ -165,10 +131,7 @@ if [[ -z "${WP_PATH}" || ! -d "${WP_PATH}/wp-content" ]]; then
 fi
 
 WP_CONTENT_DIR="${WP_PATH}/wp-content"
-PLUGIN_DEST="${WP_CONTENT_DIR}/plugins/metamanager"
 
-# Detect the user that owns wp-content — this is the web server / PHP-FPM user
-# on this system. Falls back to www-data for Debian/Ubuntu.
 WP_OWNER=$(stat -c '%U' "${WP_CONTENT_DIR}" 2>/dev/null || echo 'www-data')
 if ! id "${WP_OWNER}" &>/dev/null; then
     WP_OWNER='www-data'
@@ -176,9 +139,6 @@ fi
 
 success "WordPress found at: ${WP_PATH}"
 info "WP content dir: ${WP_CONTENT_DIR}"
-
-# Determine the script's own directory (works when piped or run directly)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-metamanager-install.sh}")" 2>/dev/null && pwd || echo ".")"
 
 # =============================================================================
 # Detect package manager and install dependencies
@@ -194,14 +154,9 @@ install_deps() {
 
     elif command -v dnf &>/dev/null; then
         info "Detected dnf. Installing dependencies..."
-        # EPEL is required for most packages on RHEL-based systems.
         dnf install -y epel-release 2>/dev/null || true
-        # CRB (CodeReady Builder / PowerTools) provides dependencies for some
-        # EPEL packages (e.g. perl-Image-ExifTool, optipng, libwebp-tools) on RHEL 9+.
         dnf config-manager --set-enabled crb 2>/dev/null || \
             dnf config-manager --set-enabled powertools 2>/dev/null || true
-        # RPM Fusion free provides ffmpeg on RHEL/AlmaLinux/Rocky (not in EPEL 9).
-        # Detect the OS major version to pick the right release URL.
         _el_ver=$(rpm -E '%{rhel}' 2>/dev/null || echo '9')
         dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${_el_ver}.noarch.rpm" 2>/dev/null || true
         dnf install -y jq inotify-tools perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools ffmpeg || true
@@ -220,34 +175,21 @@ install_deps() {
     fi
 }
 
-# =============================================================================
-# Pre-flight dependency checks
-#
-# Run before installing anything. Checks for OS, systemd, bash version, and
-# package manager. Hard-fails on blockers, warns on soft issues.
-# =============================================================================
-
 preflight_checks() {
     info "Running pre-flight checks..."
 
-    # --- Linux only ---
     if [[ "$(uname -s)" != "Linux" ]]; then
         error "Metamanager requires Linux. Detected: $(uname -s)"
-        exit 1
     fi
 
-    # --- systemd required ---
     if ! command -v systemctl &>/dev/null; then
         error "systemd is required for daemon management. Not found on this system."
-        exit 1
     fi
 
-    # --- Package manager ---
     if ! command -v apt-get &>/dev/null && ! command -v dnf &>/dev/null && ! command -v yum &>/dev/null; then
         warn "No supported package manager found (apt, dnf, yum). Dependencies must be installed manually."
     fi
 
-    # --- Check what's already installed and auto-install missing ---
     local all_tools=("jq" "inotifywait" "exiftool" "jpegtran" "optipng" "cwebp" "ffmpeg")
     local missing=()
 
@@ -267,12 +209,6 @@ preflight_checks() {
 
     info "Pre-flight checks complete."
 }
-
-# =============================================================================
-# Post-install dependency verification
-#
-# Run after installing dependencies. Hard-fails if any critical tool is missing.
-# =============================================================================
 
 verify_deps() {
     info "Verifying all dependencies are installed..."
@@ -298,7 +234,6 @@ verify_deps() {
         fi
     done
 
-    # Auto-install any missing tools
     local all_missing=("${missing_critical[@]}" "${missing_optional[@]}")
     if [[ ${#all_missing[@]} -gt 0 ]]; then
         warn "Missing tools detected: ${all_missing[*]}"
@@ -306,7 +241,6 @@ verify_deps() {
         install_missing_tools "${all_missing[@]}"
     fi
 
-    # Re-verify after install attempt
     local failed=()
     for tool in "${critical_tools[@]}"; do
         if command -v "${tool}" &>/dev/null; then
@@ -327,19 +261,10 @@ verify_deps() {
     if [[ ${#failed[@]} -gt 0 ]]; then
         error "Could not install critical dependencies: ${failed[*]}"
         error "Install them manually and re-run this script."
-        exit 1
     fi
 
     info "All critical dependencies verified."
 }
-
-# =============================================================================
-# Install missing tools by name
-#
-# Maps tool names to their package names across apt/dnf/yum and installs them.
-# The OS package manager tracks these as installed packages, so future updates
-# are managed by the system (apt upgrade, dnf update, etc.).
-# =============================================================================
 
 install_missing_tools() {
     local tools=("$@")
@@ -347,44 +272,15 @@ install_missing_tools() {
     local dnf_pkgs=()
     local yum_pkgs=()
 
-    # Map tool names to package names per package manager
     for tool in "${tools[@]}"; do
         case "${tool}" in
-            jq)
-                apt_pkgs+=("jq")
-                dnf_pkgs+=("jq")
-                yum_pkgs+=("jq")
-                ;;
-            inotifywait)
-                apt_pkgs+=("inotify-tools")
-                dnf_pkgs+=("inotify-tools")
-                yum_pkgs+=("inotify-tools")
-                ;;
-            exiftool)
-                apt_pkgs+=("libimage-exiftool-perl")
-                dnf_pkgs+=("perl-Image-ExifTool")
-                yum_pkgs+=("perl-Image-ExifTool")
-                ;;
-            jpegtran)
-                apt_pkgs+=("libjpeg-turbo-progs")
-                dnf_pkgs+=("libjpeg-turbo-utils")
-                yum_pkgs+=("libjpeg-turbo-utils")
-                ;;
-            optipng)
-                apt_pkgs+=("optipng")
-                dnf_pkgs+=("optipng")
-                yum_pkgs+=("optipng")
-                ;;
-            cwebp)
-                apt_pkgs+=("webp")
-                dnf_pkgs+=("libwebp-tools")
-                yum_pkgs+=("libwebp-tools")
-                ;;
-            ffmpeg)
-                apt_pkgs+=("ffmpeg")
-                dnf_pkgs+=("ffmpeg")
-                yum_pkgs+=("ffmpeg")
-                ;;
+            jq)         apt_pkgs+=("jq");              dnf_pkgs+=("jq");              yum_pkgs+=("jq") ;;
+            inotifywait) apt_pkgs+=("inotify-tools");   dnf_pkgs+=("inotify-tools");   yum_pkgs+=("inotify-tools") ;;
+            exiftool)   apt_pkgs+=("libimage-exiftool-perl"); dnf_pkgs+=("perl-Image-ExifTool"); yum_pkgs+=("perl-Image-ExifTool") ;;
+            jpegtran)   apt_pkgs+=("libjpeg-turbo-progs");    dnf_pkgs+=("libjpeg-turbo-utils"); yum_pkgs+=("libjpeg-turbo-utils") ;;
+            optipng)    apt_pkgs+=("optipng");          dnf_pkgs+=("optipng");          yum_pkgs+=("optipng") ;;
+            cwebp)      apt_pkgs+=("webp");             dnf_pkgs+=("libwebp-tools");    yum_pkgs+=("libwebp-tools") ;;
+            ffmpeg)     apt_pkgs+=("ffmpeg");            dnf_pkgs+=("ffmpeg");            yum_pkgs+=("ffmpeg") ;;
         esac
     done
 
@@ -392,16 +288,13 @@ install_missing_tools() {
         info "Installing via apt: ${apt_pkgs[*]}"
         apt-get update -qq
         apt-get install -y "${apt_pkgs[@]}" 2>&1 | grep -E '(Installing|already|ERROR)' || true
-
     elif command -v dnf &>/dev/null && [[ ${#dnf_pkgs[@]} -gt 0 ]]; then
         info "Installing via dnf: ${dnf_pkgs[*]}"
         dnf install -y epel-release 2>/dev/null || true
-        dnf config-manager --set-enabled crb 2>/dev/null || \
-            dnf config-manager --set-enabled powertools 2>/dev/null || true
+        dnf config-manager --set-enabled crb 2>/dev/null || dnf config-manager --set-enabled powertools 2>/dev/null || true
         _el_ver=$(rpm -E '%{rhel}' 2>/dev/null || echo '9')
         dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${_el_ver}.noarch.rpm" 2>/dev/null || true
         dnf install -y "${dnf_pkgs[@]}" || true
-
     elif command -v yum &>/dev/null && [[ ${#yum_pkgs[@]} -gt 0 ]]; then
         info "Installing via yum: ${yum_pkgs[*]}"
         yum install -y epel-release 2>/dev/null || true
@@ -412,120 +305,28 @@ install_missing_tools() {
     fi
 }
 
-if [[ "${UPDATE_ONLY}" == false && "${NO_DEPS}" == false ]]; then
+if [[ "${NO_DEPS}" == false ]]; then
     preflight_checks
     install_deps
     verify_deps
 fi
 
 # =============================================================================
-# Install the WordPress plugin
+# Create job queue directories
 # =============================================================================
 
-if [[ "${UPDATE_ONLY}" == true ]]; then
-    info "Updating Metamanager plugin files in ${PLUGIN_DEST}..."
+mkdir -p "${WP_CONTENT_DIR}/metamanager-jobs"
+chown "${WP_OWNER}:${WP_OWNER}" "${WP_CONTENT_DIR}/metamanager-jobs"
+chmod 750 "${WP_CONTENT_DIR}/metamanager-jobs"
 
-    if [[ ! -d "${PLUGIN_DEST}" ]]; then
-        error "Plugin not installed at ${PLUGIN_DEST}. Run without --update to do a full install."
-    fi
-
-    # Pull fresh copy to a temp dir then overlay only PHP/JS/asset files.
-    TMP_UPDATE=$(mktemp -d)
-    trap 'rm -rf "${TMP_UPDATE}"' EXIT
-
-    if [[ "${SCRIPT_DIR}" != "." && -f "${SCRIPT_DIR}/metamanager.php" \
-          && "$(realpath "${SCRIPT_DIR}")" != "$(realpath "${PLUGIN_DEST}")" ]]; then
-        cp -r "${SCRIPT_DIR}/." "${TMP_UPDATE}/"
-        success "Update source: ${SCRIPT_DIR}"
-    else
-        info "Fetching latest from GitHub..."
-        if command -v git &>/dev/null; then
-            git clone --depth=1 https://github.com/richardkentgates/metamanager-plugin.git "${TMP_UPDATE}"
-        else
-            TMP_ZIP=$(mktemp --suffix=.zip)
-            wget -qO "${TMP_ZIP}" https://github.com/richardkentgates/metamanager-plugin/archive/refs/heads/main.zip
-            unzip -q "${TMP_ZIP}" -d "${TMP_UPDATE}"
-            # GitHub zip extracts to a subdirectory — flatten it
-            shopt -s nullglob
-            inner=("${TMP_UPDATE}"/metamanager-*/)
-            if [[ ${#inner[@]} -gt 0 ]]; then
-                mv "${inner[0]}"* "${TMP_UPDATE}/" 2>/dev/null || true
-                rmdir "${inner[0]}" 2>/dev/null || true
-            fi
-            shopt -u nullglob
-            rm -f "${TMP_ZIP}"
-        fi
-        success "Latest code fetched."
-    fi
-
-    # Sync plugin files only — leave daemons/ untouched in the plugin dir.
-    # --delete removes stale files that no longer exist in the source.
-    rsync -a --delete --exclude='.git/' --exclude='metamanager-install.sh' \
-        --exclude='docs/' --exclude='*.md' --exclude='*.gitignore' \
-        "${TMP_UPDATE}/" "${PLUGIN_DEST}/"
-    success "Plugin files updated."
-else
-    info "Installing Metamanager plugin to ${PLUGIN_DEST}..."
-
-    if [[ -d "${PLUGIN_DEST}" ]]; then
-        warn "Existing plugin directory found — backing up to ${PLUGIN_DEST}.bak.$(date +%s)"
-        mv "${PLUGIN_DEST}" "${PLUGIN_DEST}.bak.$(date +%s)"
-    fi
-
-    mkdir -p "${PLUGIN_DEST}"
-
-    # If running from a cloned repo, copy from there; otherwise clone.
-    if [[ "${SCRIPT_DIR}" != "." && -f "${SCRIPT_DIR}/metamanager.php" ]]; then
-        cp -r "${SCRIPT_DIR}/." "${PLUGIN_DEST}/"
-        success "Plugin files copied from ${SCRIPT_DIR}"
-    else
-        info "Cloning from GitHub..."
-        if command -v git &>/dev/null; then
-            git clone --depth=1 https://github.com/richardkentgates/metamanager-plugin.git "${PLUGIN_DEST}"
-        else
-            TMP_ZIP=$(mktemp --suffix=.zip)
-            wget -qO "${TMP_ZIP}" https://github.com/richardkentgates/metamanager-plugin/archive/refs/heads/main.zip
-            unzip -q "${TMP_ZIP}" -d "${PLUGIN_DEST}"
-            # GitHub zip extracts to a subdirectory — flatten into PLUGIN_DEST
-            shopt -s nullglob
-            inner=("${PLUGIN_DEST}"/metamanager-*/)
-            if [[ ${#inner[@]} -gt 0 ]]; then
-                mv "${inner[0]}"* "${PLUGIN_DEST}/" 2>/dev/null || true
-                rmdir "${inner[0]}" 2>/dev/null || true
-            fi
-            shopt -u nullglob
-            rm -f "${TMP_ZIP}"
-        fi
-        success "Plugin installed."
-    fi
-fi
-
-# Fix permissions.
-chown -R "${WP_OWNER}:${WP_OWNER}" "${PLUGIN_DEST}"
-find "${PLUGIN_DEST}" -type f -name "*.php" -exec chmod 644 {} \;
-find "${PLUGIN_DEST}" -type f -name "*.sh"  -exec chmod 755 {} \;
-
-if [[ "${UPDATE_ONLY}" == false ]]; then
-    # =============================================================================
-    # Create job queue directories
-    # =============================================================================
-
-    mkdir -p "${WP_CONTENT_DIR}/metamanager-jobs"
-    chown "${WP_OWNER}:${WP_OWNER}" "${WP_CONTENT_DIR}/metamanager-jobs"
-    chmod 750 "${WP_CONTENT_DIR}/metamanager-jobs"
-
-    for subdir in compress meta completed failed; do
-        dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
-        mkdir -p "${dir}"
-        chown "${WP_OWNER}:${WP_OWNER}" "${dir}"
-        chmod 750 "${dir}"
-        # Prevent direct HTTP access.
-        echo "Deny from all" > "${dir}/.htaccess"
-    done
-    success "Job queue directories created."
-fi
-
-if [[ "${UPDATE_ONLY}" == false ]]; then
+for subdir in compress meta completed failed; do
+    dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
+    mkdir -p "${dir}"
+    chown "${WP_OWNER}:${WP_OWNER}" "${dir}"
+    chmod 750 "${dir}"
+    echo "Deny from all" > "${dir}/.htaccess"
+done
+success "Job queue directories created."
 
 # =============================================================================
 # Patch and install daemon scripts
@@ -541,7 +342,6 @@ for daemon in metamanager-compress-daemon metamanager-meta-daemon; do
         error "Daemon script not found: ${src}"
     fi
 
-    # Patch the __WP_CONTENT_DIR__ placeholder.
     sed "s|__WP_CONTENT_DIR__|${WP_CONTENT_DIR}|g" "${src}" > "${dest}"
     chmod 755 "${dest}"
     chown root:root "${dest}"
@@ -574,8 +374,6 @@ done
 info "Reloading systemd and starting daemons..."
 systemctl daemon-reload
 
-# Pre-create log files owned by ${WP_OWNER} so the daemons can write to them.
-# /var/log is root-owned; the daemon user cannot create new files there without this.
 for log_file in /var/log/metamanager-compress.log /var/log/metamanager-meta.log; do
     touch "${log_file}"
     chown "${WP_OWNER}:${WP_OWNER}" "${log_file}"
@@ -593,67 +391,24 @@ for svc in metamanager-compress-daemon metamanager-meta-daemon; do
     fi
 done
 
-fi # end UPDATE_ONLY == false
-
-# =============================================================================
-# Activate plugin via WP-CLI (optional)
-# =============================================================================
-
-if command -v wp &>/dev/null; then
-    # WP_OWNER was detected early in the script from the wp-content directory owner.
-    # If we're already that user, run wp directly; otherwise sudo.
-    if [[ "$(id -un)" == "${WP_OWNER}" ]] || ! id "${WP_OWNER}" &>/dev/null; then
-        WP_CMD=(wp)
-    else
-        WP_CMD=(sudo -u "${WP_OWNER}" wp)
-    fi
-
-    if [[ "${UPDATE_ONLY}" == true ]]; then
-        info "WP-CLI found. Flushing cache..."
-        if "${WP_CMD[@]}" cache flush --path="${WP_PATH}" 2>/dev/null; then
-            success "WordPress object cache flushed."
-        fi
-    else
-        info "WP-CLI found. Activating plugin..."
-        if "${WP_CMD[@]}" plugin activate metamanager --path="${WP_PATH}" --skip-plugins 2>&1; then
-            success "Plugin activated via WP-CLI."
-        else
-            warn "WP-CLI activation failed. Activate the plugin manually in WordPress Admin → Plugins."
-        fi
-    fi
-else
-    if [[ "${UPDATE_ONLY}" == false ]]; then
-        warn "WP-CLI not found. Activate the plugin manually in WordPress Admin → Plugins."
-    fi
-fi
-
 # =============================================================================
 # Summary
 # =============================================================================
 
 echo ""
 echo -e "${GREEN}============================================================${NC}"
-if [[ "${UPDATE_ONLY}" == true ]]; then
-    _mode="update"
-else
-    _mode="installation"
-fi
-echo -e "${GREEN}  Metamanager ${_mode} complete!${NC}"
+echo -e "${GREEN}  Metamanager server installation complete!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
 echo "  WordPress path:  ${WP_PATH}"
-echo "  Plugin path:     ${PLUGIN_DEST}"
 echo "  Job queue:       ${WP_CONTENT_DIR}/metamanager-jobs/"
 echo ""
-
-if [[ "${UPDATE_ONLY}" == false ]]; then
-    echo "  Compress daemon: $(systemctl is-active metamanager-compress-daemon.service 2>/dev/null || echo 'check manually')"
-    echo "  Metadata daemon: $(systemctl is-active metamanager-meta-daemon.service 2>/dev/null || echo 'check manually')"
-    echo ""
-    echo "  View logs:"
-    echo "    journalctl -u metamanager-compress-daemon -f"
-    echo "    journalctl -u metamanager-meta-daemon -f"
-else
-    echo "  Daemons:         unchanged (update mode)"
-fi
+echo "  Compress daemon: $(systemctl is-active metamanager-compress-daemon.service 2>/dev/null || echo 'check manually')"
+echo "  Metadata daemon: $(systemctl is-active metamanager-meta-daemon.service 2>/dev/null || echo 'check manually')"
+echo ""
+echo "  View logs:"
+echo "    journalctl -u metamanager-compress-daemon -f"
+echo "    journalctl -u metamanager-meta-daemon -f"
+echo ""
+echo "  Install the plugin separately via the apt server."
 echo ""
