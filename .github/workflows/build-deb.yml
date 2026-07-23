@@ -91,7 +91,7 @@ jobs:
             ../metamanager_*.deb \
             "${APT_USER}@${APT_HOST}:/var/www/html/apt/${{ steps.version.outputs.pool_dir }}/m/metamanager/"
 
-          # Regenerate Packages index
+          # Regenerate Packages index and sign Release files
           ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
             cd /var/www/html/apt
 
@@ -100,7 +100,11 @@ jobs:
               cd dists/bookworm-test/main/binary-amd64
               dpkg-scanpackages ../../../../pool /dev/null > Packages
               gzip -k -f Packages
-              cd ../../../..
+              cd ../../..
+              apt-ftparchive release . > Release
+              gpg --batch --yes --armor --detach-sign --output Release.gpg Release
+              gpg --batch --yes --armor --clearsign --output InRelease Release
+              cd ../..
             fi
 
             # Main distribution
@@ -108,10 +112,14 @@ jobs:
               cd dists/bookworm/main/binary-amd64
               dpkg-scanpackages ../../../../pool /dev/null > Packages
               gzip -k -f Packages
-              cd ../../../..
+              cd ../../..
+              apt-ftparchive release . > Release
+              gpg --batch --yes --armor --detach-sign --output Release.gpg Release
+              gpg --batch --yes --armor --clearsign --output InRelease Release
+              cd ../..
             fi
 
-            echo "Packages index regenerated"
+            echo "Packages index regenerated and signed"
           REMOTE
 
           echo "Deployed .deb to apt repo"
