@@ -1,14 +1,11 @@
-name: Lint
+name: Dev CI
 
 on:
   push:
-    branches: [ "dev", "test" ]
-    paths:
-      - 'metamanager-install.sh'
-      - 'daemons/**'
-      - '.github/workflows/**'
-  pull_request:
-    branches: [ "dev", "test", "main" ]
+    branches: ["dev"]
+
+permissions:
+  contents: write
 
 jobs:
   shellcheck:
@@ -17,9 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ShellCheck
-        run: sudo apt-get install -y -qq shellcheck
-
       - name: Lint install script
         run: shellcheck -S error metamanager-install.sh
 
@@ -27,3 +21,39 @@ jobs:
         run: |
           shellcheck -S error daemons/metamanager-compress-daemon.sh
           shellcheck -S error daemons/metamanager-meta-daemon.sh
+
+  version-bump:
+    name: Auto-increment Version
+    needs: [shellcheck]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump patch version
+        run: |
+          # Read current version from debian/changelog
+          CURRENT=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
+          echo "Current version: $CURRENT"
+
+          # Bump patch
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          echo "New version: $NEW_VERSION"
+
+          # Add new changelog entry
+          DATE=$(date -R)
+          sed -i "1i\\
+metamanager (${NEW_VERSION}-1) unstable; urgency=medium\\
+\\
+  * Auto-incremented version from ${CURRENT} to ${NEW_VERSION}.\\
+\\
+ -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  ${DATE}" debian/changelog
+
+          # Commit
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add debian/changelog
+          git commit -m "chore: bump version to ${NEW_VERSION}"
+          git push
