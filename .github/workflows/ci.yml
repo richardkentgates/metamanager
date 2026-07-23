@@ -33,25 +33,18 @@ jobs:
 
       - name: Bump patch version
         run: |
-          # Read current version from debian/changelog
           CURRENT=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
-          echo "Current version: $CURRENT"
-
-          # Bump patch
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
           NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
-          echo "New version: $NEW_VERSION"
-
-          # Add new changelog entry
           DATE=$(date -R)
-          sed -i "1i\\
-metamanager (${NEW_VERSION}-1) unstable; urgency=medium\\
-\\
-  * Auto-incremented version from ${CURRENT} to ${NEW_VERSION}.\\
-\\
- -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  ${DATE}" debian/changelog
-
-          # Commit
+          python3 -c "
+          import sys
+          entry = f'metamanager ({NEW_VERSION}-1) unstable; urgency=medium\n\n  * Auto-incremented version from {CURRENT} to {NEW_VERSION}.\n\n -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  {DATE}\n'
+          with open('debian/changelog', 'r') as f:
+              existing = f.read()
+          with open('debian/changelog', 'w') as f:
+              f.write(entry + existing)
+          "
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add debian/changelog

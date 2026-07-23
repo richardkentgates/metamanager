@@ -312,23 +312,6 @@ if [[ "${NO_DEPS}" == false ]]; then
 fi
 
 # =============================================================================
-# Create job queue directories
-# =============================================================================
-
-mkdir -p "${WP_CONTENT_DIR}/metamanager-jobs"
-chown "${WP_OWNER}:${WP_OWNER}" "${WP_CONTENT_DIR}/metamanager-jobs"
-chmod 750 "${WP_CONTENT_DIR}/metamanager-jobs"
-
-for subdir in compress meta completed failed; do
-    dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
-    mkdir -p "${dir}"
-    chown "${WP_OWNER}:${WP_OWNER}" "${dir}"
-    chmod 750 "${dir}"
-    echo "Deny from all" > "${dir}/.htaccess"
-done
-success "Job queue directories created."
-
-# =============================================================================
 # Patch and install daemon scripts
 # =============================================================================
 
@@ -401,7 +384,6 @@ echo -e "${GREEN}  Metamanager server installation complete!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
 echo "  WordPress path:  ${WP_PATH}"
-echo "  Job queue:       ${WP_CONTENT_DIR}/metamanager-jobs/"
 echo ""
 echo "  Compress daemon: $(systemctl is-active metamanager-compress-daemon.service 2>/dev/null || echo 'check manually')"
 echo "  Metadata daemon: $(systemctl is-active metamanager-meta-daemon.service 2>/dev/null || echo 'check manually')"

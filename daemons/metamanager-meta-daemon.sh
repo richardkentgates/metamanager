@@ -41,14 +41,28 @@ MAX_CONCURRENT=4
 
 EXIFTOOL="/usr/bin/exiftool"
 
-# --- Write PID file so WordPress can check daemon health without systemctl ---
-echo $$ > "${PID_FILE}"
-trap 'rm -f "${PID_FILE}"' EXIT
-
 # --- Logging ---
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [meta] $*" >> "${LOG_FILE}"
 }
+
+# --- Wait for job queue directory ---
+# The plugin creates this on activation. If not present yet, wait for it.
+wait_for_job_dir() {
+    while [[ ! -d "${JOB_DIR}" ]]; do
+        log "Job directory ${JOB_DIR} not found — waiting 10s..."
+        sleep 10
+    done
+    # Ensure subdirectories exist
+    mkdir -p "${JOB_DONE}" "${JOB_FAILED}"
+}
+
+wait_for_job_dir
+
+# --- Write PID file so WordPress can check daemon health without systemctl ---
+mkdir -p "$(dirname "${PID_FILE}")"
+echo $$ > "${PID_FILE}"
+trap 'rm -f "${PID_FILE}"' EXIT
 
 log "Daemon started (PID $$). Watching ${JOB_DIR}"
 
@@ -390,13 +404,22 @@ log "Startup scan complete."
 # --- Main loop ---
 # close_write: new job written by PHP
 # moved_to:    LOCKED re-queue — daemon renames .processing back to .json via mv
-inotifywait -m -e close_write,moved_to --format '%w%f' "${JOB_DIR}" 2>/dev/null \
-| while IFS= read -r jobfile; do
-    if [[ "${jobfile}" == *.json ]]; then
-        # Throttle: block until a subshell slot is free before spawning another.
-        while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
-            wait -n 2>/dev/null || true
-        done
-        process_job "${jobfile}" &
+while true; do
+    if [[ ! -d "${JOB_DIR}" ]]; then
+        log "Job directory ${JOB_DIR} disappeared — waiting..."
+        wait_for_job_dir
+        log "Job directory reappeared — resuming."
     fi
+    inotifywait -m -e close_write,moved_to --format '%w%f' "${JOB_DIR}" 2>/dev/null \
+    | while IFS= read -r jobfile; do
+        if [[ "${jobfile}" == *.json ]]; then
+            while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
+                wait -n 2>/dev/null || true
+            done
+            process_job "${jobfile}" &
+        fi
+    done
+    # If inotifywait exits (e.g. directory deleted), wait and retry
+    log "inotifywait exited — retrying in 5s..."
+    sleep 5
 done
