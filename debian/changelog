@@ -1,3 +1,8 @@
+metamanager (2.4.6-1) unstable; urgency=medium
+
+  * Auto-incremented version from 2.4.5 to 2.4.6.
+
+ -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  Fri, 24 Jul 2026 01:24:14 +0000
 metamanager (2.4.5-1) unstable; urgency=medium
 
   * Auto-incremented version from 2.4.4 to 2.4.5.
