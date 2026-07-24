@@ -63,17 +63,22 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
             cd /var/www/html
 
-            # Test distribution
-            if [ -d "dists/bookworm-test" ]; then
-              cd dists/bookworm-test/main/binary-amd64
-              dpkg-scanpackages --arch amd64 ../../../../pool /dev/null | sed 's|Filename: ../../../../pool/|Filename: pool/|' > Packages
-              gzip -k -f Packages
-              cd ../../..
-              apt-ftparchive release . > Release
-              gpg --batch --yes --armor --detach-sign --output Release.gpg Release
-              gpg --batch --yes --armor --clearsign --output InRelease Release
-              cd ../..
-            fi
+            # Regenerate Packages for bookworm distribution
+            apt-ftparchive \
+              -o APT::FTPArchive::Release::Origin="metamanager" \
+              -o APT::FTPArchive::Release::Label="metamanager" \
+              -o APT::FTPArchive::Release::Suite="bookworm" \
+              -o APT::FTPArchive::Release::Codename="bookworm" \
+              -o APT::FTPArchive::Release::Architectures="amd64" \
+              -o APT::FTPArchive::Release::Components="main" \
+              -o APT::FTPArchive::Release::Description="Metamanager apt repository" \
+              release dists/bookworm > dists/bookworm/Release
+
+            # Sign Release files
+            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+              --clearsign --output dists/bookworm/InRelease dists/bookworm/Release
+            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+              --armor --detach-sign --output dists/bookworm/Release.gpg dists/bookworm/Release
 
             echo "Packages index regenerated and signed"
           REMOTE
