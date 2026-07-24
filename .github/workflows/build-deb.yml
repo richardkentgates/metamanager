@@ -63,7 +63,11 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
             cd /var/www/html
 
-            # Regenerate Packages for bookworm distribution
+            # Regenerate Packages index from pool
+            dpkg-scanpackages pool/m/metamanager /dev/null > dists/bookworm/main/binary-amd64/Packages
+            gzip -k -f dists/bookworm/main/binary-amd64/Packages
+
+            # Regenerate Release for bookworm distribution
             apt-ftparchive \
               -o APT::FTPArchive::Release::Origin="metamanager" \
               -o APT::FTPArchive::Release::Label="metamanager" \
