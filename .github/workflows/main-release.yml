@@ -1,4 +1,4 @@
-name: Release
+name: Promote to Release — Tag & GitHub Release
 
 on:
   push:
@@ -55,3 +55,47 @@ jobs:
           name: "v${{ steps.version.outputs.version }}"
           files: ../metamanager_*.deb
           generate_release_notes: true
+
+      - name: Deploy to apt repo
+        if: steps.check.outputs.exists == 'false'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          APT_HOST: ${{ secrets.DEPLOY_HOST }}
+          APT_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${APT_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${APT_USER}@${APT_HOST}" \
+            "sudo mkdir -p /var/www/html/pool/m/metamanager && sudo chown -R ${APT_USER}:${APT_USER} /var/www/html/pool"
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ../metamanager_*.deb \
+            "${APT_USER}@${APT_HOST}:/var/www/html/pool/m/metamanager/"
+
+          ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
+            cd /var/www/html
+
+            dpkg-scanpackages pool/m/metamanager /dev/null > dists/bookworm/main/binary-amd64/Packages
+            gzip -k -f dists/bookworm/main/binary-amd64/Packages
+
+            apt-ftparchive \
+              -o APT::FTPArchive::Release::Origin="metamanager" \
+              -o APT::FTPArchive::Release::Label="metamanager" \
+              -o APT::FTPArchive::Release::Suite="bookworm" \
+              -o APT::FTPArchive::Release::Codename="bookworm" \
+              -o APT::FTPArchive::Release::Architectures="amd64" \
+              -o APT::FTPArchive::Release::Components="main" \
+              -o APT::FTPArchive::Release::Description="Metamanager apt repository" \
+              release dists/bookworm > dists/bookworm/Release
+
+            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+              --clearsign --output dists/bookworm/InRelease dists/bookworm/Release
+            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+              --armor --detach-sign --output dists/bookworm/Release.gpg dists/bookworm/Release
+
+            echo "Release deployed to apt repo"
+          REMOTE

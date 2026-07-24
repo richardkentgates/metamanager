@@ -1,4 +1,4 @@
-name: Build .deb and Deploy to Apt Repo
+name: Promote to Test — Build & Deploy
 
 on:
   push:

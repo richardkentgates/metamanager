@@ -11,9 +11,9 @@ override_dh_auto_build:
 # Tests require a live WordPress + MySQL stack; run them in CI, not at package build.
 override_dh_auto_test:
 
-# Exclude dev-only artifacts that live in the source tree from the staged install.
+# Exclude dev-only artifacts from the staged install.
 override_dh_install:
-	dh_install --exclude=tests --exclude=.github --exclude=vendor --exclude=docs --exclude=stubs --exclude=wiki --exclude=*.map --exclude=phpstan.neon --exclude=phpunit.xml
+	dh_install --exclude=.github --exclude=*.md --exclude=ARCHITECTURE.md --exclude=JOB_QUEUE_SPEC.md --exclude=ROADMAP*.md
 
 # We stage to /usr/local/lib/metamanager (not /usr/local/bin), so dh_usrlocal
 # has nothing to do and errors on the file layout. Skip it.

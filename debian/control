@@ -9,7 +9,6 @@ Homepage: https://github.com/richardkentgates/metamanager
 Package: metamanager
 Architecture: all
 Depends: ${misc:Depends}, jq, inotify-tools, libimage-exiftool-perl, libjpeg-turbo-progs, optipng, webp, ffmpeg
-Recommends: wp-cli
 Description: OS-level daemons for Metamanager WordPress plugin
  Metamanager provides lossless image compression (jpegtran, optipng, cwebp),
  bidirectional EXIF/IPTC/XMP metadata sync via ExifTool, and video/audio
@@ -19,5 +18,5 @@ Description: OS-level daemons for Metamanager WordPress plugin
  This package ships the compress and metadata daemons, their systemd units,
  and the installer script. The postinst runs metamanager-install.sh --no-deps,
  which auto-detects the WordPress content directory, patches the daemon
- scripts and systemd units with the detected path, enables and starts both
- daemons, and installs the plugin from GitHub if available.
+ scripts and systemd units with the detected path, and enables both daemons.
+ The WordPress plugin is installed and updated separately.

@@ -1,4 +1,4 @@
-name: Dev CI
+name: Dev CI — Lint & Version Bump
 
 on:
   push:
