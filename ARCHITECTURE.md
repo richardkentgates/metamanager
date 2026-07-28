@@ -294,12 +294,84 @@ The apt server (`apt.richardkentgates.com`) serves both daemon `.deb` packages a
 
 ---
 
+## Shell-Plugin Connection Points
+
+This section documents every interface between the bash daemons and the PHP plugin. Both repos must stay in sync at these points.
+
+### 1. Job Queue Filesystem Contract
+
+The plugin writes JSON job files; daemons read, process, and write results. Both sides agree on:
+
+| Contract point | Plugin (PHP) | Shell (bash) |
+|----------------|--------------|--------------|
+| **Job directories** | `MM_JOB_COMPRESS`, `MM_JOB_META` constants in `metamanager.php:48-49` | `JOB_DIR="${JOB_ROOT}/compress"` and `JOB_DIR="${JOB_ROOT}/meta"` in daemon scripts |
+| **Result directories** | `MM_JOB_DONE`, `MM_JOB_FAILED` constants in `metamanager.php:50-51` | `JOB_DONE="${JOB_ROOT}/completed"` and `JOB_FAILED="${JOB_ROOT}/failed"` in daemon scripts |
+| **Job file format** | `MM_Job_Queue::write_job()` builds JSON with `wp_json_encode()` | `jq -r '.file_path'`, `jq -r '.attachment_id'`, etc. to parse |
+| **Atomic claim** | PHP writes `{uuid}.json` | Daemon `mv` to `{uuid}.json.processing` |
+| **Result format** | `mm_import_completed_jobs()` reads `*.json` from completed/failed dirs | `write_result()` writes JSON with status, completed_at, details |
+| **PID files** | `MM_PID_COMPRESS`, `MM_PID_META` constants in `metamanager.php:61-62` | `PID_FILE="${JOB_ROOT}/compress-daemon.pid"` and `meta-daemon.pid` |
+
+**Cross-reference**: See `MM_Job_Queue::write_job()` in `class-mm-job-queue.php:110-168` for the PHP side, and `process_job()` in each daemon script for the bash side.
+
+### 2. Field Map (Metadata Embedding)
+
+The metadata daemon must write the same ExifTool tags that the PHP plugin defines. Both sides use identical field names.
+
+| PHP constant | JSON key | ExifTool tags (images) | ExifTool tags (MP3) | ExifTool tags (QuickTime) |
+|--------------|----------|------------------------|---------------------|---------------------------|
+| `META_CREATOR` | `Creator` | `EXIF:Artist`, `IPTC:By-line`, `XMP:Creator` | `ID3:Artist`, `XMP:Creator` | `QuickTime:Author`, `XMP:Creator` |
+| `META_COPYRIGHT` | `Copyright` | `EXIF:Copyright`, `IPTC:CopyrightNotice`, `XMP:Rights` | `ID3:Copyright`, `XMP:Rights` | `QuickTime:Copyright`, `XMP:Rights` |
+| `META_HEADLINE` | `Headline` | `IPTC:Headline`, `XMP:Headline` | `XMP:Headline` | `XMP:Headline` |
+| `META_KEYWORDS` | `Keywords` | `IPTC:Keywords+=`, `XMP:Subject+=` | `ID3:Genre+=`, `XMP:Subject+=` | `QuickTime:Keywords+=`, `XMP:Subject+=` |
+
+**Cross-reference**: See `MM_Metadata::field_map()` in `class-mm-metadata.php` for the PHP side, and the `exif_args` construction in `metamanager-meta-daemon.sh:200-350` for the bash side.
+
+### 3. Import Job Contract
+
+When the daemon reads embedded tags from a file (import job), it writes a result JSON with `embedded_tags`. The PHP side reads this in `mm_import_completed_jobs()`.
+
+| Field | PHP reads | Shell writes |
+|-------|-----------|--------------|
+| `embedded_tags` | `$job['embedded_tags']` in `metamanager.php:342` | `jq --argjson et "${embedded_json}" '. + {embedded_tags: $et}'` in meta daemon |
+| `job_type` | `$job['job_type']` in `metamanager.php:340` | `job_type=$(jq -r '.job_type // "metadata"' "${tmpfile}")` |
+| `trigger` | `$job['trigger']` in `metamanager.php:341` | Passed through from original job JSON |
+
+### 4. Compression Job Contract
+
+The compress daemon writes `bytes_before` and `bytes_after` in its result JSON. The PHP side reads this for statistics.
+
+| Field | PHP reads | Shell writes |
+|-------|-----------|--------------|
+| `bytes_before` | `MM_DB::log_job()` stores in DB | `write_result() "${tmpfile}" "completed" "${message}" "${orig_size}" "${new_size}"` |
+| `bytes_after` | `MM_DB::log_job()` stores in DB | Same as above |
+
+### 5. systemd Service Units
+
+The `.service` files reference paths that must match the plugin's constants:
+
+| systemd directive | Must match |
+|-------------------|------------|
+| `ExecStart=/usr/local/bin/metamanager-meta-daemon.sh` | Script installed by `metamanager-install.sh` |
+| `ReadWritePaths=__WP_CONTENT_DIR__/metamanager-jobs` | `MM_JOB_ROOT` constant |
+| `User=www-data` | Web server user (patched at install time) |
+
+### 6. Daemon Health Checks
+
+PHP checks daemon health by reading PID files and verifying `/proc/<pid>`:
+
+| PHP method | Reads | Shell writes |
+|------------|-------|--------------|
+| `MM_Status::daemon_running(MM_PID_META)` | `MM_JOB_ROOT . '/meta-daemon.pid'` | `echo $$ > "${PID_FILE}"` in meta daemon |
+| `MM_Status::daemon_running(MM_PID_COMPRESS)` | `MM_JOB_ROOT . '/compress-daemon.pid'` | `echo $$ > "${PID_FILE}"` in compress daemon |
+
+---
+
 ## Version Numbers
 
 | Component | Where defined | Format |
 |-----------|--------------|--------|
-| Daemon .deb | `debian/changelog` | `2.4.4-1` (Debian upstream-revision) |
-| Plugin | `metamanager.php` (`MM_VERSION`) | `2.3.2` (semver) |
+| Daemon .deb | `debian/changelog` | `2.4.7-1` (Debian upstream-revision) |
+| Plugin | `metamanager.php` (`MM_VERSION`) | `2.3.12` (semver) |
 
 Versions are bumped automatically by the CI pipeline:
 - Dev push → patch bump in version file + changelog entry

@@ -1,80 +1,65 @@
 # Branching Strategy
 
-Metamanager uses a simplified GitFlow model.
+Metamanager uses a simple three-branch promotion model.
 
 ## Branch map
 
 | Branch | Purpose | Branches from | Merges into |
 |---|---|---|---|
-| `main` | Stable, tagged releases. **Protected.** | — | — |
-| `develop` | Integration branch. Default PR target. Always deployable to staging. | `main` (one-time) | — |
-| `feature/*` | New features | `develop` | `develop` |
-| `fix/*` | Non-urgent bug fixes | `develop` | `develop` |
-| `hotfix/*` | Urgent production fixes | `main` | `main` AND `develop` |
-| `release/*` | Release prep: version bump, changelog | `develop` | `main` AND `develop` |
-| `docs/*` | Documentation-only changes | `develop` | `develop` |
-| `experiment/*` | Exploratory work — may never merge | `develop` | — |
+| `dev` | All development. CI runs lint + version bump. | — | `test` (via PR) |
+| `test` | Pre-release. Builds zip/.deb, deploys to apt server. | `dev` (via PR) | `main` (via PR) |
+| `main` | Stable, tagged releases. GitHub release + production deploy. | `test` (via PR) | — |
 
 ## Rules
 
-- `main` receives merges **only** from `release/*` and `hotfix/*`.
+- **Branch protection** on `test` and `main`: PRs required, no direct pushes, no force pushes.
+- **Promotion** = open PR, CI runs, review, merge.
+- `dev` has no protection — direct pushes are allowed.
 - Every merge into `main` gets a semver tag (`v2.x.x`).
-- `develop` is the **default branch** for contributor PRs.
-- Feature branches are deleted after merge.
-- PHPStan level 5 must pass before any PR is merged into `develop`.
+- PHPStan level 5 must pass before any PR is merged into `test`.
 
 ## Naming conventions
 
 ```
 feature/metadata-integration
-feature/schema-media-enrichment
 fix/sitemap-cache-flush
 hotfix/broken-link-crash
-release/v2.2.0
-docs/update-rest-api-reference
-experiment/gutenberg-sidebar-panel
 ```
 
 ## Typical flow: new feature
 
 ```bash
-git checkout develop
-git pull origin develop
+git checkout dev
+git pull origin dev
 git checkout -b feature/my-feature
 
 # ... work ...
 
 git push origin feature/my-feature
-# Open PR → target: develop
+# Open PR → target: dev (push directly or via PR)
+# After merge to dev, open PR: dev → test
 ```
 
 ## Typical flow: hotfix
 
 ```bash
-git checkout main
-git pull origin main
+git checkout dev
+git pull origin dev
 git checkout -b hotfix/critical-bug-description
 
 # ... fix ...
 
 git push origin hotfix/critical-bug-description
-# Open PR → target: main
-# After merge, also cherry-pick or merge into develop:
-git checkout develop
-git merge --no-ff hotfix/critical-bug-description
+# Open PR → target: dev
+# After merge to dev, open PR: dev → test → main (fast-track)
 ```
 
-## Typical flow: release
+## Typical flow: promotion
 
 ```bash
-git checkout develop
-git pull origin develop
-git checkout -b release/v2.2.0
+# After dev CI passes and work is ready for testing:
+# Open PR: dev → test (CI runs, review, merge)
 
-# Bump version in metamanager.php and CHANGELOG.md
-# Update docs if needed
-
-git push origin release/v2.2.0
-# Open PR → target: main
-# After merge: git tag v2.2.0 on main, then merge release/* back into develop
+# After testing passes and ready for release:
+# Open PR: test → main (CI runs, review, merge → tag + release created)
 ```

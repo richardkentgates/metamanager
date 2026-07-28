@@ -20,6 +20,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: ShellCheck
+        run: |
+          shellcheck -S error metamanager-install.sh
+          shellcheck -S error daemons/metamanager-compress-daemon.sh
+          shellcheck -S error daemons/metamanager-meta-daemon.sh
+
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq

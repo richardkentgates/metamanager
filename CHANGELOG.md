@@ -7,6 +7,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.3.1] – [2.3.12] — 2026-07-07 to 2026-07-28
+
+### Maintenance
+
+- **Auto-incremented patch versions** — CI pipeline auto-bumped patch versions
+  for each push to `dev` and `test`. No user-facing changes in these releases.
+
+---
+
 ## [2.3.0] — 2026-07-07
 
 ### Added
