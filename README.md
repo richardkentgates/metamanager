@@ -1,27 +1,19 @@
-# Metamanager
+# Metamanager Server
 
-**Metamanager** is a WordPress plugin for complete metadata management at both layers of the stack — the files themselves and your web presence.
+**Metamanager Server** provides the OS-level daemons, systemd services, and Debian packaging for the [Metamanager WordPress plugin](https://github.com/richardkentgates/metamanager-plugin).
 
-**Media layer** — lossless compression for images, video, and audio; bidirectional metadata sync between WordPress fields and embedded file tags (EXIF/IPTC/XMP, ID3, QuickTime atoms, Vorbis comments, and XMP); PDF metadata import and write-back; GPS coordinate import; write-back verification — all via OS-level daemons using ExifTool and ffmpeg.
-
-**Web layer** — per-post/page/term/user title and description control; Open Graph and Twitter/X card output for all content types; Schema.org JSON-LD for 20+ types (Article, LocalBusiness, Product, Event, FAQPage, Recipe, and more); XML sitemaps (pages, media, video); HTML sitemap shortcode; robots.txt management; async broken link checker; business profile with contact card block; author profiles with structured data.
+The server installs compression and metadata embedding daemons that watch a filesystem job queue and process media files using ExifTool, jpegtran, optipng, cwebp, and ffmpeg — all outside of PHP so WordPress never blocks on the hot path.
 
 [![License: GPL 2.0+](https://img.shields.io/badge/License-GPL--2.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0)
-[![WordPress](https://img.shields.io/badge/WordPress-6.2%2B-21759B?logo=wordpress&logoColor=white)](https://wordpress.org)
-[![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4?logo=php&logoColor=white)](https://php.net)
 [![Platform](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/richardkentgates/metamanager#requirements)
-[![Multisite](https://img.shields.io/badge/Multisite-compatible-brightgreen)](https://github.com/richardkentgates/metamanager#multisite)
-[![PHPStan](https://img.shields.io/badge/PHPStan-level%205-brightgreen)](https://phpstan.org)
-[![Tests](https://github.com/richardkentgates/metamanager/actions/workflows/phpunit.yml/badge.svg)](https://github.com/richardkentgates/metamanager/actions/workflows/phpunit.yml)
-[![Code Scanning](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml/badge.svg)](https://github.com/richardkentgates/metamanager/actions/workflows/codeql.yml)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
-📖 **[Full documentation → metamanager.richardkentgates.com](https://metamanager.richardkentgates.com)** · **[Wiki](https://github.com/richardkentgates/metamanager/wiki)**
+📖 **[Plugin docs → mm-plugin.richardkentgates.com](https://mm-plugin.richardkentgates.com)** · **[Server docs → metamanager.richardkentgates.com](https://metamanager.richardkentgates.com)**
 
 ---
 
-## Why Metamanager
+## Quick Install
 
 WordPress's built-in metadata handling is limited at both layers.
 
@@ -106,27 +98,26 @@ PHP's role throughout is coordinator only: write the instruction, let the daemon
 
 ---
 
-## Quick Install (one command)
+## Quick Install
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash
+# Import the GPG key
+wget -q -O /tmp/metamanager.key http://apt.richardkentgates.com/key.gpg
+sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/metamanager.gpg /tmp/metamanager.key
+
+# Add the apt repository
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] http://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+
+# Install
+sudo apt update && sudo apt install metamanager
 ```
 
-If WordPress is not in a standard location:
+This installs:
+- Compression and metadata daemons
+- Systemd services (auto-enabled)
+- All OS dependencies (ExifTool, jpegtran, optipng, cwebp, ffmpeg, jq, inotify-tools)
 
-```bash
-sudo bash metamanager-install.sh --wp-path /path/to/your/wordpress
-```
-
-The install script:
-1. Detects your WordPress path
-2. Installs all system dependencies via `apt`/`dnf`
-3. Copies the plugin into `wp-content/plugins/metamanager/`
-4. Patches daemon scripts with your actual `WP_CONTENT_DIR`
-5. Installs, enables, and starts both systemd daemons
-6. Activates the plugin via WP-CLI if available
-
-> **Note:** `cwebp` (`webp` package) and `ffmpeg` are installed automatically by the installer when available. If your distribution does not include them in the default repositories, install them manually before running the installer.
+After installing, install the [WordPress plugin](https://github.com/richardkentgates/metamanager-plugin) and activate it.
 
 ---
 

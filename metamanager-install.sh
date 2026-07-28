@@ -2,22 +2,20 @@
 # =============================================================================
 # Metamanager — Server Installation Script
 #
-# Installs daemons, systemd units, and job queue directories.
-# The WordPress plugin is managed separately via the apt server.
+# Installs OS-level daemons, systemd services, and job queue directories.
+# The WordPress plugin is installed separately from its own repository.
 #
 # Usage:
-#   wget -qO- http://apt.richardkentgates.com/metamanager-install.sh | sudo bash
-# OR:
 #   sudo bash metamanager-install.sh [--wp-path /path/to/wordpress] [--no-deps]
 #
 # What this script does:
 #   1. Detects or accepts the WordPress installation path
-#   2. Installs system dependencies (jpegtran, optipng, exiftool, inotify-tools, jq)
-#   3. Patches the daemon scripts with the correct WP_CONTENT_DIR path
+#   2. Installs system dependencies (jq, inotify-tools, exiftool, jpegtran, optipng, cwebp, ffmpeg)
+#   3. Patches daemon scripts with the correct WP_CONTENT_DIR path
 #   4. Copies daemon scripts to /usr/local/bin/ and makes them executable
 #   5. Patches and installs systemd service files
-#   6. Enables and starts both daemons
-#   7. Creates job queue directories
+#   6. Creates job queue directories
+#   7. Enables and starts both daemons
 #
 # Requires: systemd, bash 5+, apt or dnf (for dependency install)
 # =============================================================================
@@ -175,15 +173,21 @@ install_deps() {
     fi
 }
 
+# =============================================================================
+# Pre-flight dependency checks
+# =============================================================================
+
 preflight_checks() {
     info "Running pre-flight checks..."
 
     if [[ "$(uname -s)" != "Linux" ]]; then
         error "Metamanager requires Linux. Detected: $(uname -s)"
+        exit 1
     fi
 
     if ! command -v systemctl &>/dev/null; then
         error "systemd is required for daemon management. Not found on this system."
+        exit 1
     fi
 
     if ! command -v apt-get &>/dev/null && ! command -v dnf &>/dev/null && ! command -v yum &>/dev/null; then
@@ -210,61 +214,34 @@ preflight_checks() {
     info "Pre-flight checks complete."
 }
 
+# =============================================================================
+# Post-install dependency verification
+# =============================================================================
+
 verify_deps() {
     info "Verifying all dependencies are installed..."
 
     local critical_tools=("jq" "inotifywait" "exiftool" "jpegtran" "optipng")
     local optional_tools=("cwebp" "ffmpeg")
-    local missing_critical=()
-    local missing_optional=()
 
-    for tool in "${critical_tools[@]}"; do
+    for tool in "${critical_tools[@]}" "${optional_tools[@]}"; do
         if command -v "${tool}" &>/dev/null; then
             success "${tool}: $(command -v "${tool}")"
         else
-            missing_critical+=("${tool}")
+            if [[ " ${critical_tools[*]} " == *" ${tool} "* ]]; then
+                error "${tool} not found after install attempt."
+            else
+                warn "${tool} not available — some features limited."
+            fi
         fi
     done
 
-    for tool in "${optional_tools[@]}"; do
-        if command -v "${tool}" &>/dev/null; then
-            success "${tool}: $(command -v "${tool}")"
-        else
-            missing_optional+=("${tool}")
-        fi
-    done
-
-    local all_missing=("${missing_critical[@]}" "${missing_optional[@]}")
-    if [[ ${#all_missing[@]} -gt 0 ]]; then
-        warn "Missing tools detected: ${all_missing[*]}"
-        info "Attempting automatic installation..."
-        install_missing_tools "${all_missing[@]}"
-    fi
-
-    local failed=()
-    for tool in "${critical_tools[@]}"; do
-        if command -v "${tool}" &>/dev/null; then
-            success "${tool}: $(command -v "${tool}")"
-        else
-            failed+=("${tool}")
-        fi
-    done
-
-    for tool in "${optional_tools[@]}"; do
-        if command -v "${tool}" &>/dev/null; then
-            success "${tool}: $(command -v "${tool}")"
-        else
-            warn "${tool} not available — some features limited (WebP, video remux)."
-        fi
-    done
-
-    if [[ ${#failed[@]} -gt 0 ]]; then
-        error "Could not install critical dependencies: ${failed[*]}"
-        error "Install them manually and re-run this script."
-    fi
-
-    info "All critical dependencies verified."
+    info "Dependency verification complete."
 }
+
+# =============================================================================
+# Install missing tools by name
+# =============================================================================
 
 install_missing_tools() {
     local tools=("$@")
@@ -274,13 +251,13 @@ install_missing_tools() {
 
     for tool in "${tools[@]}"; do
         case "${tool}" in
-            jq)         apt_pkgs+=("jq");              dnf_pkgs+=("jq");              yum_pkgs+=("jq") ;;
+            jq)          apt_pkgs+=("jq");             dnf_pkgs+=("jq");             yum_pkgs+=("jq") ;;
             inotifywait) apt_pkgs+=("inotify-tools");   dnf_pkgs+=("inotify-tools");   yum_pkgs+=("inotify-tools") ;;
-            exiftool)   apt_pkgs+=("libimage-exiftool-perl"); dnf_pkgs+=("perl-Image-ExifTool"); yum_pkgs+=("perl-Image-ExifTool") ;;
-            jpegtran)   apt_pkgs+=("libjpeg-turbo-progs");    dnf_pkgs+=("libjpeg-turbo-utils"); yum_pkgs+=("libjpeg-turbo-utils") ;;
-            optipng)    apt_pkgs+=("optipng");          dnf_pkgs+=("optipng");          yum_pkgs+=("optipng") ;;
-            cwebp)      apt_pkgs+=("webp");             dnf_pkgs+=("libwebp-tools");    yum_pkgs+=("libwebp-tools") ;;
-            ffmpeg)     apt_pkgs+=("ffmpeg");            dnf_pkgs+=("ffmpeg");            yum_pkgs+=("ffmpeg") ;;
+            exiftool)    apt_pkgs+=("libimage-exiftool-perl"); dnf_pkgs+=("perl-Image-ExifTool"); yum_pkgs+=("perl-Image-ExifTool") ;;
+            jpegtran)    apt_pkgs+=("libjpeg-turbo-progs"); dnf_pkgs+=("libjpeg-turbo-utils"); yum_pkgs+=("libjpeg-turbo-utils") ;;
+            optipng)     apt_pkgs+=("optipng");         dnf_pkgs+=("optipng");         yum_pkgs+=("optipng") ;;
+            cwebp)       apt_pkgs+=("webp");            dnf_pkgs+=("libwebp-tools");   yum_pkgs+=("libwebp-tools") ;;
+            ffmpeg)      apt_pkgs+=("ffmpeg");          dnf_pkgs+=("ffmpeg");          yum_pkgs+=("ffmpeg") ;;
         esac
     done
 
@@ -291,16 +268,11 @@ install_missing_tools() {
     elif command -v dnf &>/dev/null && [[ ${#dnf_pkgs[@]} -gt 0 ]]; then
         info "Installing via dnf: ${dnf_pkgs[*]}"
         dnf install -y epel-release 2>/dev/null || true
-        dnf config-manager --set-enabled crb 2>/dev/null || dnf config-manager --set-enabled powertools 2>/dev/null || true
-        _el_ver=$(rpm -E '%{rhel}' 2>/dev/null || echo '9')
-        dnf install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${_el_ver}.noarch.rpm" 2>/dev/null || true
+        dnf config-manager --set-enabled crb 2>/dev/null || true
         dnf install -y "${dnf_pkgs[@]}" || true
     elif command -v yum &>/dev/null && [[ ${#yum_pkgs[@]} -gt 0 ]]; then
         info "Installing via yum: ${yum_pkgs[*]}"
         yum install -y epel-release 2>/dev/null || true
-        yum-config-manager --enable epel 2>/dev/null || true
-        _el_ver=$(rpm -E '%{rhel}' 2>/dev/null || echo '8')
-        yum install -y "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${_el_ver}.noarch.rpm" 2>/dev/null || true
         yum install -y "${yum_pkgs[@]}" || true
     fi
 }
@@ -310,6 +282,23 @@ if [[ "${NO_DEPS}" == false ]]; then
     install_deps
     verify_deps
 fi
+
+# =============================================================================
+# Create job queue directories
+# =============================================================================
+
+mkdir -p "${WP_CONTENT_DIR}/metamanager-jobs"
+chown "${WP_OWNER}:${WP_OWNER}" "${WP_CONTENT_DIR}/metamanager-jobs"
+chmod 750 "${WP_CONTENT_DIR}/metamanager-jobs"
+
+for subdir in compress meta completed failed; do
+    dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
+    mkdir -p "${dir}"
+    chown "${WP_OWNER}:${WP_OWNER}" "${dir}"
+    chmod 750 "${dir}"
+    echo "Deny from all" > "${dir}/.htaccess"
+done
+success "Job queue directories created."
 
 # =============================================================================
 # Patch and install daemon scripts
@@ -384,13 +373,15 @@ echo -e "${GREEN}  Metamanager server installation complete!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
 echo "  WordPress path:  ${WP_PATH}"
+echo "  Job queue:       ${WP_CONTENT_DIR}/metamanager-jobs/"
 echo ""
 echo "  Compress daemon: $(systemctl is-active metamanager-compress-daemon.service 2>/dev/null || echo 'check manually')"
 echo "  Metadata daemon: $(systemctl is-active metamanager-meta-daemon.service 2>/dev/null || echo 'check manually')"
 echo ""
+echo "  Install the WordPress plugin separately:"
+echo "    https://github.com/richardkentgates/metamanager-plugin"
+echo ""
 echo "  View logs:"
 echo "    journalctl -u metamanager-compress-daemon -f"
 echo "    journalctl -u metamanager-meta-daemon -f"
-echo ""
-echo "  Install the plugin separately via the apt server."
 echo ""
