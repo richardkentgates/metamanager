@@ -19,7 +19,9 @@ case "$1" in
     purge)
         rm -rf /usr/local/lib/metamanager
         rm -f /var/log/metamanager-compress.log /var/log/metamanager-meta.log
+        rm -f /var/log/metamanager-update.log
         rm -f /etc/apt/apt.conf.d/apt-metamanager.conf
+        rm -f /etc/sudoers.d/sudoers-metamanager
         ;;
 esac
 
