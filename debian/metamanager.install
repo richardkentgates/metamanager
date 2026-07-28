@@ -1,3 +1,5 @@
 metamanager-install.sh usr/local/lib/metamanager
 daemons                usr/local/lib/metamanager
+VERSION                usr/local/lib/metamanager
+sudoers-metamanager    etc/sudoers.d
 apt-metamanager.conf   etc/apt/apt.conf.d

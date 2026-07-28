@@ -19,6 +19,14 @@ case "$1" in
                 exit 0
             }
         fi
+        # Ensure VERSION is readable by the web server for version checks.
+        if [ -f "$MM_LIB/VERSION" ]; then
+            chmod 0644 "$MM_LIB/VERSION"
+        fi
+        # Install sudoers rule for daemon self-updates.
+        if [ -f /etc/sudoers.d/sudoers-metamanager ]; then
+            chmod 0440 /etc/sudoers.d/sudoers-metamanager
+        fi
         ;;
 esac
 
