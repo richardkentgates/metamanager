@@ -298,8 +298,8 @@ The apt server (`apt.richardkentgates.com`) serves both daemon `.deb` packages a
 
 | Component | Where defined | Format |
 |-----------|--------------|--------|
-| Daemon .deb | `debian/changelog` | `2.4.4-1` (Debian upstream-revision) |
-| Plugin | `metamanager.php` (`MM_VERSION`) | `2.3.2` (semver) |
+| Daemon .deb | `debian/changelog` | `X.Y.Z-N` (Debian upstream-revision, auto-bumped by CI) |
+| Plugin | `metamanager.php` (`MM_VERSION`) | `X.Y.Z` (semver, auto-bumped by CI) |
 
 Versions are bumped automatically by the CI pipeline:
 - Dev push → patch bump in version file + changelog entry

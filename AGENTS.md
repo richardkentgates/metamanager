@@ -19,7 +19,17 @@ The plugin triggers daemon updates automatically. The server repo provides:
 - **`sudoers-metamanager`** — installed to `/etc/sudoers.d/`, grants www-data passwordless sudo for specific apt/systemctl commands
 - **`debian/postinst`** — sets VERSION to 0644 and sudoers to 0440 during package install
 
-The CI workflow (`ci.yml`) bumps both `debian/changelog` and `VERSION` on every push to dev.
+## VERSION File
+
+The `VERSION` file is the single source of truth for the installed daemon version. The plugin reads it via `MM_Daemon_Updater::get_daemon_version()` to compare against `daemon-compatibility.json`.
+
+**Format**: Plain semver string, e.g. `2.4.10` (no Debian revision suffix).
+
+**Installation**: The `.deb` package installs it to `/usr/local/lib/metamanager/VERSION` via `debian/metamanager.install`. The `postinst` script sets permissions to `0644` so www-data can read it.
+
+**Sync with debian/changelog**: The CI workflow (`ci.yml`) auto-bumps both `debian/changelog` and `VERSION` on every push to dev. They must stay in sync — the patch version in `debian/changelog` (e.g. `2.4.10-1`) must match the `VERSION` file (e.g. `2.4.10`). CI handles this automatically; never edit either file manually.
+
+**Format difference**: `debian/changelog` uses Debian epoch format `2.4.10-1` (upstream-revision). The `VERSION` file uses plain semver `2.4.10` (no `-1` suffix). The CI strips the `-1` when writing `VERSION`.
 
 ## Repos
 
@@ -33,4 +43,5 @@ The CI workflow (`ci.yml`) bumps both `debian/changelog` and `VERSION` on every 
 - Branch protection on `test` and `main`: PRs required, no direct pushes
 - Promotion = open PR from `dev` → `test` or `test` → `main`, CI runs, merge
 - VERSION file must stay in sync with debian/changelog (CI handles this automatically)
+- CI auto-bumps both `debian/changelog` and `VERSION` on every dev push — do not manually edit either
 - PHP 8.2 for WP-CLI (`php8.2 /usr/local/bin/wp --path=/srv/www/wordpress`)
