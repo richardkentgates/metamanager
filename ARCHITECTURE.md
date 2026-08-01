@@ -258,10 +258,34 @@ dev  ──push──►  test (build .deb + deploy to apt)  ──promote──
 
 ### Deployment
 
-- `.deb` packages are served from `http://apt.richardkentgates.com/pool/m/metamanager/`
-- APT repository metadata at `http://apt.richardkentgates.com/dists/bookworm/`
+- `.deb` packages are served from `https://apt.richardkentgates.com/pool/m/metamanager/`
+- APT repository metadata at `https://apt.richardkentgates.com/dists/bookworm/`
 - Production installs via: `apt-get install metamanager`
 - Production updates via: `apt-get upgrade metamanager`
+
+### Test vs Release Packages
+
+| Channel | Version format | Example | Source |
+|---------|---------------|---------|--------|
+| **Release** | `X.Y.Z` | `2.4.11` | `main` branch (tagged releases) |
+| **Test** | `X.Y.Z~testEPOCH` | `2.4.11~test1722500000` | `test` branch (pre-release builds) |
+
+Debian version ordering: `2.4.11~test...` < `2.4.11`, so `apt upgrade` always prefers release over test.
+
+```bash
+# Install latest stable
+sudo apt update && sudo apt install metamanager
+
+# See all available versions
+apt-cache policy metamanager
+
+# Install a specific test build
+sudo apt install metamanager=2.4.11~test1722500000
+
+# Return to stable
+sudo apt-mark unhold metamanager
+sudo apt update && sudo apt install metamanager
+```
 
 ---
 
@@ -290,7 +314,24 @@ The apt server (`apt.richardkentgates.com`) serves both daemon `.deb` packages a
 
 - GPG key fingerprint: `E0395903AE72DD661AD11DF76C0D53C3F9B96454`
 - Public key installed on production: `/usr/share/keyrings/metamanager.gpg`
-- APT source: `deb [signed-by=/usr/share/keyrings/metamanager.gpg] http://apt.richardkentgates.com bookworm main`
+- APT source: `deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main`
+
+### User Installation
+
+```bash
+# Import signing key
+curl -fsSL https://apt.richardkentgates.com/metamanager.asc | sudo gpg --dearmor -o /usr/share/keyrings/metamanager.gpg
+
+# Add repository
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+
+# Install
+sudo apt update && sudo apt install metamanager
+
+# Verify
+systemctl status metamanager-compress-daemon
+systemctl status metamanager-meta-daemon
+```
 
 ---
 
