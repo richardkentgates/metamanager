@@ -1,0 +1,158 @@
+name: Promote to Main
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    name: Merge, Tag, Release & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: test
+          fetch-depth: 0
+
+      - name: Find or create promotion PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          existing=$(gh pr list --repo "$REPO" --head test --base main --state open --json number --jq '.[0].number')
+          if [[ -n "$existing" && "$existing" != "null" ]]; then
+            echo "number=$existing" >> "$GITHUB_OUTPUT"
+            echo "Using existing PR #$existing"
+          else
+            pr_url=$(gh pr create \
+              --repo "$REPO" \
+              --head test \
+              --base main \
+              --title "Promote test to main" \
+              --body "Automated promotion from \`test\` to \`main\`.")
+            number=$(echo "$pr_url" | sed 's/.*\/pull\/\([0-9]*\)$/\1/')
+            echo "number=$number" >> "$GITHUB_OUTPUT"
+            echo "Created PR #$number"
+          fi
+
+      - name: Merge promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --merge
+          echo "PR #$PR_NUMBER merged."
+
+      - name: Wait for merge to land
+        run: sleep 5
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build .deb
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq debhelper dpkg-dev build-essential
+          dpkg-buildpackage -us -uc -b
+          ls -lh ../metamanager_*.deb
+
+      - name: Create tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.version.outputs.version }}"
+          name: "v${{ steps.version.outputs.version }}"
+          files: ../metamanager_*.deb
+          generate_release_notes: true
+
+      - name: Deploy to apt repo
+        if: steps.check.outputs.exists == 'false'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          APT_HOST: ${{ secrets.DEPLOY_HOST }}
+          APT_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${APT_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${APT_USER}@${APT_HOST}" \
+            "sudo mkdir -p /var/www/html/pool/m/metamanager && sudo chown -R ${APT_USER}:${APT_USER} /var/www/html/pool"
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ../metamanager_*.deb \
+            "${APT_USER}@${APT_HOST}:/var/www/html/pool/m/metamanager/"
+
+          ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
+            cd /var/www/html
+
+            dpkg-scanpackages pool/m/metamanager /dev/null > dists/bookworm/main/binary-amd64/Packages
+            gzip -k -f dists/bookworm/main/binary-amd64/Packages
+
+            apt-ftparchive \
+              -o APT::FTPArchive::Release::Origin="metamanager" \
+              -o APT::FTPArchive::Release::Label="metamanager" \
+              -o APT::FTPArchive::Release::Suite="bookworm" \
+              -o APT::FTPArchive::Release::Codename="bookworm" \
+              -o APT::FTPArchive::Release::Architectures="amd64" \
+              -o APT::FTPArchive::Release::Components="main" \
+              -o APT::FTPArchive::Release::Description="Metamanager apt repository" \
+              release dists/bookworm > dists/bookworm/Release
+
+            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+              --clearsign --output dists/bookworm/InRelease dists/bookworm/Release
+            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+              --armor --detach-sign --output dists/bookworm/Release.gpg dists/bookworm/Release
+
+            echo "Release deployed to apt repo"
+          REMOTE
+
+      - name: Summary
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════"
+          echo "  Release v${{ steps.version.outputs.version }} complete"
+          echo "═══════════════════════════════════════════════════════════════"
+          echo ""
+          echo "  ✓ Tagged v${{ steps.version.outputs.version }}"
+          echo "  ✓ GitHub release created with .deb"
+          echo "  ✓ .deb deployed to apt repo"
+          echo ""
+          echo "  Production updates via: apt-get upgrade metamanager"
+          echo ""
