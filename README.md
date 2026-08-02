@@ -4,7 +4,7 @@
 
 The server installs compression and metadata embedding daemons that watch a filesystem job queue and process media files using ExifTool, jpegtran, optipng, cwebp, and ffmpeg — all outside of PHP so WordPress never blocks on the hot path.
 
-[![License: GPL 2.0+](https://img.shields.io/badge/License-GPL--2.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0)
+[![License: GPL 3.0+](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/richardkentgates/metamanager#requirements)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/richardkentgates)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
@@ -128,19 +128,7 @@ Metamanager integrates with the native WordPress update system. When a new GitHu
 
 A **Check for Updates** action link on **Plugins → Installed Plugins** forces an immediate check without waiting.
 
-**Via server script (plugin files only — daemons untouched):**
-
-```bash
-sudo bash /path/to/wordpress/wp-content/plugins/metamanager/metamanager-install.sh --update
-```
-
-Or via wget:
-
-```bash
-wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash -s -- --update
-```
-
-The `--update` flag skips dependency installation, daemon patching, and systemd service management. It only syncs plugin PHP, JS, and asset files, fixes permissions, and flushes the WordPress object cache. Both forms always fetch the latest code from GitHub — when run directly from the installed plugin directory the script detects this automatically.
+The daemon updates automatically via apt whenever the plugin triggers an update — no manual server intervention is needed.
 
 ---
 

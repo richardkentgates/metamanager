@@ -4,16 +4,16 @@
 
 ## Type
 
-- [ ] Feature (`feature/*` → `develop`)
-- [ ] Bug fix (`fix/*` → `develop`)
+- [ ] Feature (`feature/*` → `dev`)
+- [ ] Bug fix (`fix/*` → `dev`)
 - [ ] Hotfix (`hotfix/*` → `main`)
 - [ ] Release prep (`release/*` → `main`)
-- [ ] Documentation (`docs/*` → `develop`)
+- [ ] Documentation (`docs/*` → `dev`)
 
 ## Checklist
 
-- [ ] Targets `develop` (or `main` for hotfixes — see `.github/BRANCHING.md`)
-- [ ] PHPStan level 5 passes: `vendor/bin/phpstan analyse includes/ metamanager.php --level=5`
+- [ ] Targets `dev` (or `main` for hotfixes — see `.github/BRANCHING.md`)
+- [ ] ShellCheck passes: `shellcheck -S error daemons/*.sh metamanager-install.sh`
 - [ ] Follows WordPress coding standards (tabs, spaces around operators)
 - [ ] CHANGELOG.md updated (add entry under the appropriate unreleased version)
 - [ ] Self-reviewed — no debug output, no commented-out code, no TODO comments left in

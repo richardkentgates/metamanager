@@ -11,27 +11,14 @@ This is a WordPress plugin with bash daemons — no Composer dependencies.
 
 ### Local Testing
 
-Download PHPUnit and PHPStan as PHARs:
-
+Run ShellCheck on all daemon scripts:
 ```bash
-# PHPUnit
-curl -L https://phar.phpunit.de/phpunit-9.6.0.phar -o /usr/local/bin/phpunit
-chmod +x /usr/local/bin/phpunit
-
-# PHPStan
-curl -L https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar -o /usr/local/bin/phpstan
-chmod +x /usr/local/bin/phpstan
+shellcheck -S error daemons/*.sh metamanager-install.sh
 ```
 
-Run WordPress tests:
+Build the Debian package to verify packaging:
 ```bash
-bash tests/bin/install-wp-tests.sh wordpress_test root root 127.0.0.1 latest false
-phpunit --configuration tests/phpunit.xml
-```
-
-Run static analysis:
-```bash
-phpstan analyse --configuration phpstan.neon
+dpkg-buildpackage -us -uc -b
 ```
 
 ## Pull Requests
