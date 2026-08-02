@@ -5,7 +5,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   promote:
@@ -15,48 +14,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: test
-          fetch-depth: 0
-
-      - name: Find or create promotion PR
-        id: pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          existing=$(gh pr list --repo "$REPO" --head test --base main --state open --json number --jq '.[0].number')
-          if [[ -n "$existing" && "$existing" != "null" ]]; then
-            echo "number=$existing" >> "$GITHUB_OUTPUT"
-            echo "Using existing PR #$existing"
-          else
-            pr_url=$(gh pr create \
-              --repo "$REPO" \
-              --head test \
-              --base main \
-              --title "Promote test to main" \
-              --body "Automated promotion from \`test\` to \`main\`.")
-            number=$(echo "$pr_url" | sed 's/.*\/pull\/\([0-9]*\)$/\1/')
-            echo "number=$number" >> "$GITHUB_OUTPUT"
-            echo "Created PR #$number"
-          fi
-
-      - name: Merge promotion PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          gh pr merge "$PR_NUMBER" --repo "$REPO" --merge
-          echo "PR #$PR_NUMBER merged."
-
-      - name: Wait for merge to land
-        run: sleep 5
-
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
           ref: main
           fetch-depth: 0
+
+      - name: Merge test into main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git merge origin/test --no-edit
+
+      - name: Push main
+        run: git push origin main
 
       - name: Get version
         id: version
@@ -84,8 +52,6 @@ jobs:
       - name: Create tag
         if: steps.check.outputs.exists == 'false'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
           git push origin "v${{ steps.version.outputs.version }}"
 
@@ -150,6 +116,7 @@ jobs:
           echo "  Release v${{ steps.version.outputs.version }} complete"
           echo "═══════════════════════════════════════════════════════════════"
           echo ""
+          echo "  ✓ Merged test → main"
           echo "  ✓ Tagged v${{ steps.version.outputs.version }}"
           echo "  ✓ GitHub release created with .deb"
           echo "  ✓ .deb deployed to apt repo"
