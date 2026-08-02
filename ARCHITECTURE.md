@@ -40,7 +40,7 @@ metamanager/
 │   └── apt-metamanager.conf  APT timeout config (installed to /etc/apt/apt.conf.d/)
 │
 ├── apt-metamanager.conf      Source file for the apt config
-├── VERSION                   Current version (e.g. 2.4.4)
+├── VERSION                   Current version (e.g. 2.4.15)
 ├── CHANGELOG.md              Release notes
 ├── ARCHITECTURE.md           This file
 │
@@ -267,10 +267,10 @@ dev  ──push──►  test (build .deb + deploy to apt)  ──promote──
 
 | Channel | Version format | Example | Source |
 |---------|---------------|---------|--------|
-| **Release** | `X.Y.Z` | `2.4.11` | `main` branch (tagged releases) |
-| **Test** | `X.Y.Z~testEPOCH` | `2.4.11~test1722500000` | `test` branch (pre-release builds) |
+| **Release** | `X.Y.Z` | `2.4.15` | `main` branch (tagged releases) |
+| **Test** | `X.Y.Z~testEPOCH` | `2.4.15~test1722500000` | `test` branch (pre-release builds) |
 
-Debian version ordering: `2.4.11~test...` < `2.4.11`, so `apt upgrade` always prefers release over test.
+Debian version ordering: `2.4.15~test...` < `2.4.15`, so `apt upgrade` always prefers release over test.
 
 ```bash
 # Install latest stable
@@ -280,7 +280,7 @@ sudo apt update && sudo apt install metamanager
 apt-cache policy metamanager
 
 # Install a specific test build
-sudo apt install metamanager=2.4.11~test1722500000
+sudo apt install metamanager=2.4.15~test1722500000
 
 # Return to stable
 sudo apt-mark unhold metamanager
