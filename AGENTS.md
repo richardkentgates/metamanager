@@ -1,5 +1,25 @@
 # AGENTS.md — Metamanager Server
 
+## MANDATORY WORKFLOW — ZERO EXCEPTIONS
+
+**You are FORBIDDEN from doing ANY of the following:**
+- Checking out `test` or `main` locally
+- Running `git checkout test`, `git checkout main`, or `git switch test/main`
+- Running `git merge`, `git rebase`, `git push`, or `git reset` on `test` or `main`
+- Running `git branch -d`, `git branch -D`, `git push --delete` on `test` or `main`
+- Creating files, editing files, or running any `git` command while on `test` or `main`
+- Running `gh pr merge` to resolve conflicts (close the PR instead)
+
+**You MUST follow this exact process for ALL changes:**
+
+1. **ALL work happens on `dev`**: `git checkout dev`, make changes, commit, push to dev
+2. **Promote via PRs only**: `gh pr create --head dev --base test`, then `gh pr merge --admin`
+3. **Then promote test→main**: `gh pr create --head test --base main`, then `gh pr merge --admin`
+4. **If a PR has conflicts**: CLOSE IT (`gh pr close`), do NOT try to resolve them by checking out test/main
+5. **If you need to update test with main's changes**: Create a new empty commit on dev that triggers CI, or ask the user to resolve
+
+**The ONLY branch you are allowed to checkout, edit, commit, or push is `dev`.**
+
 ## Deployment Rules
 
 **NEVER SCP or copy files directly to production servers unless explicitly testing a fix.**
