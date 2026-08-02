@@ -1,24 +1,30 @@
-name: Promote to Test — Build & Deploy
+name: Promote to Test
 
 on:
-  push:
-    branches: ["test"]
+  workflow_dispatch:
 
 permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  build:
+  promote:
+    name: Merge, Build & Deploy to Apt
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: test
+          fetch-depth: 0
+
+      - name: Merge dev into test
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git merge origin/dev --no-edit
+
+      - name: Push test
+        run: git push origin test
 
       - name: Install build dependencies
         run: |
@@ -29,7 +35,6 @@ jobs:
         id: version
         run: |
           VERSION=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
-          VERSION="${VERSION}~test$(date +%s)"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Build .deb
@@ -43,31 +48,25 @@ jobs:
           APT_HOST: ${{ secrets.DEPLOY_HOST }}
           APT_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          # Setup SSH
           mkdir -p ~/.ssh
           echo "${SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${APT_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
 
-          # Ensure pool directory exists
           ssh -i ~/.ssh/deploy_key \
             "${APT_USER}@${APT_HOST}" \
             "sudo mkdir -p /var/www/html/pool/m/metamanager && sudo chown -R ${APT_USER}:${APT_USER} /var/www/html/pool"
 
-          # Upload .deb
           scp -i ~/.ssh/deploy_key \
             ../metamanager_*.deb \
             "${APT_USER}@${APT_HOST}:/var/www/html/pool/m/metamanager/"
 
-          # Regenerate Packages index and sign Release files
           ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
             cd /var/www/html
 
-            # Regenerate Packages index from pool
             dpkg-scanpackages pool/m/metamanager /dev/null > dists/bookworm/main/binary-amd64/Packages
             gzip -k -f dists/bookworm/main/binary-amd64/Packages
 
-            # Regenerate Release for bookworm distribution
             apt-ftparchive \
               -o APT::FTPArchive::Release::Origin="metamanager" \
               -o APT::FTPArchive::Release::Label="metamanager" \
@@ -78,14 +77,21 @@ jobs:
               -o APT::FTPArchive::Release::Description="Metamanager apt repository" \
               release dists/bookworm > dists/bookworm/Release
 
-            # Sign Release files
             gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
               --clearsign --output dists/bookworm/InRelease dists/bookworm/Release
             gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
               --armor --detach-sign --output dists/bookworm/Release.gpg dists/bookworm/Release
 
-            echo "Packages index regenerated and signed"
+            echo "Test .deb deployed to apt repo"
           REMOTE
 
-          echo "Deployed .deb to apt repo"
-          echo "Version: ${{ steps.version.outputs.version }}"
+      - name: Summary
+        run: |
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════"
+          echo "  Test promotion v${{ steps.version.outputs.version }} complete"
+          echo "═══════════════════════════════════════════════════════════════"
+          echo ""
+          echo "  ✓ Merged dev → test"
+          echo "  ✓ .deb deployed to apt repo (test)"
+          echo ""
