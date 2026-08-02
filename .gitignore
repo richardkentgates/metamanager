@@ -47,3 +47,4 @@ service-account*.json
 *.deb
 *.buildinfo
 *.changes
+debian/files
