@@ -253,7 +253,7 @@ dev  ──push──►  test (build .deb + deploy to apt)  ──promote──
 | Stage | Trigger | What happens |
 |-------|---------|--------------|
 | **Dev CI** | Push to `dev` | ShellCheck lint + auto-bump patch version |
-| **Promote to Test** | Merge to `test` | Build .deb + deploy to apt repo (`http://apt.richardkentgates.com`) |
+| **Promote to Test** | Merge to `test` | Build .deb + deploy to apt repo (`https://apt.richardkentgates.com`) |
 | **Promote to Release** | Merge to `main` | Tag + GitHub release + deploy to apt repo |
 
 ### Deployment

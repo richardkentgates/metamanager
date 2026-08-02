@@ -104,11 +104,11 @@ PHP's role throughout is coordinator only: write the instruction, let the daemon
 
 ```bash
 # Import the GPG key
-wget -q -O /tmp/metamanager.key http://apt.richardkentgates.com/key.gpg
+wget -q -O /tmp/metamanager.key https://apt.richardkentgates.com/key.gpg
 sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/metamanager.gpg /tmp/metamanager.key
 
 # Add the apt repository
-echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] http://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list
 
 # Install
 sudo apt update && sudo apt install metamanager
