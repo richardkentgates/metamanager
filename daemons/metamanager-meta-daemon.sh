@@ -21,6 +21,9 @@
 
 set -euo pipefail
 
+# --- Configuration ---
+readonly TOOL_TIMEOUT=120  # Seconds before an external tool is killed.
+
 # --- Require bash 5+ ---
 if (( BASH_VERSINFO[0] < 5 )); then
     echo "ERROR: bash 5.0 or higher is required (found ${BASH_VERSION})." >&2
@@ -74,10 +77,26 @@ process_job() {
     mv "${jobfile}" "${tmpfile}" 2>/dev/null || return 0
 
     local file_path attachment_id size metadata_json
-    file_path=$(jq -r '.file_path'   "${tmpfile}")
-    attachment_id=$(jq -r '.attachment_id' "${tmpfile}")
-    size=$(jq -r '.size'             "${tmpfile}")
-    metadata_json=$(jq -c '.metadata // {}' "${tmpfile}")
+    file_path=$(jq -r '.file_path // empty'   "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
+    attachment_id=$(jq -r '.attachment_id // empty' "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
+    size=$(jq -r '.size // empty'             "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
+    metadata_json=$(jq -c '.metadata // {}'  "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
 
     if [[ ! -f "${file_path}" ]]; then
         log "ERROR: file not found: ${file_path}"
@@ -317,7 +336,7 @@ process_job() {
         # -charset iptc=UTF8 : only relevant for image formats (IPTC namespace)
         local -a et_base=( "${EXIFTOOL}" -overwrite_original )
         [[ "${file_cat}" == "image" ]] && et_base+=( -charset iptc=UTF8 )
-        if "${et_base[@]}" "${exif_args[@]}" "${file_path}" >>"${LOG_FILE}" 2>&1; then
+        if timeout "${TOOL_TIMEOUT}" "${et_base[@]}" "${exif_args[@]}" "${file_path}" >>"${LOG_FILE}" 2>&1; then
             message="Embedded ${#exif_args[@]} tag(s) in ${file_path}"
             log "OK: ${message} (size: ${size}, id: ${attachment_id})"
             success=true
@@ -394,7 +413,7 @@ while (( _pass < _max_passes )); do
         done
         process_job "${jobfile}" &
     done
-    wait
+    wait || true
     # Brief pause between passes so lock-contention with other daemons can clear.
     sleep 2
 done
