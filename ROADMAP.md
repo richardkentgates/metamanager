@@ -101,9 +101,9 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 
 ### Priority 1 — Daemon Crashes (S-1, S-2, S-3)
 
-- [ ] Fix background job failure crash (`wait` → `wait || true`)
-- [ ] Fix malformed JSON crash (wrap `jq` calls in error handling)
-- [ ] Add timeouts to all external tool invocations (`timeout` command)
+- [x] Fix background job failure crash (`wait` → `wait || true`)
+- [x] Fix malformed JSON crash (wrap `jq` calls in error handling)
+- [x] Add timeouts to all external tool invocations (`timeout` command)
 
 ### Priority 2 — Hardening (S-4 through S-9)
 
