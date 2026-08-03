@@ -63,9 +63,56 @@ main  ──  tag + GitHub release + deploy to apt repo
 
 ---
 
+## Audit #3 — 2026-08-03
+
+Full audit covering security, orphans, missing error handling, and concurrency.
+
+### HIGH
+
+| # | Finding | File | Severity | Status |
+|---|---------|------|----------|--------|
+| S-1 | Background job failure crashes daemon (`set -e` + `wait`) | compress:322, meta:397 | HIGH | OPEN |
+| S-2 | Malformed JSON kills daemon (`set -e` + `jq`) | compress:77-83, meta:77-80 | HIGH | OPEN |
+| S-3 | No timeout on external tools — hung process starves worker slots | compress:114+, meta:320 | HIGH | OPEN |
+
+### MEDIUM
+
+| # | Finding | Severity | Status |
+|---|---------|----------|--------|
+| S-4 | No log rotation — unbounded log growth | MEDIUM | OPEN |
+| S-5 | `apt-metamanager.conf` sets global APT timeout for all packages | MEDIUM | OPEN |
+| S-6 | `PrivateTmp=false` weakens sandboxing | MEDIUM | OPEN |
+| S-7 | Missing systemd hardening directives | MEDIUM | OPEN |
+| S-8 | No `StartLimitBurst`/`StartLimitIntervalSec` — crash loop disables daemon silently | MEDIUM | OPEN |
+| S-9 | `jq` and `inotifywait` not checked at startup | MEDIUM | OPEN |
+
+### LOW
+
+| # | Finding | Severity | Status |
+|---|---------|----------|--------|
+| S-10 | PID file overwriting without stale check | LOW | OPEN |
+| S-11 | `mail` command not in package dependencies | LOW | OPEN |
+| S-12 | No symlink validation on `file_path` from JSON | LOW | OPEN |
+| S-13 | `.mm_tmp` files not cleaned up on crash | LOW | OPEN |
+
+---
+
 ## What's Left
 
-- [ ] Nothing critical — all audit items resolved
+### Priority 1 — Daemon Crashes (S-1, S-2, S-3)
+
+- [ ] Fix background job failure crash (`wait` → `wait || true`)
+- [ ] Fix malformed JSON crash (wrap `jq` calls in error handling)
+- [ ] Add timeouts to all external tool invocations (`timeout` command)
+
+### Priority 2 — Hardening (S-4 through S-9)
+
+- [ ] Ship logrotate config (`/etc/logrotate.d/metamanager`)
+- [ ] Remove or scope `apt-metamanager.conf` global timeout
+- [ ] Enable `PrivateTmp=true`
+- [ ] Add systemd hardening directives
+- [ ] Configure `StartLimitBurst`/`StartLimitIntervalSec`
+- [ ] Add `jq` and `inotifywait` startup checks
 
 ---
 
