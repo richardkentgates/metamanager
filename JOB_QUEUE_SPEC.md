@@ -35,7 +35,7 @@ Queued by PHP when an image is uploaded or regenerated.
 
 ```json
 {
-  "job_type": "compress",
+  "job_type": "compression",
   "attachment_id": 1234,
   "file_path": "/var/www/html/wp-content/uploads/2026/07/image.jpg",
   "size": "full",
@@ -48,7 +48,7 @@ Queued by PHP when an image is uploaded or regenerated.
 **Fields:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `job_type` | string | Yes | Must be `"compress"` |
+| `job_type` | string | Yes | Must be `"compression"` |
 | `attachment_id` | int | Yes | WordPress attachment ID |
 | `file_path` | string | Yes | Absolute path to the file |
 | `size` | string | Yes | Image size slug (`"full"`, `"thumbnail"`, etc.) |
@@ -137,7 +137,7 @@ Written to `completed/` directory.
 
 ```json
 {
-  "job_type": "compress",
+  "job_type": "compression",
   "attachment_id": 1234,
   "file_path": "/var/www/html/wp-content/uploads/2026/07/image.jpg",
   "size": "full",
@@ -158,7 +158,7 @@ Written to `failed/` directory.
 
 ```json
 {
-  "job_type": "compress",
+  "job_type": "compression",
   "attachment_id": 1234,
   "file_path": "/var/www/html/wp-content/uploads/2026/07/image.jpg",
   "size": "full",
