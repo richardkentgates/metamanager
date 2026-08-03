@@ -257,7 +257,7 @@ The plugin reads the `VERSION` file to detect daemon version and trigger updates
 |------|---------|--------|
 | `debian/changelog` | Debian package version | `2.4.17-1` (upstream-revision) |
 | `VERSION` | Installed daemon version (read by plugin) | `2.4.17` (plain semver, no `-1`) |
-| `daemon-compatibility.json` | Plugin-to-daemon version mapping | `{ "2.3.58": { "min": "2.4.8" } }` |
+| `daemon-compatibility.json` | Plugin-to-daemon version mapping | `{ "2.3.58": "2.4.8" }` |
 
 CI auto-bumps `debian/changelog` and `VERSION` on every push to `dev`. They must stay in sync — CI handles this automatically; never edit either file manually.
 

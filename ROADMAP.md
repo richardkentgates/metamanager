@@ -1,177 +1,139 @@
-# Metamanager Roadmap
+# Metamanager Server Roadmap
 
-Prioritized work items from the May 2026 code audit.
+Last updated 2026-08-03.
 
-## Branch strategy
+---
+
+## What This Is
+
+The server layer for Metamanager — OS-level daemons that handle metadata embedding (ExifTool), lossless compression (jpegtran/optipng/cwebp), and video remux (ffmpeg). Packaged as a `.deb` for Debian/Ubuntu, deployed via apt.
+
+---
+
+## Branch Strategy
 
 ```
 dev  ──  all development, direct push; CI runs checks + auto-version bump
-    test  ──  build + deploy to apt server on push
-        main  ──  tag + GitHub release on push
+    │  workflow_dispatch: promote-to-test.yml
+    ▼
+test  ──  build .deb + deploy to apt repo
+    │  workflow_dispatch: promote-to-main.yml
+    ▼
+main  ──  tag + GitHub release + deploy to apt repo
 ```
 
-### CI/CD Pipeline
+---
+
+## Current Status
+
+| Item | Value |
+|------|-------|
+| Daemon version | v2.4.27 |
+| Apt server | 34.136.87.92 (apt.richardkentgates.com) |
+| Production | 104.197.172.183 |
+| OS | Debian 13 (trixie) |
+
+---
+
+## What's Done
+
+### Original Audit Items — All Fixed
+
+| # | Issue | Fix | Date |
+|---|-------|-----|------|
+| 1 | Unparseable JSON results silently deleted | Moved `wp_delete_file()` inside guard, rename to `.unparseable` | 2026-05-24 |
+| 2 | Race window: cron reads while daemon writes | Daemon writes to `.tmp` then atomic rename | 2026-05-24 |
+| 3 | CI/CD branch strategy normalization | Workflows restructured, promotions via `workflow_dispatch` | 2026-05-24 |
+| 4 | PHPStan excludes ~40% of code | WordPress stubs added, level 5 passes on all files | 2026-05-24 |
+| 5 | AVIF MIME type support | Added to all MIME lists | 2026-05-24 |
+| 6 | Dead code `MM_Status::mark_compressed()` | Removed | 2026-05-24 |
+| 7 | Help tab HTML formatting | Fixed concatenation | 2026-05-24 |
+| 8 | Hardcoded tool paths | Added `/opt/homebrew/bin/` | 2026-05-24 |
+| 9 | `glob()` without limit | Replaced with `GlobIterator` | 2026-05-24 |
+
+### Infrastructure
+
+- CI/CD promotion chains verified (dev→test→main)
+- HTTPS on apt server (Let's Encrypt, auto-renewal)
+- Branch protection removed (was blocking workflow automation)
+- Promotion workflows rewritten (direct git merge, not PRs)
+- Server wiki populated (3 pages: Home, Installation, Daemon Management)
+- GitHub Pages rewritten for daemon layer
+- AGENTS.md mandatory workflow rules
+
+---
+
+## Audit #3 — 2026-08-03
+
+Full audit covering security, orphans, missing error handling, and concurrency.
+
+### HIGH
+
+| # | Finding | File | Severity | Status |
+|---|---------|------|----------|--------|
+| S-1 | Background job failure crashes daemon (`set -e` + `wait`) | compress:322, meta:397 | HIGH | OPEN |
+| S-2 | Malformed JSON kills daemon (`set -e` + `jq`) | compress:77-83, meta:77-80 | HIGH | OPEN |
+| S-3 | No timeout on external tools — hung process starves worker slots | compress:114+, meta:320 | HIGH | OPEN |
+
+### MEDIUM
+
+| # | Finding | Severity | Status |
+|---|---------|----------|--------|
+| S-4 | No log rotation — unbounded log growth | MEDIUM | OPEN |
+| S-5 | `apt-metamanager.conf` sets global APT timeout for all packages | MEDIUM | OPEN |
+| S-6 | `PrivateTmp=false` weakens sandboxing | MEDIUM | OPEN |
+| S-7 | Missing systemd hardening directives | MEDIUM | OPEN |
+| S-8 | No `StartLimitBurst`/`StartLimitIntervalSec` — crash loop disables daemon silently | MEDIUM | OPEN |
+| S-9 | `jq` and `inotifywait` not checked at startup | MEDIUM | OPEN |
+
+### LOW
+
+| # | Finding | Severity | Status |
+|---|---------|----------|--------|
+| S-10 | PID file overwriting without stale check | LOW | OPEN |
+| S-11 | `mail` command not in package dependencies | LOW | OPEN |
+| S-12 | No symlink validation on `file_path` from JSON | LOW | OPEN |
+| S-13 | `.mm_tmp` files not cleaned up on crash | LOW | OPEN |
+
+---
+
+## What's Left
+
+### Priority 1 — Daemon Crashes (S-1, S-2, S-3)
+
+- [x] Fix background job failure crash (`wait` → `wait || true`)
+- [x] Fix malformed JSON crash (wrap `jq` calls in error handling)
+- [x] Add timeouts to all external tool invocations (`timeout` command)
+
+### Priority 2 — Hardening (S-4 through S-9)
+
+- [ ] Ship logrotate config (`/etc/logrotate.d/metamanager`)
+- [ ] Remove or scope `apt-metamanager.conf` global timeout
+- [ ] Enable `PrivateTmp=true`
+- [ ] Add systemd hardening directives
+- [ ] Configure `StartLimitBurst`/`StartLimitIntervalSec`
+- [ ] Add `jq` and `inotifywait` startup checks
+
+---
+
+## CI Workflows
 
 | Branch | Workflow | Trigger |
-|---|---|---|
-| `dev` | ShellCheck + auto-increment version in debian/changelog | Push to `dev` |
-| `test` | Build .deb + deploy to apt repo | Push to `test` |
-| `main` | Create git tag + GitHub release with .deb | Push to `main` |
-
-No branch protection rules. Direct pushes to any branch.
-
----
-
-
-
-## Critical
-
-### #1 — Unparseable JSON results silently deleted
-
-**File:** `metamanager.php` lines 293–369
-
-`json_decode()` failure (daemon mid-write, corrupt file) causes the result file
-to be deleted by the `wp_delete_file()` call at the end of the loop body — it is
-outside the `if ( is_array( $job ) )` guard. The job is lost with no log entry.
-
-**Fix:** Move `wp_delete_file()` inside the `if` block. On the error path, log
-and rename the file with a `.unparseable` suffix so it can be inspected.
+|--------|----------|---------|
+| `dev` | `ci.yml` — ShellCheck + auto-version bump | Push to `dev` |
+| `test` | `test-deploy.yml` — build .deb + deploy to apt | Push to `test` |
+| `main` | `release.yml` — tag + GitHub release + deploy to apt | Push to `main` |
+| any | `promote-to-test.yml` — merge dev→test, build, deploy | Manual (`workflow_dispatch`) |
+| any | `promote-to-main.yml` — merge test→main, tag, release, deploy | Manual (`workflow_dispatch`) |
 
 ---
 
-## High
+## Conventions
 
-### #2 — Race window: cron reads result files while daemon writes them
-
-**File:** `metamanager.php` lines 275–394
-
-`mm_import_completed_jobs()` uses `glob()` to find `*.json` files in the
-completed/failed directories. If the daemon is mid-write, a partial file can be
-read. The current code catches this (json_decode returns null), but then deletes
-the file (see #1).
-
-**Fix:** Daemon should write to a `.tmp` file then atomically rename to `.json`.
-Add a `.tmp`-skip pattern on the read side.
-
-### #3 — CI/CD: branch strategy normalization
-
-Workflows (`ci.yml`, `codeql.yml`) currently trigger on `main` and `dev`.
-`pages.yml` deploys from `main`.
-
-**Goal:** All pushes go to `dev`. `main` is promote-only (tagged releases).
-`test` branch runs pre-release validation. Only Pages deploys from `main`.
-
----
-
-## Medium
-
-### #4 — PHPStan excludes ~40% of plugin code
-
-**File:** `phpstan.neon`
-
-Core files `class-mm-admin.php`, `class-mm-job-queue.php`,
-`class-mm-upload-notify.php`, `class-mm-cli.php` and several metadata modules
-are excluded from static analysis, citing WordPress class type hints.
-
-**Fix:** Add WordPress stubs (via `phpstan/wordpress` or manual stubs) and
-re-enable analysis for these files.
-
-### #5 — Add AVIF MIME type support
-
-`image/avif` is absent from `VIDEO_MIME_TYPES`, `AUDIO_MIME_TYPES`,
-`WRITE_CAPABILITY`, and CLI MIME lists. ExifTool and WordPress support it.
-
-**Fix:** Add `'image/avif' => 'full'` to `WRITE_CAPABILITY` and include it in
-all attachment queries.
-
-### #6 — Dead code: `MM_Status::mark_compressed()`
-
-**File:** `includes/class-mm-status.php:198-200`
-
-Empty method — compression status is now tracked in the jobs DB table.
-
-**Fix:** Deprecate with `_doing_it_wrong()` or remove. Also clean up the
-`_mm_compressed_*` postmeta cleanup in `uninstall.php`.
-
-### #7 — Help tab HTML formatting
-
-**File:** `includes/class-mm-admin.php:153`
-
-Missing newline between concatenated table row strings makes the source
-hard to read. Render output is correct.
-
-**Fix:** Insert proper line breaks.
-
----
-
-## Low
-
-### #8 — Hardcoded tool paths miss common install locations
-
-**File:** `includes/class-mm-status.php:28-48`
-
-Only `/usr/bin/` and `/usr/local/bin/` are checked. Misses
-`/opt/homebrew/bin/` (Apple Silicon macOS) and custom prefixes.
-
-**Fix:** Add `/opt/homebrew/bin/` and optionally use `command -v` / `which`
-as a fallback.
-
-### #9 — `glob()` without limit on potentially large directories
-
-**File:** `metamanager.php:289`, `class-mm-job-queue.php:114,408-410`
-
-`glob( '*.json' )` loads all filenames into memory. Replace with
-`FilesystemIterator` + `RegexIterator` for memory safety on large queues.
-
----
-
-## Completed
-
-### #1 — Unparseable JSON results silently deleted (2026-05-24)
-- `wp_delete_file()` moved inside `if ( is_array( $job ) )` guard
-- Error path renames file to `.unparseable` suffix and logs it
-
-### #5 — Add AVIF MIME type support (2026-05-24)
-- Added `'image/avif' => 'full'` to `WRITE_CAPABILITY`
-- Added `image/avif` to CLI compress and import MIME lists
-
-### #6 — Dead code: `MM_Status::mark_compressed()` removed (2026-05-24)
-- Removed empty method
-- Removed stale `_mm_compressed_*` cleanup from `uninstall.php`
-
-### #7 — Help tab HTML formatting (2026-05-24)
-- Fixed concatenation line breaks for readability
-
-### #8 — Hardcoded tool paths expanded (2026-05-24)
-- Added `/opt/homebrew/bin/` (Apple Silicon macOS) to all tool path arrays
-
-### #3 — CI/CD branch strategy normalization (2026-05-24)
-- `ci.yml`: triggers on push to `dev`/`test`; PRs targeting `dev`/`test`/`main`
-- `codeql.yml`: triggers on push to `dev`/`test`; PRs targeting `dev`/`test`/`main`
-- `pages.yml`: unchanged (deploys from `main` only)
-- Later consolidated: see ### Workflow consolidation below
-
-### #4 — PHPStan WordPress stubs + WP-CLI stubs (2026-05-24)
-- Created `composer.json` with dev deps: phpstan, szepeviktor/phpstan-wordpress, php-stubs/wordpress-stubs, php-stubs/wp-cli-stubs
-- Added `vendor/` to `.gitignore`
-- Created `stubs/cli-progress-bar.php` for `cli\progress\Bar` (used by `make_progress_bar()`)
-- Removed `excludePaths` from phpstan.neon (files now analyzed, not excluded)
-- Removed broad catch-all `ignoreErrors` patterns
-- Updated CI workflow to use `composer install` + `vendor/bin/phpstan`
-- Cleaned up old `tools/phpstan-wordpress/` and `stubs/wp-cli/` dirs
-- **PHPStan level 5 now passes on all 40 source files with zero errors**
-
-### #9 — `glob()` replaced with `GlobIterator` for memory safety (2026-05-24)
-- `metamanager.php:291` — main cron loop (`mm_import_completed_jobs`)
-- `class-mm-job-queue.php:114` — pending job dedup check
-- `class-mm-job-queue.php:362` — attachment deletion cleanup
-- `class-mm-job-queue.php:408-410` — queue status read (used `AppendIterator`)
-
-### Workflow consolidation + strict branch protection (2026-05-24)
-- **ci.yml** renamed to "Tests", split into parallel `static-analysis` + `integration` jobs
-- **codeql.yml** stripped to CodeQL JS only (removed redundant PHP lint/PHPStan/PHPUnit)
-- **phpunit.yml** deleted (fully redundant with ci.yml)
-- **bin/promote** added — CLI for `stage` (dev→test) and `release` (test→main) promotions
-- **All 3 branches**: enforce_admins=true (no bypass), require PR + CI, no force pushes
-- **Required checks**: Static Analysis, PHP 8.1/WP 6.4, PHP 8.2/WP 6.5, PHP 8.3/WP latest
-- **main** additionally requires 1 approval before merge
+- All work on `dev` only. Never checkout/edit/push `test` or `main`.
+- Promote via `workflow_dispatch` triggers only.
+- CI auto-bumps both `debian/changelog` and `VERSION` on every dev push — never edit manually.
+- `VERSION` file format: plain semver (e.g. `2.4.27`), no Debian revision suffix.
+- SSH user: `richardkentgates` (not root); default SSH key.
+- Plugin triggers daemon updates automatically — no manual SSH on success.
+- No system reboot required — `systemctl restart` in-place.

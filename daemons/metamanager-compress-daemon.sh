@@ -14,6 +14,9 @@
 
 set -euo pipefail
 
+# --- Configuration ---
+readonly TOOL_TIMEOUT=120  # Seconds before an external tool is killed.
+
 # --- Require bash 5+ ---
 if (( BASH_VERSINFO[0] < 5 )); then
     echo "ERROR: bash 5.0 or higher is required (found ${BASH_VERSION})." >&2
@@ -74,13 +77,26 @@ process_job() {
     mv "${jobfile}" "${tmpfile}" 2>/dev/null || return 0
 
     local file_path attachment_id size dimensions submitted_at image_name optimize_level
-    file_path=$(jq -r '.file_path'         "${tmpfile}")
-    attachment_id=$(jq -r '.attachment_id' "${tmpfile}")
-    size=$(jq -r '.size'                   "${tmpfile}")
-    dimensions=$(jq -r '.dimensions'       "${tmpfile}")
-    submitted_at=$(jq -r '.submitted_at'   "${tmpfile}")
-    image_name=$(jq -r '.image_name'       "${tmpfile}")
-    optimize_level=$(jq -r '.optimize_level // 2' "${tmpfile}")
+    file_path=$(jq -r '.file_path // empty'         "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
+    attachment_id=$(jq -r '.attachment_id // empty' "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
+    size=$(jq -r '.size // empty'                   "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
+    dimensions=$(jq -r '.dimensions // empty'       "${tmpfile}")
+    submitted_at=$(jq -r '.submitted_at // empty'   "${tmpfile}")
+    image_name=$(jq -r '.image_name // empty'       "${tmpfile}")
+    optimize_level=$(jq -r '.optimize_level // 2'   "${tmpfile}")
+    [[ "${optimize_level}" =~ ^[0-7]$ ]] || optimize_level=2
 
     if [[ ! -f "${file_path}" ]]; then
         log "ERROR: file not found: ${file_path}"
@@ -111,7 +127,7 @@ process_job() {
                 # -copy all  : preserve all existing metadata (EXIF, IPTC, XMP, comments)
                 # -optimize  : Huffman table optimisation (lossless)
                 # -progressive: progressive encoding (lossless reorder)
-                if "${JPEGTRAN}" -copy all -optimize -progressive -outfile "${outfile}" "${file_path}" 2>>"${LOG_FILE}"; then
+                if timeout "${TOOL_TIMEOUT}" "${JPEGTRAN}" -copy all -optimize -progressive -outfile "${outfile}" "${file_path}" 2>>"${LOG_FILE}"; then
                     # Only replace if the result is smaller (never make files larger).
                     orig_size=$(stat -c%s "${file_path}")
                     new_size=$(stat -c%s "${outfile}")
@@ -140,7 +156,7 @@ process_job() {
                 # -o(n)       : optimisation level (1–7; default 2 — fast but effective)
                 # -preserve   : preserve file timestamps
                 # -quiet      : suppress stdout
-                if "${OPTIPNG}" -o"${optimize_level}" -preserve -quiet "${file_path}" 2>>"${LOG_FILE}"; then
+                if timeout "${TOOL_TIMEOUT}" "${OPTIPNG}" -o"${optimize_level}" -preserve -quiet "${file_path}" 2>>"${LOG_FILE}"; then
                     new_size=$(stat -c%s "${file_path}")
                     if (( new_size < orig_size )); then
                         message="PNG lossless compressed: ${orig_size} → ${new_size} bytes"
@@ -165,7 +181,7 @@ process_job() {
                 # -lossless  : lossless WebP (no quality degradation)
                 # -mt        : multi-threading
                 # -quiet     : suppress progress output
-                if "${CWEBP}" -lossless -mt -quiet -o "${outfile}" -- "${file_path}" 2>>"${LOG_FILE}"; then
+                if timeout "${TOOL_TIMEOUT}" "${CWEBP}" -lossless -mt -quiet -o "${outfile}" -- "${file_path}" 2>>"${LOG_FILE}"; then
                     new_size=$(stat -c%s "${outfile}")
                     if (( new_size < orig_size )); then
                         mv "${outfile}" "${file_path}"
@@ -195,7 +211,7 @@ process_job() {
             if command -v ffmpeg &>/dev/null; then
                 local outfile="${file_path}.mm_remux_$$.${ext}"
                 orig_size=$(stat -c%s "${file_path}")
-                if ffmpeg -y -v quiet -i "${file_path}" -c copy -map_metadata 0 -movflags +faststart "${outfile}" 2>>"${LOG_FILE}"; then
+                if timeout "${TOOL_TIMEOUT}" ffmpeg -y -v quiet -i "${file_path}" -c copy -map_metadata 0 -movflags +faststart "${outfile}" 2>>"${LOG_FILE}"; then
                     new_size=$(stat -c%s "${outfile}")
                     if (( new_size < orig_size )); then
                         mv "${outfile}" "${file_path}"
@@ -319,7 +335,7 @@ while (( _pass < _max_passes )); do
         done
         process_job "${jobfile}" &
     done
-    wait
+    wait || true
     # Brief pause between passes so lock-contention with other daemons can clear.
     sleep 2
 done
