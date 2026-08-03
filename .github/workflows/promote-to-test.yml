@@ -29,7 +29,7 @@ jobs:
         run: |
           SHA=$(git rev-parse HEAD)
           gh api repos/${{ github.repository }}/git/refs/heads/test \
-            -X PATCH -f sha="$SHA" -f force=true
+            -X PATCH -f sha="$SHA" -F force=true
 
       - name: Install build dependencies
         run: |
