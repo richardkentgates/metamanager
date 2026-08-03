@@ -1,83 +1,69 @@
 <!-- ── Hero ──────────────────────────────────────────────────────────────── -->
 <section class="hero" id="hero">
-    <div class="hero-badge">Open Source &middot; GPL v3 &middot; WordPress 6.0+</div>
-    <h1>Your Site's Metadata.<br><span class="accent">Completely Managed.</span></h1>
+    <div class="hero-badge">Open Source &middot; GPL v3 &middot; Linux</div>
+    <h1>OS-Level Daemons for<br><span class="accent">Lossless Media Processing.</span></h1>
     <p class="hero-subtitle">
-        Metamanager covers both layers — the files themselves and your web presence.
-        From EXIF and ID3 tags embedded in media files to Schema.org structured data,
-        Open Graph, XML sitemaps, link health, business profile, and author data.
-        All powered by OS-level daemons and native WordPress APIs, from a single unified dashboard.
+        Metamanager Server provides compression and metadata embedding daemons
+        that watch a filesystem job queue and process media files using ExifTool,
+        jpegtran, optipng, cwebp, and ffmpeg — all outside of PHP so WordPress
+        never blocks on the hot path.
     </p>
     <div class="hero-pills">
         <span class="hero-pill">🗜 Lossless compression &mdash; images, video &amp; audio</span>
         <span class="hero-pill">🏷 File metadata &mdash; EXIF/IPTC/XMP, ID3, QuickTime, Vorbis</span>
-        <span class="hero-pill">🔍 Schema.org &mdash; 20+ structured data types</span>
-        <span class="hero-pill">📡 Open Graph &mdash; all content types</span>
-        <span class="hero-pill">🗺 Sitemaps &mdash; XML (pages + media + video) + HTML</span>
-        <span class="hero-pill">🔗 Link checker &mdash; async, dashboard-integrated</span>
-        <span class="hero-pill">🏢 Business profile &mdash; schema, contact card, local</span>
-        <span class="hero-pill">📍 GPS coordinates from camera EXIF</span>
-        <span class="hero-pill">👤 Author profiles &mdash; structured data per author</span>
+        <span class="hero-pill">⚡ Event-driven &mdash; inotifywait, no polling</span>
+        <span class="hero-pill">🔒 Security hardened &mdash; systemd sandboxing</span>
+        <span class="hero-pill">📦 APT repository &mdash; stable + test channels</span>
     </div>
     <div class="hero-actions">
         <a href="#installation" class="btn btn-primary">Quick Install</a>
         <a href="https://github.com/richardkentgates/metamanager" class="btn btn-outline" target="_blank" rel="noopener">GitHub ↗</a>
     </div>
     <div class="hero-install">
-        <code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash</code>
+        <code>wget -qO- https://apt.richardkentgates.com/key.gpg | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/metamanager.gpg &amp;&amp; echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list &amp;&amp; sudo apt update &amp;&amp; sudo apt install metamanager</code>
     </div>
 </section>
 
 <!-- ── Overview ──────────────────────────────────────────────────────────── -->
 <section id="overview">
-    <h2>What is Metamanager</h2>
+    <h2>What is Metamanager Server</h2>
     <p class="section-lead">
-        Metadata governs how search engines, social platforms, AI crawlers, and editing software
-        understand your content. Metamanager manages all of it — at both the file level and the web level.
+        PHP cannot do lossless compression. ExifTool cannot be called from PHP safely
+        in a request path. Metamanager solves this by delegating all media work to
+        purpose-built OS daemons via a filesystem job queue.
     </p>
 
     <div class="layer-grid">
         <div class="layer-card layer-media">
-            <div class="layer-title">Layer 1 &mdash; Media</div>
-            <h3>File-Embedded Metadata</h3>
-            <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Standards written directly into asset files: EXIF, IPTC, XMP, ID3, QuickTime atoms, Vorbis comments. Managed by OS-level daemons using ExifTool and ffmpeg.</p>
+            <div class="layer-title">Compression Daemon</div>
+            <h3>Lossless Image &amp; Video</h3>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Watches job files via inotifywait and delegates to format-specific tools. A compressed file only replaces the original if it is strictly smaller in bytes.</p>
             <ul>
-                <li>JPEG/PNG/WebP &mdash; EXIF, IPTC &amp; XMP simultaneously</li>
-                <li>MP4/MOV/M4A &mdash; QuickTime atoms + XMP</li>
-                <li>MP3 &mdash; ID3 tags</li>
-                <li>OGG/FLAC &mdash; Vorbis comments</li>
-                <li>PDF &mdash; title, author, keywords, XMP write-back</li>
-                <li>GPS coordinates from camera EXIF to <code>GeoCoordinates</code></li>
-                <li>Lossless compression: jpegtran, optipng, cwebp, ffmpeg</li>
-                <li>Bidirectional sync: file → WordPress and WordPress → file</li>
+                <li>JPEG &mdash; <code>jpegtran</code> (lossless optimization)</li>
+                <li>PNG &mdash; <code>optipng</code> (lossless deflate)</li>
+                <li>WebP &mdash; <code>cwebp -lossless</code></li>
+                <li>Video &mdash; <code>ffmpeg -c copy</code> (container remux)</li>
             </ul>
         </div>
         <div class="layer-card layer-web">
-            <div class="layer-title">Layer 2 &mdash; Web</div>
-            <h3>Site &amp; Page Metadata</h3>
-            <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Signals that search engines, social platforms, and structured data consumers read from your HTML. Controlled per-post, per-type, or site-wide from the Metamanager dashboard.</p>
+            <div class="layer-title">Metadata Daemon</div>
+            <h3>EXIF/IPTC/XMP Embedding</h3>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Reads embedded tags from media files on import, and writes WordPress field values back into files after edits. Handles all supported formats via ExifTool.</p>
             <ul>
-                <li>Title &amp; description per post/page/term/user</li>
-                <li>Open Graph &mdash; image, video, audio, article, website types</li>
-                <li>Schema.org JSON-LD &mdash; 20+ types including LocalBusiness, Article, Event, Product</li>
-                <li>XML sitemaps &mdash; pages, media, video</li>
-                <li>HTML sitemap via <code>[mm_sitemap]</code> shortcode</li>
-                <li>Robots.txt control &mdash; per-type noindex + global rules</li>
-                <li>Async broken link checker</li>
-                <li>Business profile &mdash; Gutenberg block + Schema.org output</li>
-                <li>Author profiles with structured data</li>
+                <li>Import: reads EXIF, IPTC, XMP, ID3, QuickTime, Vorbis</li>
+                <li>Embed: writes WordPress fields back into files</li>
+                <li>PDF: XMP write-back for title, author, keywords</li>
+                <li>Bidirectional sync: file ↔ WordPress</li>
             </ul>
         </div>
     </div>
 
-    <h3>Why one plugin?</h3>
+    <h3>Why OS daemons?</h3>
     <p>
-        File metadata and web metadata are two sides of the same coin. A photo uploaded to WordPress
-        carries GPS, creator, and copyright in its EXIF tags. Those same values should appear in
-        the <code>ImageObject</code> Schema.org output. A business has a name and address in your
-        WordPress settings — that same data should appear in <code>LocalBusiness</code> JSON-LD
-        <em>and</em> in the contact card you embed on pages. Metamanager treats both layers as a
-        single system with a single source of truth.
+        WordPress runs in PHP, which has no native image processing libraries and
+        cannot call ExifTool or ffmpeg safely in a request path. Metamanager writes
+        a small JSON job file on upload or scan. The daemon picks it up via inotifywait
+        and processes it outside the request lifecycle. WordPress never blocks.
     </p>
 </section>
 
@@ -159,9 +145,18 @@
         copies the daemon scripts, installs systemd units, and activates the plugin.
     </p>
 
-    <pre><code>wget -qO- https://raw.githubusercontent.com/richardkentgates/metamanager/main/metamanager-install.sh | sudo bash</code></pre>
+    <h3>From apt repository</h3>
+    <pre><code># Import the GPG key
+wget -q -O /tmp/metamanager.key https://apt.richardkentgates.com/key.gpg
+sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/metamanager.gpg /tmp/metamanager.key
 
-    <p>The script must run as root (or with <code>sudo</code>) to write systemd unit files and start services.</p>
+# Add the apt repository
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+
+# Install
+sudo apt update &amp;&amp; sudo apt install metamanager</code></pre>
+
+    <p>This installs the compression and metadata daemons, systemd services (auto-enabled), and all OS dependencies.</p>
 
     <h3 id="manual-install">Manual Install</h3>
     <ol>
@@ -177,18 +172,12 @@ sudo dnf install -y perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tool
 sudo dnf install -y https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm
 sudo dnf install -y ffmpeg</code></pre>
         </li>
-        <li>Clone the plugin into your WordPress plugins directory:
-            <pre><code>cd /path/to/wordpress/wp-content/plugins
-git clone https://github.com/richardkentgates/metamanager.git</code></pre>
+        <li>Clone the server repository and run the installer:
+            <pre><code>git clone https://github.com/richardkentgates/metamanager.git
+cd metamanager
+sudo bash metamanager-install.sh --wp-path /srv/www/wordpress</code></pre>
         </li>
-        <li>Copy systemd service files and enable daemons:
-            <pre><code>sudo cp metamanager/daemons/metamanager-*.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now metamanager-compress-daemon metamanager-meta-daemon</code></pre>
-        </li>
-        <li>Activate the plugin from the WordPress admin panel or via WP-CLI:
-            <pre><code>wp plugin activate metamanager</code></pre>
-        </li>
+        <li>Install the <a href="https://github.com/richardkentgates/metamanager-plugin" target="_blank" rel="noopener">WordPress plugin</a> and activate it.</li>
     </ol>
 
     <h3 id="post-install">Post-Install Checklist</h3>
@@ -270,164 +259,68 @@ wp metamanager compress --post-id=123</code></pre>
     <p>After the daemon successfully writes metadata into a file, Metamanager queues a re-read job to verify the embedded values match what WordPress holds. Discrepancies are recorded in <code>mm_verify_discrepancies</code> post meta and shown as an amber warning on the attachment edit screen.</p>
 </section>
 
-<!-- ── Page Metadata ─────────────────────────────────────────────────────── -->
-<section id="page-metadata">
-    <h2>Page &amp; Post Metadata</h2>
-    <p class="section-lead">Per-page and per-post control over every metadata signal your site sends — title, description, canonical URL, and all structured data fields.</p>
-
-    <p>Metamanager adds a metadata panel to every post, page, custom post type edit screen, term editor, and user profile. Fields fall into three categories:</p>
-
-    <h3>Title &amp; Description</h3>
-    <p>Override the default title and meta description for any individual post, page, or term. Default templates (configurable per post type) are used when no override is set. Variable tokens available: <code>%%post_title%%</code>, <code>%%sitetitle%%</code>, <code>%%sep%%</code>, <code>%%search_query%%</code>, <code>%%author_name%%</code>, <code>%%current_year%%</code>, and more. Dedicated templates are available for search results pages and 404 error pages.</p>
-
-    <h3>Canonical URL</h3>
-    <p>Set a custom canonical URL on any post or page. Defaults to the WordPress permalink. Useful for content syndication and paginated posts.</p>
-
-    <h3>Per-post robots</h3>
-    <p>Set <code>noindex</code>, <code>nofollow</code>, <code>noarchive</code>, or <code>nosnippet</code> on individual posts without touching the global robots.txt configuration.</p>
-</section>
-
-<!-- ── Open Graph ────────────────────────────────────────────────────────── -->
-<section id="open-graph">
-    <h2>Open Graph</h2>
-    <p class="section-lead">Full Open Graph output for all WordPress content types and all media types. Used by Facebook, LinkedIn, Slack, Discord, and most social platforms for rich link previews.</p>
+<!-- ── Daemons ───────────────────────────────────────────────────────────── -->
+<section id="daemons">
+    <h2>Daemon Management</h2>
+    <p class="section-lead">Two systemd services handle all media processing. They run as the web server user (www-data or similar) and watch job directories via inotifywait.</p>
 
     <table>
-        <thead><tr><th>Context</th><th>Tags emitted</th></tr></thead>
+        <thead><tr><th>Service</th><th>Watches</th><th>Tools called</th></tr></thead>
         <tbody>
-            <tr><td>Posts &amp; pages</td><td><code>og:type</code>, <code>og:title</code>, <code>og:description</code>, <code>og:url</code>, <code>og:image</code> (featured image)</td></tr>
-            <tr><td>Images</td><td><code>og:type=image</code>, <code>og:image</code>, <code>og:image:width</code>, <code>og:image:height</code>, <code>og:image:type</code>, <code>og:image:alt</code></td></tr>
-            <tr><td>Video attachments</td><td><code>og:type=video.other</code>, <code>og:video</code>, <code>og:video:width</code>, <code>og:video:height</code>, <code>og:video:type</code></td></tr>
-            <tr><td>Audio attachments</td><td><code>og:type=music.song</code>, <code>og:audio</code>, <code>og:audio:type</code></td></tr>
-            <tr><td>Articles</td><td><code>article:published_time</code>, <code>article:modified_time</code>, <code>article:author</code></td></tr>
-            <tr><td>Site-wide</td><td><code>og:site_name</code>, <code>og:locale</code></td></tr>
+            <tr><td><code>metamanager-compress-daemon</code></td><td><code>wp-content/metamanager-jobs/compress/</code></td><td>jpegtran, optipng, cwebp, ffmpeg</td></tr>
+            <tr><td><code>metamanager-meta-daemon</code></td><td><code>wp-content/metamanager-jobs/meta/</code></td><td>ExifTool (read + write)</td></tr>
         </tbody>
     </table>
 
-    <h3>Twitter / X Card</h3>
-    <p>Alongside Open Graph, Metamanager emits <code>twitter:card</code> (summary or summary_large_image), <code>twitter:title</code>, <code>twitter:description</code>, <code>twitter:image</code>, and <code>twitter:creator</code> (from the post author's Twitter profile field).</p>
-</section>
-
-<!-- ── Schema.org ────────────────────────────────────────────────────────── -->
-<section id="schema">
-    <h2>Schema.org Structured Data</h2>
-    <p class="section-lead">JSON-LD blocks emitted in <code>wp_head</code> for 20+ Schema.org types. Every type is configurable via the per-post metadata panel and the site-level business profile.</p>
-
+    <h3>Common daemon patterns</h3>
     <table>
-        <thead><tr><th>Schema type</th><th>Source</th><th>Key fields</th></tr></thead>
+        <thead><tr><th>Pattern</th><th>Detail</th></tr></thead>
         <tbody>
-            <tr><td><code>WebSite</code></td><td>Site settings</td><td>name, url, description, SearchAction (sitelinks searchbox)</td></tr>
-            <tr><td><code>Organization</code></td><td>Business profile</td><td>name, url, logo, address, phone, email, sameAs (social profiles)</td></tr>
-            <tr><td><code>LocalBusiness</code></td><td>Business profile</td><td>All Organization fields + openingHours, priceRange, paymentAccepted, geo, areaServed</td></tr>
-            <tr><td><code>Article</code></td><td>Post editor</td><td>headline, description, author, datePublished, dateModified, image</td></tr>
-            <tr><td><code>BlogPosting</code></td><td>Post editor</td><td>Same as Article</td></tr>
-            <tr><td><code>NewsArticle</code></td><td>Post editor</td><td>Same as Article + dateline</td></tr>
-            <tr><td><code>WebPage</code></td><td>Page editor</td><td>name, description, url, breadcrumb</td></tr>
-            <tr><td><code>BreadcrumbList</code></td><td>Automatic</td><td>Generated from WordPress hierarchy</td></tr>
-            <tr><td><code>Person</code> (author)</td><td>User profile</td><td>name, url, sameAs, jobTitle, description</td></tr>
-            <tr><td><code>ImageObject</code></td><td>Media library</td><td>name, description, creator, copyright, dateCreated, contentUrl, thumbnail, geo (GPS)</td></tr>
-            <tr><td><code>VideoObject</code></td><td>Media library</td><td>name, description, creator, uploadDate, duration, thumbnailUrl, contentUrl</td></tr>
-            <tr><td><code>AudioObject</code></td><td>Media library</td><td>name, description, creator, uploadDate, duration, contentUrl</td></tr>
-            <tr><td><code>DigitalDocument</code></td><td>Media library (PDF)</td><td>name, description, author, dateCreated</td></tr>
-            <tr><td><code>Product</code></td><td>Post meta panel</td><td>name, description, offers (price/currency/availability), brand, sku</td></tr>
-            <tr><td><code>FAQPage</code></td><td>Post meta panel</td><td>mainEntity (Question/Answer pairs)</td></tr>
-            <tr><td><code>HowTo</code></td><td>Post meta panel</td><td>name, description, steps, totalTime</td></tr>
-            <tr><td><code>Recipe</code></td><td>Post meta panel</td><td>name, recipeIngredient, recipeInstructions, cookTime, nutrition</td></tr>
-            <tr><td><code>Event</code></td><td>Post meta panel</td><td>name, startDate, endDate, location, offers, organizer, eventStatus</td></tr>
-            <tr><td><code>Course</code></td><td>Post meta panel</td><td>name, description, provider, hasCourseInstance</td></tr>
-            <tr><td><code>JobPosting</code></td><td>Post meta panel</td><td>title, datePosted, validThrough, employmentType, hiringOrganization, jobLocation, baseSalary</td></tr>
-            <tr><td><code>Review</code></td><td>Post meta panel</td><td>reviewRating, author, itemReviewed, reviewBody</td></tr>
-            <tr><td><code>Service</code></td><td>Post meta panel</td><td>name, description, provider, serviceType, areaServed</td></tr>
-            <tr><td><code>TouristTrip</code></td><td>Post meta panel</td><td>name, description, itinerary, offers, provider</td></tr>
-            <tr><td><code>RealEstateListing</code></td><td>Post meta panel</td><td>name, address, offers, floorSize, numberOfRooms</td></tr>
-        </tbody>
-    </table>
-</section>
-
-<!-- ── Sitemaps ──────────────────────────────────────────────────────────── -->
-<section id="sitemaps">
-    <h2>Sitemaps</h2>
-    <p class="section-lead">Three XML sitemap types plus an HTML sitemap shortcode. All XML sitemaps are cached (1-hour transient) and automatically flushed on publish, update, or media upload.</p>
-
-    <h3>XML Sitemaps</h3>
-    <table>
-        <thead><tr><th>URL</th><th>Contents</th><th>Configurable?</th></tr></thead>
-        <tbody>
-            <tr><td><code>/sitemap.xml</code></td><td>All public posts, pages, and custom post types; all public taxonomies</td><td>Enable/disable per post type and taxonomy</td></tr>
-            <tr><td><code>/sitemap-media.xml</code></td><td>All images and videos in the media library with EXIF/metadata-enriched fields</td><td>Enable/disable per media type</td></tr>
-            <tr><td><code>/sitemap-video.xml</code></td><td>Google Video Sitemap format for all video attachments with duration, thumbnail, description</td><td>On/off toggle</td></tr>
+            <tr><td><strong>Event-driven</strong></td><td><code>inotifywait</code> fires on file creation — no polling, no sleep loops</td></tr>
+            <tr><td><strong>Atomic ownership</strong></td><td>First daemon to rename a job file claims it (<code>mv ... .processing</code>)</td></tr>
+            <tr><td><strong>PID files</strong></td><td>Written to <code>wp-content/metamanager-jobs/</code> — used by plugin for health checks</td></tr>
+            <tr><td><strong>Error handling</strong></td><td>Failed jobs written to <code>failed/</code> with error message in result JSON</td></tr>
+            <tr><td><strong>Tool delegation</strong></td><td>Each tool handles one format family — no monolithic binary</td></tr>
         </tbody>
     </table>
 
-    <h3>HTML Sitemap</h3>
-    <p>Use <code>[mm_sitemap]</code> shortcode to embed a formatted HTML sitemap on any page. Supports <code>post_types</code>, <code>taxonomies</code>, and <code>depth</code> attributes.</p>
-    <pre><code>[mm_sitemap post_types="post,page" depth="2"]</code></pre>
+    <h3>Systemd hardening</h3>
+    <p>Both services run with security hardening:</p>
+    <pre><code>[Service]
+Type=simple
+User=www-data
+Group=www-data
+ExecStart=/usr/local/bin/metamanager-compress-daemon.sh
+Restart=on-failure
+RestartSec=5
 
-    <h3 id="robots">Robots.txt</h3>
-    <p>Active sitemaps are automatically appended as <code>Sitemap:</code> directives to <code>robots.txt</code> via the <code>robots_txt</code> filter. Per-post-type noindex rules disallow crawling of selected types globally. Individual posts can be set noindex from the metadata panel.</p>
+# Security hardening
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/path/to/wordpress/wp-content
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true</code></pre>
 
-    <h3>Ping on Publish</h3>
-    <p>Google and Bing receive a non-blocking sitemap ping whenever a post is published. Configurable in <strong>Metamanager → Sitemaps</strong>.</p>
+    <h3>Managing daemons</h3>
+    <pre><code># Status
+sudo systemctl status metamanager-compress-daemon metamanager-meta-daemon
+
+# Restart (required after plugin updates)
+sudo systemctl restart metamanager-compress-daemon metamanager-meta-daemon
+
+# View logs
+sudo journalctl -u metamanager-compress-daemon -f
+sudo journalctl -u metamanager-meta-daemon -f
+
+# Stop / disable
+sudo systemctl stop metamanager-compress-daemon metamanager-meta-daemon
+sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon</code></pre>
 </section>
 
-<!-- ── Links ────────────────────────────────────────────────────────────── -->
-<section id="links">
-    <h2>Link Management</h2>
-    <p class="section-lead">An async broken link checker that runs in the background, plus a hygiene audit tool for managing link attributes across your content.</p>
-
-    <h3>Broken Link Checker</h3>
-    <p>Links discovered in your content are stored in a lightweight database table and checked asynchronously via <code>wp_remote_head()</code>. HTTP response codes are recorded. Links returning 4xx or 0 (timeout) are flagged as broken and surface in the Link Management dashboard.</p>
-    <ul>
-        <li>Checks run in background batches — zero impact on page load</li>
-        <li>Per-link re-check button in the dashboard</li>
-        <li>Ignore toggle to suppress false positives</li>
-        <li>Optional email alerts when new broken links are found</li>
-        <li>Configurable check interval and timeout</li>
-    </ul>
-
-    <h3>Link Hygiene</h3>
-    <p>Global rules for adding <code>rel="nofollow"</code>, <code>rel="noopener noreferrer"</code>, or <code>target="_blank"</code> to external links. Filter by domain pattern. Applied at render time via output buffer — no content modification stored.</p>
-</section>
-
-<!-- ── Business Profile ──────────────────────────────────────────────────── -->
-<section id="business-profile">
-    <h2>Business Profile</h2>
-    <p class="section-lead">A centralized organization profile that powers Schema.org output, the contact card block, local business structured data, and social link aggregation.</p>
-
-    <h3>Profile Fields</h3>
-    <p>Set once in <strong>Metamanager → Business Profile</strong>:</p>
-    <ul>
-        <li>Organization name, type (Organization, LocalBusiness, NGO, etc.), description, logo URL</li>
-        <li>Address: street, city, state/region, postal code, country</li>
-        <li>Contact: phone, email, website</li>
-        <li>Social profiles: Facebook, Twitter/X, LinkedIn, Instagram, YouTube, Pinterest, TikTok</li>
-        <li>Business hours (per day), price range, accepted payment methods, area served</li>
-        <li>Geo coordinates (latitude, longitude)</li>
-    </ul>
-
-    <h3>Contact Card Block</h3>
-    <p>The <strong>Business Contact</strong> Gutenberg block embeds a formatted contact card anywhere on your site. It pulls data from the business profile automatically. The <code>metamanager/business-contact</code> block renders name, address, phone, email, hours, and a map link.</p>
-
-    <h3>Schema.org Output</h3>
-    <p>The business profile generates an <code>Organization</code> or <code>LocalBusiness</code> JSON-LD block on every page, alongside the page-specific schema. Social profiles are included as <code>sameAs</code> links. When geo coordinates are set, a <code>GeoCoordinates</code> node is included.</p>
-</section>
-
-<!-- ── Authors ──────────────────────────────────────────────────────────── -->
-<section id="authors">
-    <h2>Author Profiles</h2>
-    <p class="section-lead">Extend each WordPress user's profile with structured data fields that power <code>Person</code> JSON-LD output on author archive pages and attributed posts.</p>
-
-    <p>Fields added to the user profile editor:</p>
-    <ul>
-        <li>Job title, organization affiliation</li>
-        <li>Short biography (supplements the built-in WordPress bio)</li>
-        <li>Social profiles: Twitter/X, LinkedIn, GitHub, personal website</li>
-        <li>Profile image URL override</li>
-    </ul>
-    <p>On author archive pages and posts where the author is shown, Metamanager emits a <code>Person</code> JSON-LD block with <code>name</code>, <code>url</code>, <code>jobTitle</code>, <code>description</code>, and <code>sameAs</code> links to social profiles.</p>
-</section>
-
-<!-- ── Dashboard ─────────────────────────────────────────────────────────── -->
+<!-- ── Job Dashboard ─────────────────────────────────────────────────────── -->
 <section id="dashboard">
     <h2>Job Dashboard</h2>
     <p class="section-lead">Live view of the compression and metadata job queue, searchable history, daemon health indicators, and bulk action controls — all in one screen.</p>
@@ -446,56 +339,6 @@ wp metamanager compress --post-id=123</code></pre>
 
     <h3 id="notifications">Upload Notifications</h3>
     <p>The site admin receives a batched digest email after uploads (one email per 60-second window). Other WordPress users can opt in via their profile page. A configurable extra CC address is available. Failed sends surface as a dismissible admin notice with one-click retry.</p>
-</section>
-
-<!-- ── Settings ──────────────────────────────────────────────────────────── -->
-<section id="settings">
-    <h2>Settings Reference</h2>
-    <p class="section-lead">All settings are in <strong>Metamanager → Settings</strong>. Use the submenu to navigate between sections.</p>
-
-    <table>
-        <thead><tr><th>Section</th><th>Key settings</th></tr></thead>
-        <tbody>
-            <tr><td><strong>Titles &amp; Descriptions</strong></td><td>Default title template per post type; separator character; meta description fallback source (excerpt, first paragraph, or none)</td></tr>
-            <tr><td><strong>Social</strong></td><td>Default OG image; Twitter/X card type; Facebook App ID; additional social profile URLs</td></tr>
-            <tr><td><strong>Schema</strong></td><td>Site-wide schema type; output on/off per post type; breadcrumb style</td></tr>
-            <tr><td><strong>Sitemaps</strong></td><td>Enable/disable per sitemap; included post types and taxonomies; ping on publish toggle; ping engines</td></tr>
-            <tr><td><strong>Robots</strong></td><td>Per-post-type noindex default; global robots.txt additions</td></tr>
-            <tr><td><strong>Links</strong></td><td>Check interval (hours); request timeout; email alerts toggle; alert recipient</td></tr>
-            <tr><td><strong>Business Profile</strong></td><td>See Business Profile section above</td></tr>
-            <tr><td><strong>General / Media</strong></td><td>Auto-embed site provenance (on/off); compression level; REST API restrictions; upload notifications</td></tr>
-            <tr><td><strong>Uninstall</strong></td><td>Opt-in data wipe on plugin deletion (off by default)</td></tr>
-        </tbody>
-    </table>
-</section>
-
-<!-- ── Daemons ───────────────────────────────────────────────────────────── -->
-<section id="daemons">
-    <h2>Daemon Management</h2>
-    <p class="section-lead">Two systemd services handle all media processing. They run as the web server user (www-data or similar) and watch job directories via inotifywait.</p>
-
-    <table>
-        <thead><tr><th>Service</th><th>Watches</th><th>Tools called</th></tr></thead>
-        <tbody>
-            <tr><td><code>metamanager-compress-daemon</code></td><td><code>wp-content/metamanager-jobs/compress/</code></td><td>jpegtran, optipng, cwebp, ffmpeg</td></tr>
-            <tr><td><code>metamanager-meta-daemon</code></td><td><code>wp-content/metamanager-jobs/meta/</code></td><td>ExifTool (read + write)</td></tr>
-        </tbody>
-    </table>
-
-    <h3>Common commands</h3>
-    <pre><code># Status
-sudo systemctl status metamanager-compress-daemon metamanager-meta-daemon
-
-# Restart (required after plugin updates)
-sudo systemctl restart metamanager-compress-daemon metamanager-meta-daemon
-
-# View logs
-sudo journalctl -u metamanager-compress-daemon -f
-sudo journalctl -u metamanager-meta-daemon -f
-
-# Stop / disable
-sudo systemctl stop metamanager-compress-daemon metamanager-meta-daemon
-sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon</code></pre>
 </section>
 
 <!-- ── WP-CLI ────────────────────────────────────────────────────────────── -->
@@ -532,34 +375,30 @@ sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon</code
     </table>
 </section>
 
-<!-- ── REST API ──────────────────────────────────────────────────────────── -->
-<section id="rest-api">
-    <h2>REST API</h2>
-    <p class="section-lead">All Metamanager REST routes are under <code>/wp-json/metamanager/v1/</code>. You can restrict access to a comma-separated list of allowed IP addresses from <strong>Settings → REST API</strong>.</p>
+<!-- ── APT Repository ────────────────────────────────────────────────────── -->
+<section id="apt-repo">
+    <h2>APT Repository</h2>
+    <p class="section-lead">The apt repo at <code>apt.richardkentgates.com</code> serves two channels with signed packages.</p>
 
     <table>
-        <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+        <thead><tr><th>Channel</th><th>Branch</th><th>Package version</th><th>Use case</th></tr></thead>
         <tbody>
-            <tr><td>GET</td><td><code>/jobs</code></td><td>List recent jobs (paginated). Query params: <code>status</code>, <code>page</code>, <code>per_page</code>.</td><td>manage_options</td></tr>
-            <tr><td>GET</td><td><code>/jobs/&lt;id&gt;</code></td><td>Get a single job by ID</td><td>manage_options</td></tr>
-            <tr><td>POST</td><td><code>/jobs/&lt;id&gt;/retry</code></td><td>Re-queue a failed job</td><td>manage_options</td></tr>
-            <tr><td>GET</td><td><code>/status</code></td><td>Daemon health: PID file presence + OS tool detection</td><td>manage_options</td></tr>
-            <tr><td>GET</td><td><code>/attachment/&lt;id&gt;</code></td><td>Metadata fields for a specific attachment</td><td>edit_post</td></tr>
+            <tr><td>Stable</td><td><code>main</code></td><td><code>2.4.x</code></td><td>Production</td></tr>
+            <tr><td>Test</td><td><code>test</code></td><td><code>2.4.x~test&lt;timestamp&gt;</code></td><td>Pre-release testing</td></tr>
         </tbody>
     </table>
 
-    <h3>IP Restriction</h3>
-    <p>From <strong>Settings → REST API</strong>, enter a comma-separated list of allowed IP addresses or CIDR ranges. Requests from unlisted IPs receive a <code>403</code> before any capability check runs. Leave blank to allow all.</p>
+    <h3>Version files</h3>
+    <table>
+        <thead><tr><th>File</th><th>Purpose</th><th>Format</th></tr></thead>
+        <tbody>
+            <tr><td><code>debian/changelog</code></td><td>Debian package version</td><td><code>2.4.17-1</code> (upstream-revision)</td></tr>
+            <tr><td><code>VERSION</code></td><td>Installed daemon version (read by plugin)</td><td><code>2.4.17</code> (plain semver, no <code>-1</code>)</td></tr>
+            <tr><td><code>daemon-compatibility.json</code></td><td>Plugin-to-daemon version mapping</td><td><code>{ "2.3.58": "2.4.8" }</code></td></tr>
+        </tbody>
+    </table>
 
-    <h3>Disable all endpoints</h3>
-    <p>A single toggle completely disables all Metamanager REST endpoints. This does not affect WordPress core REST routes.</p>
-</section>
-
-<!-- ── Multisite ─────────────────────────────────────────────────────────── -->
-<section id="multisite">
-    <h2>Multisite</h2>
-    <p>Metamanager is multisite-compatible. Network activation creates the <code>metamanager_jobs</code> database table and schedules WP-Cron on every existing site in the network. New site creation is handled via <code>wp_initialize_site</code> — no manual steps needed.</p>
-    <p>Each site maintains its own metadata settings, business profile, and link database. The OS daemons are shared across all sites (they watch a single job directory tree under <code>wp-content/metamanager-jobs/</code>).</p>
+    <p>CI auto-bumps <code>debian/changelog</code> and <code>VERSION</code> on every push to <code>dev</code>. They must stay in sync — CI handles this automatically; never edit either file manually.</p>
 </section>
 
 <!-- ── Contributing ──────────────────────────────────────────────────────── -->
@@ -571,17 +410,16 @@ sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon</code
     <table>
         <thead><tr><th>Branch</th><th>Purpose</th></tr></thead>
         <tbody>
-            <tr><td><code>dev</code></td><td>All development. CI runs lint + version bump. Direct pushes allowed.</td></tr>
-            <tr><td><code>test</code></td><td>Pre-release. Builds .deb, deploys to apt server. Protected — PRs required from <code>dev</code>.</td></tr>
-            <tr><td><code>main</code></td><td>Stable, tagged releases. Protected — PRs required from <code>test</code>. Each merge gets a semver tag.</td></tr>
+            <tr><td><code>dev</code></td><td>All development. CI runs ShellCheck + version bump. Direct pushes allowed.</td></tr>
+            <tr><td><code>test</code></td><td>Pre-release. Builds .deb, deploys to apt server (test channel).</td></tr>
+            <tr><td><code>main</code></td><td>Stable, tagged releases. Builds .deb, deploys to apt server (stable channel).</td></tr>
         </tbody>
     </table>
 
     <h3>Promotion flow</h3>
     <ol>
-        <li><strong>dev → test:</strong> Open a PR from <code>dev</code> to <code>test</code>. CI runs ShellCheck/lint. Review + merge.</li>
-        <li><strong>test → main:</strong> Open a PR from <code>test</code> to <code>main</code>. CI builds .deb + deploys. Review + merge.</li>
-        <li>On merge to <code>main</code>: a semver tag is created and the .deb is deployed to the apt repository.</li>
+        <li><strong>dev → test:</strong> Trigger <code>promote-to-test</code> workflow via GitHub Actions <code>workflow_dispatch</code>. Merges dev into test, builds .deb, deploys to apt test channel.</li>
+        <li><strong>test → main:</strong> Trigger <code>promote-to-main</code> workflow via GitHub Actions <code>workflow_dispatch</code>. Merges test into main, builds .deb, creates git tag, creates GitHub release, deploys to apt stable channel.</li>
     </ol>
 
     <h3>Pull requests</h3>
