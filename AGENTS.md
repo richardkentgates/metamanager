@@ -13,12 +13,29 @@
 **You MUST follow this exact process for ALL changes:**
 
 1. **ALL work happens on `dev`**: `git checkout dev`, make changes, commit, push to dev
-2. **Promote via PRs only**: `gh pr create --head dev --base test`, then `gh pr merge --admin`
-3. **Then promote test→main**: `gh pr create --head test --base main`, then `gh pr merge --admin`
-4. **If a PR has conflicts**: CLOSE IT (`gh pr close`), do NOT try to resolve them by checking out test/main
+2. **Promote via workflow_dispatch only**: Trigger `promote-to-test.yml` — merges dev→test, builds .deb, deploys to apt
+3. **Then promote test→main**: Trigger `promote-to-main.yml` — merges test→main, tags, releases, deploys to apt
+4. **If a merge has conflicts**: CLOSE the workflow, do NOT try to resolve them by checking out test/main
 5. **If you need to update test with main's changes**: Create a new empty commit on dev that triggers CI, or ask the user to resolve
 
 **The ONLY branch you are allowed to checkout, edit, commit, or push is `dev`.**
+
+## CI Flow
+
+```
+dev  ──  all development, direct push; CI runs checks + auto-version bump
+    │  workflow_dispatch: promote-to-test.yml
+    ▼
+test  ──  build .deb + deploy to apt repo
+    │  workflow_dispatch: promote-to-main.yml
+    ▼
+main  ──  tag + GitHub release + deploy to apt repo
+```
+
+- On every dev push: CI runs ShellCheck on all shell scripts, then auto-bumps `debian/changelog` and `VERSION`
+- The actor check (`github.actor != 'github-actions[bot]'`) prevents infinite loops — version bump commits don't re-trigger CI
+- Promotion workflows merge directly via git (no PRs), build, and deploy to apt repo
+- Production updates via `apt-get upgrade metamanager` (typically triggered automatically by plugin update)
 
 ## Deployment Rules
 
@@ -61,7 +78,7 @@ The `VERSION` file is the single source of truth for the installed daemon versio
 ## Conventions
 
 - Branch protection on `test` and `main`: PRs required, no direct pushes
-- Promotion = open PR from `dev` → `test` or `test` → `main`, CI runs, merge
+- Promotion = workflow_dispatch triggers direct git merge (no PRs)
 - VERSION file must stay in sync with debian/changelog (CI handles this automatically)
 - CI auto-bumps both `debian/changelog` and `VERSION` on every dev push — do not manually edit either
 - PHP 8.2 for WP-CLI (`php8.2 /usr/local/bin/wp --path=/srv/www/wordpress`)
