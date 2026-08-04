@@ -28,7 +28,7 @@ main  ──  tag + GitHub release + deploy to apt repo
 
 | Item | Value |
 |------|-------|
-| Daemon version | v2.4.27 |
+| Daemon version | v2.4.31 |
 | Apt server | 34.136.87.92 (apt.richardkentgates.com) |
 | Production | 104.197.172.183 |
 | OS | Debian 13 (trixie) |
@@ -71,20 +71,20 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 
 | # | Finding | File | Severity | Status |
 |---|---------|------|----------|--------|
-| S-1 | Background job failure crashes daemon (`set -e` + `wait`) | compress:322, meta:397 | HIGH | OPEN |
-| S-2 | Malformed JSON kills daemon (`set -e` + `jq`) | compress:77-83, meta:77-80 | HIGH | OPEN |
-| S-3 | No timeout on external tools — hung process starves worker slots | compress:114+, meta:320 | HIGH | OPEN |
+| S-1 | Background job failure crashes daemon (`set -e` + `wait`) | compress:322, meta:397 | HIGH | FIXED (v2.4.31) |
+| S-2 | Malformed JSON kills daemon (`set -e` + `jq`) | compress:77-83, meta:77-80 | HIGH | FIXED (v2.4.31) |
+| S-3 | No timeout on external tools — hung process starves worker slots | compress:114+, meta:320 | HIGH | FIXED (v2.4.31) |
 
 ### MEDIUM
 
 | # | Finding | Severity | Status |
 |---|---------|----------|--------|
-| S-4 | No log rotation — unbounded log growth | MEDIUM | OPEN |
-| S-5 | `apt-metamanager.conf` sets global APT timeout for all packages | MEDIUM | OPEN |
-| S-6 | `PrivateTmp=false` weakens sandboxing | MEDIUM | OPEN |
-| S-7 | Missing systemd hardening directives | MEDIUM | OPEN |
-| S-8 | No `StartLimitBurst`/`StartLimitIntervalSec` — crash loop disables daemon silently | MEDIUM | OPEN |
-| S-9 | `jq` and `inotifywait` not checked at startup | MEDIUM | OPEN |
+| S-4 | No log rotation — unbounded log growth | MEDIUM | FIXED (v2.4.31) |
+| S-5 | `apt-metamanager.conf` sets global APT timeout for all packages | MEDIUM | FIXED (v2.4.31) |
+| S-6 | `PrivateTmp=false` weakens sandboxing | MEDIUM | FIXED (v2.4.31) |
+| S-7 | Missing systemd hardening directives | MEDIUM | FIXED (v2.4.31) |
+| S-8 | No `StartLimitBurst`/`StartLimitIntervalSec` — crash loop disables daemon silently | MEDIUM | FIXED (v2.4.31) |
+| S-9 | `jq` and `inotifywait` not checked at startup | MEDIUM | FIXED (v2.4.31) |
 
 ### LOW
 
