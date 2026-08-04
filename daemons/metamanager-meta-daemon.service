@@ -2,6 +2,8 @@
 Description=Metamanager Metadata Embedding Daemon
 Documentation=https://github.com/richardkentgates/metamanager
 After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -13,9 +15,21 @@ RestartSec=5
 
 # Security hardening
 NoNewPrivileges=true
-PrivateTmp=false
+PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=__WP_CONTENT_DIR__/metamanager-jobs __WP_CONTENT_DIR__/uploads /tmp /var/log
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+DevicePolicy=closed
+UMask=0077
+ReadWritePaths=__WP_CONTENT_DIR__/metamanager-jobs __WP_CONTENT_DIR__/uploads /var/log
 
 # Logging to journald (also appended to log file by the script itself)
 StandardOutput=journal
