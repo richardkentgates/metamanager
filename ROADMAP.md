@@ -28,7 +28,7 @@ main  ──  tag + GitHub release + deploy to apt repo
 
 | Item | Value |
 |------|-------|
-| Daemon version | v2.4.33 |
+| Daemon version | Auto-bumped by CI on every dev push |
 | Apt server | 34.136.87.92 (apt.richardkentgates.com) |
 | Production | 104.197.172.183 |
 | OS | Debian 13 (trixie) |
