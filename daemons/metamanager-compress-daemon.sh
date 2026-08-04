@@ -23,6 +23,14 @@ if (( BASH_VERSINFO[0] < 5 )); then
     exit 1
 fi
 
+# --- Require runtime dependencies ---
+for tool in jq inotifywait; do
+    if ! command -v "${tool}" &>/dev/null; then
+        echo "ERROR: required tool '${tool}' not found in PATH. Install it and restart." >&2
+        exit 1
+    fi
+done
+
 # --- Configuration (patched by metamanager-install.sh) ---
 JOB_ROOT="__WP_CONTENT_DIR__/metamanager-jobs"
 JOB_DIR="${JOB_ROOT}/compress"

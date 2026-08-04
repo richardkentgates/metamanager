@@ -105,14 +105,14 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 - [x] Fix malformed JSON crash (wrap `jq` calls in error handling)
 - [x] Add timeouts to all external tool invocations (`timeout` command)
 
-### Priority 2 — Hardening (S-4 through S-9)
+### Priority 2 — Hardening (S-4 through S-9) — Complete
 
-- [ ] Ship logrotate config (`/etc/logrotate.d/metamanager`)
-- [ ] Remove or scope `apt-metamanager.conf` global timeout
-- [ ] Enable `PrivateTmp=true`
-- [ ] Add systemd hardening directives
-- [ ] Configure `StartLimitBurst`/`StartLimitIntervalSec`
-- [ ] Add `jq` and `inotifywait` startup checks
+- [x] Ship logrotate config (`/etc/logrotate.d/metamanager`)
+- [x] Remove `apt-metamanager.conf` global timeout (was too broad)
+- [x] Enable `PrivateTmp=true` + remove `/tmp` from ReadWritePaths
+- [x] Add systemd hardening directives (ProtectHome, ProtectKernel*, Restrict*, LockPersonality, etc.)
+- [x] Configure `StartLimitBurst=5` / `StartLimitIntervalSec=300`
+- [x] Add `jq` and `inotifywait` startup checks to both daemons
 
 ---
 
