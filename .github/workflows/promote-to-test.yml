@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: test
           fetch-depth: 0
@@ -64,25 +64,25 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
             cd /var/www/html
 
-            dpkg-scanpackages pool/m/metamanager /dev/null > dists/bookworm/main/binary-amd64/Packages
-            gzip -k -f dists/bookworm/main/binary-amd64/Packages
+            dpkg-scanpackages pool/m/metamanager /dev/null > dists/bookworm-test/main/binary-amd64/Packages
+            gzip -k -f dists/bookworm-test/main/binary-amd64/Packages
 
             apt-ftparchive \
               -o APT::FTPArchive::Release::Origin="metamanager" \
               -o APT::FTPArchive::Release::Label="metamanager" \
-              -o APT::FTPArchive::Release::Suite="bookworm" \
-              -o APT::FTPArchive::Release::Codename="bookworm" \
+              -o APT::FTPArchive::Release::Suite="bookworm-test" \
+              -o APT::FTPArchive::Release::Codename="bookworm-test" \
               -o APT::FTPArchive::Release::Architectures="amd64" \
               -o APT::FTPArchive::Release::Components="main" \
-              -o APT::FTPArchive::Release::Description="Metamanager apt repository" \
-              release dists/bookworm > dists/bookworm/Release
+              -o APT::FTPArchive::Release::Description="Metamanager apt repository (test)" \
+              release dists/bookworm-test > dists/bookworm-test/Release
 
             gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
-              --clearsign --output dists/bookworm/InRelease dists/bookworm/Release
+              --clearsign --output dists/bookworm-test/InRelease dists/bookworm-test/Release
             gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
-              --armor --detach-sign --output dists/bookworm/Release.gpg dists/bookworm/Release
+              --armor --detach-sign --output dists/bookworm-test/Release.gpg dists/bookworm-test/Release
 
-            echo "Test .deb deployed to apt repo"
+            echo "Test .deb deployed to apt repo (bookworm-test)"
           REMOTE
 
       - name: Summary
@@ -93,5 +93,5 @@ jobs:
           echo "═══════════════════════════════════════════════════════════════"
           echo ""
           echo "  ✓ Merged dev → test"
-          echo "  ✓ .deb deployed to apt repo (test)"
+          echo "  ✓ .deb deployed to apt repo (bookworm-test)"
           echo ""
