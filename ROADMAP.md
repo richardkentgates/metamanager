@@ -91,7 +91,7 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 | # | Finding | Severity | Status |
 |---|---------|----------|--------|
 | S-10 | PID file overwriting without stale check | LOW | OPEN |
-| S-11 | `mail` command not in package dependencies | LOW | OPEN |
+| S-11 | `mail` command not in package dependencies | LOW | FIXED (v2.4.37) — removed daemon email, WordPress handles notifications via wp_mail() |
 | S-12 | No symlink validation on `file_path` from JSON | LOW | OPEN |
 | S-13 | `.mm_tmp` files not cleaned up on crash | LOW | OPEN |
 
@@ -113,6 +113,13 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 - [x] Add systemd hardening directives (ProtectHome, ProtectKernel*, Restrict*, LockPersonality, etc.)
 - [x] Configure `StartLimitBurst=5` / `StartLimitIntervalSec=300`
 - [x] Add `jq` and `inotifywait` startup checks to both daemons
+
+### Priority 3 — LOW Items
+
+- [x] S-11: Remove `mail` command dependency — WordPress handles notifications via `wp_mail()`
+- [ ] S-10: PID file overwriting without stale check
+- [ ] S-12: No symlink validation on `file_path` from JSON
+- [ ] S-13: `.mm_tmp` files not cleaned up on crash
 
 ---
 

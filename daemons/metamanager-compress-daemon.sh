@@ -47,10 +47,6 @@ JPEGTRAN="/usr/bin/jpegtran"
 OPTIPNG="/usr/bin/optipng"
 CWEBP="/usr/bin/cwebp"
 
-# Optional: set this env var to receive an email on job failure.
-# e.g. export MM_NOTIFY_EMAIL="admin@example.com" in the service file.
-NOTIFY_EMAIL="${MM_NOTIFY_EMAIL:-}"
-
 # --- Logging ---
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [compress] $*" >> "${LOG_FILE}"
@@ -268,16 +264,6 @@ process_job() {
     else
         log "FAIL: ${message}"
         write_result "${tmpfile}" "failed" "${message}" "0" "0"
-        # Send failure notification email if configured.
-        if [[ -n "${NOTIFY_EMAIL}" ]] && command -v mail &>/dev/null; then
-            echo "Metamanager job failed on $(hostname)
-
-File:    ${file_path}
-Size:    ${size}
-Reason:  ${message}
-Time:    $(date '+%Y-%m-%d %H:%M:%S')" \
-            | mail -s "[Metamanager] Job failed: ${image_name}" "${NOTIFY_EMAIL}" 2>/dev/null || true
-        fi
     fi
 }
 
