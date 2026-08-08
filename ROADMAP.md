@@ -114,7 +114,13 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 - [x] Configure `StartLimitBurst=5` / `StartLimitIntervalSec=300`
 - [x] Add `jq` and `inotifywait` startup checks to both daemons
 
-### Priority 3 — LOW Items
+### Priority 3 — Dependencies
+
+- [ ] Add `php-imagick` to `debian/control` Depends — needed by MetaManager WordPress plugin for image processing
+- [ ] Verify full Depends: `jq, inotify-tools, libimage-exiftool-perl, libjpeg-turbo-progs, optipng, webp, ffmpeg, php-imagick`
+- [ ] Remove `php-imagick`, `imagemagick`, `libimage-exiftool-perl` from GCM debian/control (they belong here)
+
+### Priority 4 — LOW Items
 
 - [x] S-11: Remove `mail` command dependency — WordPress handles notifications via `wp_mail()`
 - [ ] S-10: PID file overwriting without stale check
