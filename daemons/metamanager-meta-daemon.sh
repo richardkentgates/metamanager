@@ -72,6 +72,18 @@ wait_for_job_dir
 
 # --- Write PID file so WordPress can check daemon health without systemctl ---
 mkdir -p "$(dirname "${PID_FILE}")"
+
+# S-10: Check for stale PID file from previous daemon instance
+if [[ -f "${PID_FILE}" ]]; then
+    old_pid=$(cat "${PID_FILE}" 2>/dev/null)
+    if [[ -n "${old_pid}" ]] && kill -0 "${old_pid}" 2>/dev/null; then
+        echo "ERROR: Another instance is already running (PID ${old_pid}). Exiting." >&2
+        exit 1
+    fi
+    log "Removing stale PID file (PID ${old_pid} no longer exists)"
+    rm -f "${PID_FILE}"
+fi
+
 echo $$ > "${PID_FILE}"
 trap 'rm -f "${PID_FILE}"' EXIT
 
@@ -112,6 +124,13 @@ process_job() {
         return 1
     fi
 
+    # S-12: Reject symlinks — only process regular files
+    if [[ -L "${file_path}" ]]; then
+        log "ERROR: symlink not allowed: ${file_path}"
+        write_result "${tmpfile}" "failed" "Symlink not allowed: ${file_path}"
+        return 1
+    fi
+
     if [[ ! -x "${EXIFTOOL}" ]]; then
         log "ERROR: exiftool not found at ${EXIFTOOL}"
         write_result "${tmpfile}" "failed" "ExifTool not found"
@@ -148,7 +167,8 @@ process_job() {
         fi
         # Merge the embedded tag map into the result JSON under "embedded_tags".
         # Write to .tmp then atomically rename to prevent partial reads by cron.
-        local _import_result="${JOB_DONE}/$(basename "${tmpfile}" .processing)-result.json"
+        local _import_result
+        _import_result="${JOB_DONE}/$(basename "${tmpfile}" .processing)-result.json"
         jq --arg status "completed" \
            --arg msg    "Read embedded tags from ${file_path}" \
            --arg ts     "$(date '+%Y-%m-%d %H:%M:%S')" \
@@ -379,8 +399,10 @@ write_result() {
         out_dir="${JOB_FAILED}"
     fi
 
-    local result_file="${out_dir}/$(basename "${tmpfile}" .processing)-result.json"
-    local result_tmp="${result_file}.tmp"
+    local result_file
+    result_file="${out_dir}/$(basename "${tmpfile}" .processing)-result.json"
+    local result_tmp
+    result_tmp="${result_file}.tmp"
 
     jq --arg status "${status}" \
        --arg msg    "${message}" \
@@ -394,6 +416,14 @@ write_result() {
 }
 
 # --- Drain any jobs that were queued while the daemon was offline ---
+# S-13: Clean up leftover .mm_tmp files from previous crash
+log "Startup scan: cleaning up leftover .mm_tmp files"
+for tmpfile in "${JOB_DIR}"/*.mm_tmp; do
+    [[ -e "${tmpfile}" ]] || continue
+    log "Removing leftover .mm_tmp: $(basename "${tmpfile}")"
+    rm -f "${tmpfile}"
+done
+
 # Also recover any .json.processing orphans left behind by a previous crash.
 log "Startup scan: processing any pre-existing jobs in ${JOB_DIR}"
 for orphan in "${JOB_DIR}"/*.json.processing; do
