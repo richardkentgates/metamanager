@@ -26,11 +26,11 @@ Server: apt.richardkentgates.com (Debian 13, LAMP)
   │   │   ├── metamanager_2.4.0-1_all.deb      (release)
   │   │   └── metamanager_2.4.0~test1_all.deb   (test)
   │   ├── dists/
-  │   │   ├── bookworm/
+  │   │   ├── stable/
   │   │   │   └── main/binary-amd64/
   │   │   │       ├── Packages
   │   │   │       └── Packages.gz
-  │   │   └── bookworm-test/
+  │   │   └── test/
   │   │       └── main/binary-amd64/
   │   │           ├── Packages
   │   │           └── Packages.gz
@@ -54,8 +54,8 @@ Plugin Repo (metamanager-plugin)
   WP auto-update: plugin checks server metadata.json, downloads zip from server
 
 Server Repo (metamanager)
-  test branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate bookworm-test/Packages
-  main branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate bookworm/Packages
+  test branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate test/Packages
+  main branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate stable/Packages
   Client: apt update && apt install metamanager (or apt upgrade)
 ```
 
@@ -105,9 +105,9 @@ maldet — active daemon, daily malware scans of /var/www/
 │   ├── pool/m/metamanager/
 │   │   └── *.deb
 │   └── dists/
-│       ├── bookworm/
+│       ├── stable/
 │       │   └── main/binary-amd64/ (Packages, Packages.gz)
-│       └── bookworm-test/
+│       └── test/
 │           └── main/binary-amd64/ (Packages, Packages.gz)
 │
 └── metamanager/                  (plugin files for WP auto-updates)
@@ -126,10 +126,10 @@ maldet — active daemon, daily malware scans of /var/www/
 wget -qO - https://apt.richardkentgates.com/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/metamanager.gpg
 
 # Add repo (stable)
-echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list
 
 # OR add repo (test)
-echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm-test main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com test main" | sudo tee /etc/apt/sources.list.d/metamanager.list
 
 # Install
 sudo apt update && sudo apt install metamanager
@@ -393,8 +393,8 @@ UFW (static rules)              Dynamic layer (iptables under UFW)
 - [ ] 7G.2 Create directory structure:
   ```
   /var/www/html/apt/pool/m/metamanager/
-  /var/www/html/apt/dists/bookworm/main/binary-amd64/
-  /var/www/html/apt/dists/bookworm-test/main/binary-amd64/
+  /var/www/html/apt/dists/stable/main/binary-amd64/
+  /var/www/html/apt/dists/test/main/binary-amd64/
   ```
 - [ ] 7G.3 Generate initial empty `Packages` index
 - [ ] 7G.4 Set permissions: `chown -R www-data:www-data /var/www/html/apt/`
@@ -436,8 +436,8 @@ UFW (static rules)              Dynamic layer (iptables under UFW)
 
 - [ ] 10.1 Update `.github/workflows/build-deb.yml` — add upload step
 - [ ] 10.2 Add GitHub secrets: `APT_SSH_KEY`, `APT_HOST`, `APT_USER`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
-- [ ] 10.3 `test` branch: build .deb, SCP to `pool/`, regenerate `bookworm-test/Packages`
-- [ ] 10.4 `v*` tag: build .deb, SCP to `pool/`, regenerate `bookworm/Packages`, sign Release
+- [ ] 10.3 `test` branch: build .deb, SCP to `pool/`, regenerate `test/Packages`
+- [ ] 10.4 `v*` tag: build .deb, SCP to `pool/`, regenerate `stable/Packages`, sign Release
 - [ ] 10.5 Test: push to test branch, verify .deb appears in apt repo
 
 ## Phase 11: End-to-End Testing
@@ -466,6 +466,6 @@ UFW (static rules)              Dynamic layer (iptables under UFW)
 ## Notes
 
 - The job queue contract (Phase 6) is the API boundary between the two repos. Both repos reference it.
-- The apt repo serves two distributions: `bookworm-test` (test branch builds) and `bookworm` (tagged releases).
+- The apt repo serves two distributions: `test` (test branch builds) and `stable` (tagged releases).
 - Client machines choose which distribution to subscribe to based on their risk tolerance.
 - GPG signing is recommended for production but can be added after initial setup.

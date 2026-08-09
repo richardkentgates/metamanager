@@ -88,23 +88,23 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
             cd /var/www/html
 
-            dpkg-scanpackages pool/m/metamanager /dev/null > dists/bookworm/main/binary-amd64/Packages
-            gzip -k -f dists/bookworm/main/binary-amd64/Packages
+            dpkg-scanpackages pool/m/metamanager /dev/null > dists/stable/main/binary-amd64/Packages
+            gzip -k -f dists/stable/main/binary-amd64/Packages
 
             apt-ftparchive \
               -o APT::FTPArchive::Release::Origin="metamanager" \
               -o APT::FTPArchive::Release::Label="metamanager" \
-              -o APT::FTPArchive::Release::Suite="bookworm" \
-              -o APT::FTPArchive::Release::Codename="bookworm" \
+              -o APT::FTPArchive::Release::Suite="stable" \
+              -o APT::FTPArchive::Release::Codename="stable" \
               -o APT::FTPArchive::Release::Architectures="amd64" \
               -o APT::FTPArchive::Release::Components="main" \
               -o APT::FTPArchive::Release::Description="Metamanager apt repository" \
-              release dists/bookworm > dists/bookworm/Release
+              release dists/stable > dists/stable/Release
 
             gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
-              --clearsign --output dists/bookworm/InRelease dists/bookworm/Release
+              --clearsign --output dists/stable/InRelease dists/stable/Release
             gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
-              --armor --detach-sign --output dists/bookworm/Release.gpg dists/bookworm/Release
+              --armor --detach-sign --output dists/stable/Release.gpg dists/stable/Release
 
             echo "Release deployed to apt repo"
           REMOTE

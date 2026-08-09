@@ -26,17 +26,17 @@
 dev  ──  all development, direct push; CI runs checks + auto-version bump
     │  workflow_dispatch: promote-to-test.yml
     ▼
-test  ──  build .deb + deploy to test apt repo (dists/bookworm-test)
+test  ──  build .deb + deploy to test apt repo (dists/test)
     │  workflow_dispatch: promote-to-main.yml
     ▼
-main  ──  tag + GitHub release + deploy to production apt repo (dists/bookworm)
+main  ──  tag + GitHub release + deploy to production apt repo (dists/stable)
 ```
 
 - On every dev push: CI runs ShellCheck on all shell scripts, then auto-bumps `debian/changelog` and `VERSION`
 - The actor check (`github.actor != 'github-actions[bot]'`) prevents infinite loops — version bump commits don't re-trigger CI
 - Promotion workflows merge directly via git (no PRs), build, and deploy to apt repo
-- Test channel: `dists/bookworm-test` (used by test site, installed via `apt-get install -t bookworm-test`)
-- Production channel: `dists/bookworm` (used by production site, installed via `apt-get install -t bookworm` or `apt-get upgrade`)
+- Test channel: `dists/test` (used by test site, installed via `apt-get install -t test`)
+- Production channel: `dists/stable` (used by production site, installed via `apt-get install -t stable` or `apt-get upgrade`)
 
 ## Deployment Rules
 
@@ -44,8 +44,8 @@ main  ──  tag + GitHub release + deploy to production apt repo (dists/bookwo
 
 All software must move to production through native update systems:
 
-- **Daemon test channel**: Push to `dev` → trigger `promote-to-test.yml` → merges dev→test, builds `.deb` → deploys to `dists/bookworm-test` on apt server → install on test site via `apt-get install -t bookworm-test`
-- **Daemon production channel**: Push to `dev` → trigger `promote-to-main.yml` → merges test→main, tags, releases → deploys to `dists/bookworm` on apt server → install on production site via `apt-get upgrade` or `apt-get install -t bookworm`
+- **Daemon test channel**: Push to `dev` → trigger `promote-to-test.yml` → merges dev→test, builds `.deb` → deploys to `dists/test` on apt server → install on test site via `apt-get install -t test`
+- **Daemon production channel**: Push to `dev` → trigger `promote-to-main.yml` → merges test→main, tags, releases → deploys to `dists/stable` on apt server → install on production site via `apt-get upgrade` or `apt-get install -t stable`
 - **Plugin test channel**: Push to `dev` → trigger `promote-to-test.yml` → merges dev→test, builds zip → deploys to `metamanager-test/` on apt server → WordPress detects update via `MM_Updater`
 - **Plugin production channel**: Push to `dev` → trigger `promote-to-main.yml` → merges test→main, tags, releases → deploys to `metamanager/` on apt server → WordPress detects update via `MM_Updater`
 
@@ -80,8 +80,8 @@ The `VERSION` file is the single source of truth for the installed daemon versio
 
 ## Apt Server Channels
 
-- **Test channel (daemons)**: `dists/bookworm-test` — install via `apt-get install -t bookworm-test`
-- **Production channel (daemons)**: `dists/bookworm` — install via `apt-get install -t bookworm` or `apt-get upgrade`
+- **Test channel (daemons)**: `dists/test` — install via `apt-get install -t test`
+- **Production channel (daemons)**: `dists/stable` — install via `apt-get install -t stable` or `apt-get upgrade`
 - **Test channel (plugin)**: `metamanager-test/` — WordPress detects update via `MM_Updater`
 - **Production channel (plugin)**: `metamanager/` — WordPress detects update via `MM_Updater`
 
