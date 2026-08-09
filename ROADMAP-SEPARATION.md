@@ -26,11 +26,11 @@ Server: apt.richardkentgates.com (Debian 13, LAMP)
   │   │   ├── metamanager_2.4.0-1_all.deb      (release)
   │   │   └── metamanager_2.4.0~test1_all.deb   (test)
   │   ├── dists/
-  │   │   ├── bookworm/
+  │   │   ├── stable/
   │   │   │   └── main/binary-amd64/
   │   │   │       ├── Packages
   │   │   │       └── Packages.gz
-  │   │   └── bookworm-test/
+  │   │   └── test/
   │   │       └── main/binary-amd64/
   │   │           ├── Packages
   │   │           └── Packages.gz
@@ -54,8 +54,8 @@ Plugin Repo (metamanager-plugin)
   WP auto-update: plugin checks server metadata.json, downloads zip from server
 
 Server Repo (metamanager)
-  test branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate bookworm-test/Packages
-  main branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate bookworm/Packages
+  test branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate test/Packages
+  main branch  → dpkg-buildpackage → SCP → apt server pool/ → regenerate stable/Packages
   Client: apt update && apt install metamanager (or apt upgrade)
 ```
 
@@ -105,9 +105,9 @@ maldet — active daemon, daily malware scans of /var/www/
 │   ├── pool/m/metamanager/
 │   │   └── *.deb
 │   └── dists/
-│       ├── bookworm/
+│       ├── stable/
 │       │   └── main/binary-amd64/ (Packages, Packages.gz)
-│       └── bookworm-test/
+│       └── test/
 │           └── main/binary-amd64/ (Packages, Packages.gz)
 │
 └── metamanager/                  (plugin files for WP auto-updates)
@@ -126,10 +126,10 @@ maldet — active daemon, daily malware scans of /var/www/
 wget -qO - https://apt.richardkentgates.com/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/metamanager.gpg
 
 # Add repo (stable)
-echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list
 
 # OR add repo (test)
-echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm-test main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com test main" | sudo tee /etc/apt/sources.list.d/metamanager.list
 
 # Install
 sudo apt update && sudo apt install metamanager
@@ -300,12 +300,54 @@ UFW (static rules)              Dynamic layer (iptables under UFW)
 
 ### 7I: Verification ✅
 
-- [x] 7I.1 Test Apache: `curl http://apt.richardkentgates.com/`
-- [x] 7I.2 Test iptables: UFW active, deny incoming, 22/80/443 open
-- [x] 7I.3 Test fail2ban: 4 jails active, SSH bans visible in UFW
-- [x] 7I.4 Test modsecurity: Nikto/sqlmap blocked with 403
-- [x] 7I.5 Test maldet: active and monitoring
-- [x] 7I.6 Check memory usage
+### 7F: Install Maldet (Linux Malware Detect)
+
+- [ ] 7F.1 Install dependencies: `apt install -y liblockfile-simple-perl`
+- [ ] 7F.2 Download and install maldet:
+  ```bash
+  cd /tmp
+  wget https://www.rfxn.com/downloads/maldetect-current.tar.gz
+  tar xzf maldetect-current.tar.gz
+  cd maldetect-*
+  ./install.sh
+  ```
+- [ ] 7F.3 Configure `/usr/local/maldetect/conf.maldet`:
+  - `scan_user="root"` (scan web directories)
+  - `quarantine_hits="1"`
+  - `quarantine_clean="0"` (don't auto-delete, alert first)
+  - `email_alert="1"`
+  - `email_addr="your@email.com"`
+- [ ] 7F.4 Set up daily scan cron: `/etc/cron.daily/maldet`:
+  ```bash
+  #!/bin/bash
+  /usr/local/maldetect/maldet --scan-all /var/www/html/ >> /var/log/maldet-scan.log 2>&1
+  ```
+- [ ] 7F.5 Start maldet monitoring daemon: `maldet --monitor /var/www/html/`
+- [ ] 7F.6 Enable maldet service at boot
+- [ ] 7F.7 Test: `maldet --scan-all /var/www/html/`
+
+### 7G: Set Up Apt Repository
+
+- [ ] 7G.1 Install `dpkg-dev`: `apt install -y dpkg-dev`
+- [ ] 7G.2 Create directory structure:
+  ```
+  /var/www/html/apt/pool/m/metamanager/
+  /var/www/html/apt/dists/stable/main/binary-amd64/
+  /var/www/html/apt/dists/test/main/binary-amd64/
+  ```
+- [ ] 7G.3 Generate initial empty `Packages` index
+- [ ] 7G.4 Set permissions: `chown -R www-data:www-data /var/www/html/apt/`
+
+### 7H: Set Up Plugin Hosting
+
+- [ ] 7H.1 Create directory: `/var/www/html/metamanager/`
+- [ ] 7H.2 Set permissions: `chown -R www-data:www-data /var/www/html/metamanager/`
+- [ ] 7H.3 Create `metadata.json` template (version info for WP auto-updates)
+- [ ] 7H.4 Test: `curl http://apt.richardkentgates.com/metamanager/metadata.json`
+
+### 7I: Verification
+
+- [ ] 7I.1 Test Apache: `curl http://apt.richardkentgates.com/`
 - [ ] 7I.2 Test iptables: `nmap -p 1-1000 34.136.87.92` (only 22, 80, 443 should be open)
 - [ ] 7I.3 Test fail2ban: trigger SSH brute force, verify ban
 - [ ] 7I.4 Test modsecurity: send scanner UA, verify block
@@ -331,11 +373,11 @@ UFW (static rules)              Dynamic layer (iptables under UFW)
 
 ## Phase 10: CI/CD — Server Repo Build + Apt Push
 
-- [x] 10.1 Update `.github/workflows/build-deb.yml` — add upload step
-- [x] 10.2 Add GitHub secrets: `APT_SSH_KEY`, `APT_HOST`, `APT_USER`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
-- [x] 10.3 `test` branch: build .deb, SCP to `pool/`, regenerate `bookworm-test/Packages`
-- [x] 10.4 `v*` tag: build .deb, SCP to `pool/`, regenerate `bookworm/Packages`, sign Release
-- [x] 10.5 Test: push to test branch, verify .deb appears in apt repo
+- [ ] 10.1 Update `.github/workflows/build-deb.yml` — add upload step
+- [ ] 10.2 Add GitHub secrets: `APT_SSH_KEY`, `APT_HOST`, `APT_USER`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
+- [ ] 10.3 `test` branch: build .deb, SCP to `pool/`, regenerate `test/Packages`
+- [ ] 10.4 `v*` tag: build .deb, SCP to `pool/`, regenerate `stable/Packages`, sign Release
+- [ ] 10.5 Test: push to test branch, verify .deb appears in apt repo
 
 ## Phase 11: End-to-End Testing ✅
 
@@ -363,6 +405,6 @@ UFW (static rules)              Dynamic layer (iptables under UFW)
 ## Notes
 
 - The job queue contract (Phase 6) is the API boundary between the two repos. Both repos reference it.
-- The apt repo serves two distributions: `bookworm-test` (test branch builds) and `bookworm` (tagged releases).
+- The apt repo serves two distributions: `test` (test branch builds) and `stable` (tagged releases).
 - Client machines choose which distribution to subscribe to based on their risk tolerance.
 - GPG signing is recommended for production but can be added after initial setup.
