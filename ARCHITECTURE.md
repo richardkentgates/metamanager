@@ -259,7 +259,7 @@ dev  ──push──►  test (build .deb + deploy to apt)  ──promote──
 ### Deployment
 
 - `.deb` packages are served from `https://apt.richardkentgates.com/pool/m/metamanager/`
-- APT repository metadata at `https://apt.richardkentgates.com/dists/bookworm/`
+- APT repository metadata at `https://apt.richardkentgates.com/dists/stable/`
 - Production installs via: `apt-get install metamanager`
 - Production updates via: `apt-get upgrade metamanager`
 
@@ -297,7 +297,7 @@ The apt server (`apt.richardkentgates.com`) serves both daemon `.deb` packages a
 
 ```
 /var/www/html/
-├── dists/bookworm/
+├── dists/stable/
 │   ├── Release              Signed release metadata
 │   ├── Release.gpg          Detached GPG signature
 │   ├── InRelease            Clearsigned release
@@ -314,7 +314,7 @@ The apt server (`apt.richardkentgates.com`) serves both daemon `.deb` packages a
 
 - GPG key fingerprint: `E0395903AE72DD661AD11DF76C0D53C3F9B96454`
 - Public key installed on production: `/usr/share/keyrings/metamanager.gpg`
-- APT source: `deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main`
+- APT source: `deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main`
 
 ### User Installation
 
@@ -323,7 +323,7 @@ The apt server (`apt.richardkentgates.com`) serves both daemon `.deb` packages a
 curl -fsSL https://apt.richardkentgates.com/metamanager.asc | sudo gpg --dearmor -o /usr/share/keyrings/metamanager.gpg
 
 # Add repository
-echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com bookworm main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list
 
 # Install
 sudo apt update && sudo apt install metamanager
