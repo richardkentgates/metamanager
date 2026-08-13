@@ -1,6 +1,6 @@
 # Metamanager Server Roadmap
 
-Last updated 2026-08-03.
+Last updated 2026-08-09.
 
 ---
 
@@ -30,7 +30,7 @@ main  ──  tag + GitHub release + deploy to apt repo
 |------|-------|
 | Daemon version | Auto-bumped by CI on every dev push |
 | Apt server | 34.136.87.92 (apt.richardkentgates.com) |
-| Production | 104.197.172.183 |
+| Production | 34.10.253.160 |
 | OS | Debian 13 (trixie) |
 
 ---
@@ -90,10 +90,10 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 
 | # | Finding | Severity | Status |
 |---|---------|----------|--------|
-| S-10 | PID file overwriting without stale check | LOW | OPEN |
+| S-10 | PID file overwriting without stale check | LOW | FIXED (v2.4.36) — `kill -0` probe, stale removal, EXIT trap cleanup |
 | S-11 | `mail` command not in package dependencies | LOW | FIXED (v2.4.37) — removed daemon email, WordPress handles notifications via wp_mail() |
-| S-12 | No symlink validation on `file_path` from JSON | LOW | OPEN |
-| S-13 | `.mm_tmp` files not cleaned up on crash | LOW | OPEN |
+| S-12 | No symlink validation on `file_path` from JSON | LOW | FIXED (v2.4.36) — `[[ -L ]]` rejection in both daemons |
+| S-13 | `.mm_tmp` files not cleaned up on crash | LOW | FIXED (v2.4.36) — startup scan in both daemons |
 
 ---
 
@@ -116,16 +116,16 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 
 ### Priority 3 — Dependencies
 
-- [ ] Add `php-imagick` to `debian/control` Depends — needed by MetaManager WordPress plugin for image processing
-- [ ] Verify full Depends: `jq, inotify-tools, libimage-exiftool-perl, libjpeg-turbo-progs, optipng, webp, ffmpeg, php-imagick`
-- [ ] Remove `php-imagick`, `imagemagick`, `libimage-exiftool-perl` from GCM debian/control (they belong here)
+- [x] Add `php-imagick` to `debian/control` Depends — needed by MetaManager WordPress plugin for image processing
+- [x] Verify full Depends: `jq, inotify-tools, libimage-exiftool-perl, libjpeg-turbo-progs, optipng, webp, ffmpeg, php-imagick`
+- [x] Remove `php-imagick`, `imagemagick`, `libimage-exiftool-perl` from GCM debian/control (they belong here)
 
 ### Priority 4 — LOW Items
 
+- [x] S-10: PID file overwriting without stale check
 - [x] S-11: Remove `mail` command dependency — WordPress handles notifications via `wp_mail()`
-- [ ] S-10: PID file overwriting without stale check
-- [ ] S-12: No symlink validation on `file_path` from JSON
-- [ ] S-13: `.mm_tmp` files not cleaned up on crash
+- [x] S-12: No symlink validation on `file_path` from JSON
+- [x] S-13: `.mm_tmp` files not cleaned up on crash
 
 ---
 
@@ -138,6 +138,28 @@ Full audit covering security, orphans, missing error handling, and concurrency.
 | `main` | `release.yml` — tag + GitHub release + deploy to apt | Push to `main` |
 | any | `promote-to-test.yml` — merge dev→test, build, deploy | Manual (`workflow_dispatch`) |
 | any | `promote-to-main.yml` — merge test→main, tag, release, deploy | Manual (`workflow_dispatch`) |
+
+---
+
+## Restoration & Expansion Plan (2026-08-09)
+
+Research confirmed all audit items were already fixed. No restoration needed.
+
+### Already Fixed — No Action Required
+
+| # | Item | Version | Notes |
+|---|------|---------|-------|
+| S-6 | `PrivateTmp=true` | v2.4.31 | Both service files have `PrivateTmp=true`. |
+| S-7 | Systemd hardening | v2.4.31 | Full hardening applied (ProtectHome, Restrict*, LockPersonality, etc.). |
+| S-11 | Email notifications removed | v2.4.37 | Daemon sends no emails; plugin handles via `wp_mail()`. |
+
+### Expansion — Platform Improvements
+
+| # | Item | Priority | Description |
+|---|------|----------|-------------|
+| E-1 | AVIF compression support | LOW | Add `avifenc` to compression pipeline (currently JPEG/PNG/WebP only). |
+| E-2 | Job priority levels | LOW | Allow high-priority jobs to skip queue (currently FIFO only). |
+| E-3 | Progress reporting | LOW | Expose compression progress via status file or API endpoint. |
 
 ---
 
