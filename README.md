@@ -342,6 +342,13 @@ metamanager/
 │   │   ├── promote-to-test.yml           # workflow_dispatch: dev→test, build, deploy
 │   │   └── promote-to-main.yml           # workflow_dispatch: test→main, tag, release, deploy
 │   └── BRANCHING.md                      # Branch strategy
+├── docs/                                 # Documentation
+│   ├── 01-overview.md                    # Architecture overview
+│   ├── 02-installation.md                # Installation guide
+│   ├── 03-daemon-reference.md            # Daemon scripts reference
+│   ├── 04-systemd.md                     # systemd services and hardening
+│   ├── 05-job-queue.md                   # Job queue contract
+│   └── 06-troubleshooting.md             # Common issues and fixes
 ├── ARCHITECTURE.md                       # Server architecture reference
 ├── CONTRIBUTING.md                       # Development guide
 ├── CHANGELOG.md                          # Server release history
