@@ -61,25 +61,27 @@ jobs:
             ../metamanager_*.deb \
             "${APT_USER}@${APT_HOST}:/var/www/html/pool/m/metamanager/"
 
+          # IMPORTANT: dpkg-scanpackages MUST scan entire pool/ (not pool/m/metamanager)
+          # so all packages (gcm + metamanager) appear in the Packages index.
           ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
             cd /var/www/html
 
-            dpkg-scanpackages pool/m/metamanager /dev/null > dists/test/main/binary-amd64/Packages
-            gzip -k -f dists/test/main/binary-amd64/Packages
+            sudo dpkg-scanpackages pool/ /dev/null > dists/test/main/binary-amd64/Packages
+            sudo gzip -k -f dists/test/main/binary-amd64/Packages
 
-            apt-ftparchive \
-              -o APT::FTPArchive::Release::Origin="metamanager" \
-              -o APT::FTPArchive::Release::Label="metamanager" \
+            sudo apt-ftparchive \
+              -o APT::FTPArchive::Release::Origin="apt.richardkentgates.com" \
+              -o APT::FTPArchive::Release::Label="GCM APT Repository" \
               -o APT::FTPArchive::Release::Suite="test" \
               -o APT::FTPArchive::Release::Codename="test" \
               -o APT::FTPArchive::Release::Architectures="amd64" \
               -o APT::FTPArchive::Release::Components="main" \
-              -o APT::FTPArchive::Release::Description="Metamanager apt repository (test)" \
+              -o APT::FTPArchive::Release::Description="GCM apt repository (test)" \
               release dists/test > dists/test/Release
 
-            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+            sudo gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
               --clearsign --output dists/test/InRelease dists/test/Release
-            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+            sudo gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
               --armor --detach-sign --output dists/test/Release.gpg dists/test/Release
 
             echo "Test .deb deployed to apt repo (test)"
