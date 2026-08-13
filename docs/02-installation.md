@@ -1,6 +1,6 @@
 # Installation
 
-## Quick Install (via apt)
+## Quick Install (via apt — Debian/Ubuntu)
 
 ```bash
 # Import the GPG key
@@ -14,10 +14,32 @@ echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardken
 sudo apt update && sudo apt install metamanager
 ```
 
-This installs:
-- Compression and metadata daemons
-- Systemd services (auto-enabled)
-- All OS dependencies (ExifTool, jpegtran, optipng, cwebp, ffmpeg, jq, inotify-tools)
+## Quick Install (via dnf — RHEL/AlmaLinux/Rocky)
+
+```bash
+# Import the GPG key
+sudo wget -q -O /etc/pki/rpm-gpg/RPM-GPG-KEY-metamanager https://apt.richardkentgates.com/key.gpg
+
+# Add the repository
+sudo tee /etc/yum.repos.d/metamanager.repo <<EOF
+[metamanager]
+name=Metamanager Repository
+baseurl=https://apt.richardkentgates.com/rpm
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-metamanager
+EOF
+
+# Install
+sudo dnf install metamanager
+```
+
+## Quick Install (via yum — Older RHEL/CentOS)
+
+```bash
+# Same as dnf, but replace 'dnf' with 'yum'
+sudo yum install metamanager
+```
 
 ## Manual Install
 
@@ -59,6 +81,33 @@ sudo bash metamanager-install.sh --update --wp-path /srv/www/wordpress
 sudo bash metamanager-install.sh --uninstall --wp-path /srv/www/wordpress
 ```
 
+## Verifying Installation
+
+After installing, verify everything is working:
+
+```bash
+# 1. Check daemons are installed
+which metamanager-compress-daemon.sh metamanager-meta-daemon.sh
+
+# 2. Check VERSION file exists and is readable
+cat /usr/local/lib/metamanager/VERSION
+
+# 3. Check systemd services exist
+systemctl list-unit-files | grep metamanager
+
+# 4. Check daemons are running
+systemctl status metamanager-compress-daemon
+systemctl status metamanager-meta-daemon
+
+# 5. Check job queue directory exists
+ls -la /srv/www/wordpress/wp-content/metamanager-jobs/
+
+# 6. Verify dependency tools are installed
+which jpegtran optipng cwebp ffmpeg exiftool jq inotifywait
+```
+
+If all commands succeed, the daemon installation is complete. Install and activate the [WordPress plugin](https://github.com/richardkentgates/metamanager-plugin) to start processing media.
+
 ## Updating
 
 **Via WordPress admin (recommended):**
@@ -68,6 +117,12 @@ The daemon updates automatically via apt whenever the plugin triggers an update.
 
 ```bash
 sudo apt update && sudo apt upgrade metamanager
+```
+
+**Via dnf directly:**
+
+```bash
+sudo dnf update metamanager
 ```
 
 ## Uninstall
