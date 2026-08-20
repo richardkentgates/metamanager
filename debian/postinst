@@ -26,6 +26,8 @@ case "$1" in
         # Allow www-data to write required-version.json for daemon self-updater.
         chown root:www-data "$MM_LIB" 2>/dev/null || true
         chmod 2775 "$MM_LIB" 2>/dev/null || true
+        # Ensure self-updater script is executable.
+        chmod 0755 /usr/local/bin/metamanager-self-updater.sh 2>/dev/null || true
         # Install sudoers rule for daemon self-updates.
         if [ -f /etc/sudoers.d/sudoers-metamanager ]; then
             chmod 0440 /etc/sudoers.d/sudoers-metamanager
