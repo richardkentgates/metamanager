@@ -54,6 +54,24 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [compress] $*" >> "${LOG_FILE}"
 }
 
+# --- Write daemon status to status.json for WordPress to read ---
+# Atomic write: .tmp then mv so PHP never reads a partial file.
+write_status() {
+    local queue_depth="${1:-0}"
+    local last_completed="${2:-}"
+    local status_tmp="${STATUS_FILE}.tmp"
+
+    jq -n \
+        --arg pid            "$$" \
+        --argjson queue_depth "${queue_depth}" \
+        --arg last_completed  "${last_completed}" \
+        --arg updated_at     "$(date '+%Y-%m-%d %H:%M:%S')" \
+        '{pid: ($pid | tonumber), queue_depth: $queue_depth, last_completed: $last_completed, updated_at: $updated_at}' \
+        > "${status_tmp}" 2>/dev/null || true
+
+    mv "${status_tmp}" "${STATUS_FILE}" 2>/dev/null || true
+}
+
 # --- Wait for job queue directory ---
 # The plugin creates this on activation. If not present yet, wait for it.
 wait_for_job_dir() {
@@ -347,24 +365,6 @@ write_result() {
     # Atomic rename — only replaces .json once write is complete.
     mv "${result_tmp}" "${result_file}" 2>/dev/null || true
     rm -f "${tmpfile}"
-}
-
-# Write daemon status to status.json for WordPress to read.
-# Atomic write: .tmp then mv so PHP never reads a partial file.
-write_status() {
-    local queue_depth="${1:-0}"
-    local last_completed="${2:-}"
-    local status_tmp="${STATUS_FILE}.tmp"
-
-    jq -n \
-        --arg pid            "$$" \
-        --argjson queue_depth "${queue_depth}" \
-        --arg last_completed  "${last_completed}" \
-        --arg updated_at     "$(date '+%Y-%m-%d %H:%M:%S')" \
-        '{pid: ($pid | tonumber), queue_depth: $queue_depth, last_completed: $last_completed, updated_at: $updated_at}' \
-        > "${status_tmp}" 2>/dev/null || true
-
-    mv "${status_tmp}" "${STATUS_FILE}" 2>/dev/null || true
 }
 
 # --- Drain any jobs that were queued while the daemon was offline ---
