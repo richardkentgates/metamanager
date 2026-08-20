@@ -32,7 +32,7 @@ test  ──  build .deb + deploy to test apt repo (dists/test)
 main  ──  tag + GitHub release + deploy to production apt repo (dists/stable)
 ```
 
-- On every dev push: CI runs ShellCheck on all shell scripts, then auto-bumps `debian/changelog` and `VERSION`
+- On every dev push: CI first auto-bumps `debian/changelog` and `VERSION`, then runs ShellCheck on all shell scripts
 - The actor check (`github.actor != 'github-actions[bot]'`) prevents infinite loops — version bump commits don't re-trigger CI
 - Promotion workflows merge directly via git (no PRs), build, and deploy to apt repo
 - Test channel: `dists/test` (used by test site, installed via `apt-get install -t test`)
