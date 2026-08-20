@@ -59,6 +59,39 @@ The plugin triggers daemon updates automatically. The server repo provides:
 - **`sudoers-metamanager`** — installed to `/etc/sudoers.d/`, grants www-data passwordless sudo for specific apt/systemctl commands
 - **`debian/postinst`** — sets VERSION to 0644 and sudoers to 0440 during package install
 
+### Self-Updater (Daemon-Side)
+
+The daemon includes a self-updater that checks a central manifest for new versions and updates independently of the WordPress plugin.
+
+**Components:**
+- **`/usr/local/bin/metamanager-self-updater.sh`** — Bash script that checks manifest, runs apt upgrade, restarts daemons
+- **`/etc/systemd/system/metamanager-self-updater.service`** — Systemd service unit
+- **`/etc/systemd/system/metamanager-self-updater.timer`** — Systemd timer (every 6 hours)
+- **`/var/run/metamanager-self-updater.json`** — Status file read by WordPress dashboard widget
+- **`/var/log/metamanager-self-updater.log`** — Log file
+
+**Manifest URL:** `https://apt.richardkentgates.com/metamanager/daemon-manifest.json`
+
+**Status file format:**
+```json
+{
+  "installed_version": "2.4.53",
+  "available_version": "2.4.53",
+  "last_check": "2026-08-20T18:04:09Z",
+  "last_update": "",
+  "last_action": "up_to_date",
+  "last_message": "Daemon v2.4.53 is current",
+  "timer_enabled": true
+}
+```
+
+**Actions:**
+- `--check` — Check for updates (default)
+- `--update` — Check and apply updates
+- `--status` — Show current status as JSON
+
+**Dashboard widget** reads the status file and displays: timer status, last check time, available version, last action, and details.
+
 ## VERSION File
 
 The `VERSION` file is the single source of truth for the installed daemon version. The plugin reads it via `MM_Daemon_Updater::get_daemon_version()` to compare against `daemon-compatibility.json`.
