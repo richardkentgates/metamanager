@@ -45,6 +45,7 @@ JOB_DONE="${JOB_ROOT}/completed"
 JOB_FAILED="${JOB_ROOT}/failed"
 LOG_FILE="/var/log/metamanager-meta.log"
 PID_FILE="${JOB_ROOT}/meta-daemon.pid"
+STATUS_FILE="${JOB_ROOT}/meta-status.json"
 
 # Maximum simultaneous job subshells. Tune to available CPU cores.
 # Raising this too high on a loaded server will saturate disk I/O.
@@ -85,9 +86,10 @@ if [[ -f "${PID_FILE}" ]]; then
 fi
 
 echo $$ > "${PID_FILE}"
-trap 'rm -f "${PID_FILE}"' EXIT
+trap 'rm -f "${PID_FILE}" "${STATUS_FILE}"' EXIT
 
 log "Daemon started (PID $$). Watching ${JOB_DIR}"
+write_status 0 ""
 
 # --- Job processor ---
 process_job() {
@@ -415,6 +417,24 @@ write_result() {
     rm -f "${tmpfile}"
 }
 
+# Write daemon status to status.json for WordPress to read.
+# Atomic write: .tmp then mv so PHP never reads a partial file.
+write_status() {
+    local queue_depth="${1:-0}"
+    local last_completed="${2:-}"
+    local status_tmp="${STATUS_FILE}.tmp"
+
+    jq -n \
+        --arg pid            "$$" \
+        --argjson queue_depth "${queue_depth}" \
+        --arg last_completed  "${last_completed}" \
+        --arg updated_at     "$(date '+%Y-%m-%d %H:%M:%S')" \
+        '{pid: ($pid | tonumber), queue_depth: $queue_depth, last_completed: $last_completed, updated_at: $updated_at}' \
+        > "${status_tmp}" 2>/dev/null || true
+
+    mv "${status_tmp}" "${STATUS_FILE}" 2>/dev/null || true
+}
+
 # --- Drain any jobs that were queued while the daemon was offline ---
 # S-13: Clean up leftover .mm_tmp files from previous crash
 log "Startup scan: cleaning up leftover .mm_tmp files"
@@ -464,10 +484,12 @@ while (( _pass < _max_passes )); do
         process_job "${jobfile}" &
     done
     wait || true
+    write_status "${#_sorted[@]}" ""
     # Brief pause between passes so lock-contention with other daemons can clear.
     sleep 2
 done
 unset _pass _max_passes _pending _f _sorted _pri
+write_status 0 ""
 log "Startup scan complete."
 
 # --- Main loop ---
@@ -486,6 +508,9 @@ while true; do
                 wait -n 2>/dev/null || true
             done
             process_job "${jobfile}" &
+            # Update status with current queue depth (count remaining .json files).
+            _qdepth=$(find "${JOB_DIR}" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l)
+            write_status "${_qdepth}" "$(date '+%Y-%m-%d %H:%M:%S')"
         fi
     done
     # If inotifywait exits (e.g. directory deleted), wait and retry
