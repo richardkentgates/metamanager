@@ -53,48 +53,53 @@ The only exception is temporary testing during active development sessions, wher
 
 ## How Daemon Updates Work
 
-The plugin triggers daemon updates automatically. The server repo provides:
+The daemon self-updater is the single authority for daemon version management. The plugin PHP does NOT trigger daemon updates — it only reads version info for display.
 
-- **`VERSION`** — daemon version file at `/usr/local/lib/metamanager/VERSION`, readable by www-data, read by plugin to detect version mismatch
-- **`sudoers-metamanager`** — installed to `/etc/sudoers.d/`, grants www-data passwordless sudo for specific apt/systemctl commands
-- **`debian/postinst`** — sets VERSION to 0644 and sudoers to 0440 during package install
+### Self-Updater
 
-### Self-Updater (Daemon-Side)
+**`/usr/local/bin/metamanager-self-updater.sh`** — Bash script that:
+1. Detects the WordPress installation path
+2. Reads `daemon-compatibility.json` from the plugin directory (`wp-content/plugins/metamanager/`)
+3. Extracts the installed plugin version from the plugin header (`metamanager.php`)
+4. Looks up the required daemon version from the compatibility map
+5. Compares to the installed `VERSION` file at `/usr/local/lib/metamanager/VERSION`
+6. If version mismatch → runs `sudo apt-get update && apt-get install -y metamanager` + restarts daemons
+7. Writes comprehensive status JSON to `/var/run/metamanager-status.json`
 
-The daemon includes a self-updater that checks a central manifest for new versions and updates independently of the WordPress plugin.
+**Runs every 60 seconds** via systemd timer.
 
 **Components:**
-- **`/usr/local/bin/metamanager-self-updater.sh`** — Bash script that checks manifest, runs apt upgrade, restarts daemons
+- **`/usr/local/bin/metamanager-self-updater.sh`** — Main script
 - **`/etc/systemd/system/metamanager-self-updater.service`** — Systemd service unit
-- **`/etc/systemd/system/metamanager-self-updater.timer`** — Systemd timer (every 6 hours)
-- **`/var/run/metamanager-self-updater.json`** — Status file read by WordPress dashboard widget
-- **`/var/log/metamanager-self-updater.log`** — Log file
+- **`/etc/systemd/system/metamanager-self-updater.timer`** — Systemd timer (every 60s)
 
-**Manifest URL:** `https://apt.richardkentgates.com/metamanager/daemon-manifest.json`
-
-**Status file format:**
+**Status JSON** (`/var/run/metamanager-status.json`) — read by WordPress dashboard widget and REST API:
 ```json
 {
-  "installed_version": "2.4.53",
-  "available_version": "2.4.53",
-  "last_check": "2026-08-20T18:04:09Z",
-  "last_update": "",
-  "last_action": "up_to_date",
-  "last_message": "Daemon v2.4.53 is current",
-  "timer_enabled": true
+  "ts": "2026-08-20T19:22:16Z",
+  "updater": {
+    "installed_version": "2.4.56",
+    "required_version": "2.4.56",
+    "last_check": "2026-08-20T19:22:16Z",
+    "last_update": "",
+    "status": "ok",
+    "message": "Daemon v2.4.56 is current"
+  },
+  "daemons": {
+    "compress": { "running": true, "pid": "3812755", "started": "..." },
+    "meta": { "running": true, "pid": "3812830", "started": "..." }
+  },
+  "queues": { "compress": 0, "meta": 0, "completed": 0, "failed": 0 },
+  "tools": { "exiftool": true, "jpegtran": true, "optipng": true, "cwebp": true, "ffmpeg": true, "avifenc": true },
+  "config": { "wp_content_dir": "/srv/www/wordpress/wp-content" }
 }
 ```
 
-**Actions:**
-- `--check` — Check for updates (default)
-- `--update` — Check and apply updates
-- `--status` — Show current status as JSON
-
-**Dashboard widget** reads the status file and displays: timer status, last check time, available version, last action, and details.
+**Status values:** `ok` (current), `ahead` (installed > required), `updating` (in progress), `failed` (error), `waiting` (can't determine required version)
 
 ## VERSION File
 
-The `VERSION` file is the single source of truth for the installed daemon version. The plugin reads it via `MM_Daemon_Updater::get_daemon_version()` to compare against `daemon-compatibility.json`.
+The `VERSION` file is the installed daemon version. The shell self-updater reads it to compare against `daemon-compatibility.json` from the plugin directory.
 
 **Format**: Plain semver string, e.g. `2.4.10` (no Debian revision suffix).
 
