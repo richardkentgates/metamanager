@@ -23,6 +23,9 @@ case "$1" in
         if [ -f "$MM_LIB/VERSION" ]; then
             chmod 0644 "$MM_LIB/VERSION"
         fi
+        # Allow www-data to write required-version.json for daemon self-updater.
+        chown root:www-data "$MM_LIB" 2>/dev/null || true
+        chmod 2775 "$MM_LIB" 2>/dev/null || true
         # Install sudoers rule for daemon self-updates.
         if [ -f /etc/sudoers.d/sudoers-metamanager ]; then
             chmod 0440 /etc/sudoers.d/sudoers-metamanager
@@ -32,7 +35,7 @@ case "$1" in
             systemctl daemon-reload 2>/dev/null || true
             systemctl enable metamanager-self-updater.timer 2>/dev/null || true
             systemctl start metamanager-self-updater.timer 2>/dev/null || true
-            echo "MetaManager self-updater timer enabled (checks every 6 hours)."
+            echo "MetaManager self-updater timer enabled (checks every 60s)."
         fi
         ;;
 esac
