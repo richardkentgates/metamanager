@@ -2,22 +2,22 @@
 #
 # metamanager-self-updater.sh
 #
-# Polls required-version.json written by the WordPress plugin.
-# If required version differs from installed VERSION, runs apt upgrade.
-# Writes comprehensive status JSON for dashboard widget and REST API.
+# Reads daemon-compatibility.json directly from the WordPress plugin to
+# determine the required daemon version. If the installed VERSION differs,
+# runs apt upgrade. Writes comprehensive status JSON for dashboard widget
+# and REST API.
 #
 # Runs via systemd timer every 60 seconds.
 #
 
 set -euo pipefail
 
-readonly REQUIRED_VERSION_FILE="/usr/local/lib/metamanager/required-version.json"
 readonly INSTALLED_VERSION_FILE="/usr/local/lib/metamanager/VERSION"
 readonly STATUS_FILE="/var/run/metamanager-status.json"
 readonly LOG_FILE="/var/log/metamanager-self-updater.log"
 readonly LOCK_FILE="/var/run/metamanager-self-updater.lock"
 
-# Detect WordPress path.
+# Detect WordPress installation.
 readonly WP_CANDIDATES=(
     "/srv/www/wordpress"
     "/var/www/wordpress"
@@ -25,9 +25,11 @@ readonly WP_CANDIDATES=(
     "/opt/bitnami/wordpress"
 )
 WP_CONTENT_DIR=""
+WP_PLUGIN_DIR=""
 for p in "${WP_CANDIDATES[@]}"; do
     if [[ -f "$p/wp-includes/version.php" ]]; then
         WP_CONTENT_DIR="$p/wp-content"
+        WP_PLUGIN_DIR="$p/wp-content/plugins/metamanager"
         break
     fi
 done
@@ -50,9 +52,21 @@ get_installed() {
     [[ -f "$INSTALLED_VERSION_FILE" ]] && cat "$INSTALLED_VERSION_FILE" 2>/dev/null | tr -d '[:space:]'
 }
 
+# Get the required daemon version by reading daemon-compatibility.json
+# from the plugin directory and looking up the installed plugin version.
 get_required() {
-    [[ -f "$REQUIRED_VERSION_FILE" ]] || { echo ""; return; }
-    jq -r '.required_version // empty' "$REQUIRED_VERSION_FILE" 2>/dev/null || { echo ""; return; }
+    local compat_file="$WP_PLUGIN_DIR/daemon-compatibility.json"
+    local plugin_file="$WP_PLUGIN_DIR/metamanager.php"
+
+    [[ -f "$compat_file" && -f "$plugin_file" ]] || { echo ""; return; }
+
+    # Extract plugin version from main plugin file header.
+    local plugin_version
+    plugin_version=$(grep -oP 'Version:\s*\K\S+' "$plugin_file" 2>/dev/null | head -1)
+    [[ -z "$plugin_version" ]] && { echo ""; return; }
+
+    # Look up required daemon version from compatibility map.
+    jq -r --arg pv "$plugin_version" '.[$pv] // empty' "$compat_file" 2>/dev/null || { echo ""; return; }
 }
 
 version_gt() {
@@ -170,9 +184,9 @@ main() {
     installed=$(get_installed)
     required=$(get_required)
 
-    # No required version file — plugin hasn't written one yet.
+    # No compatibility map or plugin not installed — can't determine required version.
     if [[ -z "$required" ]]; then
-        write_status "${installed:-unknown}" "unknown" "waiting" "Plugin has not written required version yet"
+        write_status "${installed:-unknown}" "unknown" "waiting" "Cannot determine required version (plugin missing or no compat map)"
         exit 0
     fi
 
