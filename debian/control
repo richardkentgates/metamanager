@@ -8,7 +8,7 @@ Homepage: https://github.com/richardkentgates/metamanager
 
 Package: metamanager
 Architecture: all
-Depends: ${misc:Depends}, jq, inotify-tools, libimage-exiftool-perl, libjpeg-turbo-progs, optipng, webp, ffmpeg, php-imagick
+Depends: ${misc:Depends}, jq, inotify-tools, libimage-exiftool-perl, libjpeg-turbo-progs, optipng, webp, ffmpeg, libavif-bin, php-imagick
 Description: OS-level daemons for Metamanager WordPress plugin
  Metamanager provides lossless image compression (jpegtran, optipng, cwebp),
  bidirectional EXIF/IPTC/XMP metadata sync via ExifTool, and video/audio

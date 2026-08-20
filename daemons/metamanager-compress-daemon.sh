@@ -46,6 +46,7 @@ MAX_CONCURRENT=4
 JPEGTRAN="/usr/bin/jpegtran"
 OPTIPNG="/usr/bin/optipng"
 CWEBP="/usr/bin/cwebp"
+AVIFENC="/usr/bin/avifenc"
 
 # --- Logging ---
 log() {
@@ -261,12 +262,34 @@ process_job() {
             fi
             ;;
         avif)
-            # AVIF is typically already optimally compressed; skip.
-            orig_size=$(stat -c%s "${file_path}") || orig_size=0
-            new_size=${orig_size}
-            message="AVIF already optimal (${orig_size} bytes)"
-            log "${message}"
-            success=true
+            if [[ -x "${AVIFENC}" ]]; then
+                local outfile="${file_path}.mm_tmp"
+                orig_size=$(stat -c%s "${file_path}")
+                # --min 0 --max 0  : lossless quantizer range
+                # --speed 6        : balanced speed (0=slowest/best, 10=fastest)
+                # --lossless       : explicit lossless mode
+                if timeout "${TOOL_TIMEOUT}" "${AVIFENC}" --min 0 --max 0 --speed 6 --lossless -o "${outfile}" "${file_path}" 2>>"${LOG_FILE}"; then
+                    new_size=$(stat -c%s "${outfile}")
+                    if (( new_size < orig_size )); then
+                        mv "${outfile}" "${file_path}"
+                        message="AVIF lossless compressed: ${orig_size} → ${new_size} bytes"
+                    else
+                        new_size=${orig_size}
+                        rm -f "${outfile}"
+                        message="AVIF already optimal (${orig_size} bytes)"
+                    fi
+                    success=true
+                else
+                    rm -f "${outfile}"
+                    message="avifenc failed for: ${file_path}"
+                fi
+            else
+                orig_size=$(stat -c%s "${file_path}") || orig_size=0
+                new_size=${orig_size}
+                message="avifenc not found — AVIF compression skipped: ${file_path}"
+                log "WARNING: ${message}"
+                success=true
+            fi
             ;;
         *)
             message="Unsupported file type: .${ext} — skipped"
@@ -353,8 +376,20 @@ while (( _pass < _max_passes )); do
     done
     [[ ${#_pending[@]} -eq 0 ]] && break
     (( ++_pass ))
-    log "Startup scan pass ${_pass}: ${#_pending[@]} job(s)"
-    for jobfile in "${_pending[@]}"; do
+
+    # Sort by priority (descending) — higher priority jobs process first.
+    _sorted=()
+    while IFS= read -r line; do
+        _sorted+=( "$line" )
+    done < <(
+        for _f in "${_pending[@]}"; do
+            _pri=$(jq -r '.priority // 0' "${_f}" 2>/dev/null) || _pri=0
+            printf '%s\t%s\n' "${_pri}" "${_f}"
+        done | sort -t$'\t' -k1,1nr -k2,2 | cut -f2
+    )
+
+    log "Startup scan pass ${_pass}: ${#_sorted[@]} job(s)"
+    for jobfile in "${_sorted[@]}"; do
         while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
             wait -n 2>/dev/null || true
         done
@@ -364,7 +399,7 @@ while (( _pass < _max_passes )); do
     # Brief pause between passes so lock-contention with other daemons can clear.
     sleep 2
 done
-unset _pass _max_passes _pending _f
+unset _pass _max_passes _pending _f _sorted _pri
 log "Startup scan complete."
 
 # --- Main loop: inotifywait for new JSON files ---

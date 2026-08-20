@@ -8,23 +8,8 @@ permissions:
   contents: write
 
 jobs:
-  shellcheck:
-    name: ShellCheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Lint install script
-        run: shellcheck -S error metamanager-install.sh
-
-      - name: Lint daemon scripts
-        run: |
-          shellcheck -S error daemons/metamanager-compress-daemon.sh
-          shellcheck -S error daemons/metamanager-meta-daemon.sh
-
   version-bump:
     name: Auto-increment Version
-    needs: [shellcheck]
     runs-on: ubuntu-latest
     if: github.actor != 'github-actions[bot]'
     steps:
@@ -59,3 +44,17 @@ jobs:
           git add debian/changelog VERSION
           git commit -m "chore: bump version to ${NEW_VERSION}"
           git push
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint install script
+        run: shellcheck -S error metamanager-install.sh
+
+      - name: Lint daemon scripts
+        run: |
+          shellcheck -S error daemons/metamanager-compress-daemon.sh
+          shellcheck -S error daemons/metamanager-meta-daemon.sh
