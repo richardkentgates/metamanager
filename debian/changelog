@@ -1,8 +1,11 @@
 metamanager (2.4.53-1) unstable; urgency=medium
 
   * Auto-incremented version from 2.4.52 to 2.4.53.
+  * Added daemon self-updater with comprehensive status JSON.
+  * Self-updater polls required-version.json written by WordPress plugin.
+  * Status includes daemons, queues, tools for dashboard widget and REST API.
 
- -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  Thu, 20 Aug 2026 03:03:21 +0000
+ -- github-actions[bot] <github-actions[bot]@users.noreply.github.com>  Thu, 20 Aug 2026 18:30:00 +0000
 metamanager (2.4.52-1) unstable; urgency=medium
 
   * Auto-incremented version from 2.4.51 to 2.4.52.

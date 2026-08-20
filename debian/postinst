@@ -27,6 +27,13 @@ case "$1" in
         if [ -f /etc/sudoers.d/sudoers-metamanager ]; then
             chmod 0440 /etc/sudoers.d/sudoers-metamanager
         fi
+        # Enable and start the self-updater timer.
+        if [ -f /etc/systemd/system/metamanager-self-updater.timer ]; then
+            systemctl daemon-reload 2>/dev/null || true
+            systemctl enable metamanager-self-updater.timer 2>/dev/null || true
+            systemctl start metamanager-self-updater.timer 2>/dev/null || true
+            echo "MetaManager self-updater timer enabled (checks every 6 hours)."
+        fi
         ;;
 esac
 
