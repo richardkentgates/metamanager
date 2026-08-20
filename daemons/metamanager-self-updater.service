@@ -1,0 +1,21 @@
+[Unit]
+Description=Metamanager Daemon Self-Updater Check
+Documentation=https://github.com/richardkentgates/metamanager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/metamanager-self-updater.sh --check
+User=root
+Group=root
+TimeoutStartSec=120
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=metamanager-self-update
+
+# Security hardening
+NoNewPrivileges=false
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/run /var/log
