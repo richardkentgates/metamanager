@@ -444,8 +444,20 @@ while (( _pass < _max_passes )); do
     done
     [[ ${#_pending[@]} -eq 0 ]] && break
     (( ++_pass ))
-    log "Startup scan pass ${_pass}: ${#_pending[@]} job(s)"
-    for jobfile in "${_pending[@]}"; do
+
+    # Sort by priority (descending) — higher priority jobs process first.
+    _sorted=()
+    while IFS= read -r line; do
+        _sorted+=( "$line" )
+    done < <(
+        for _f in "${_pending[@]}"; do
+            _pri=$(jq -r '.priority // 0' "${_f}" 2>/dev/null) || _pri=0
+            printf '%s\t%s\n' "${_pri}" "${_f}"
+        done | sort -t$'\t' -k1,1nr -k2,2 | cut -f2
+    )
+
+    log "Startup scan pass ${_pass}: ${#_sorted[@]} job(s)"
+    for jobfile in "${_sorted[@]}"; do
         while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
             wait -n 2>/dev/null || true
         done
@@ -455,7 +467,7 @@ while (( _pass < _max_passes )); do
     # Brief pause between passes so lock-contention with other daemons can clear.
     sleep 2
 done
-unset _pass _max_passes _pending _f
+unset _pass _max_passes _pending _f _sorted _pri
 log "Startup scan complete."
 
 # --- Main loop ---
