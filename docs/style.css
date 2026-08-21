@@ -186,7 +186,7 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   grid-template-areas:
-    'article_0 aside_1';
+    'article_0 aside_0';
   column-gap: 32px;
   max-width: 1200px;
   margin: 0 auto;
@@ -302,7 +302,7 @@ article tr:nth-child(even) td {
 
 /* ── Aside / Sidebar ───────────────────────────────────────────────────── */
 aside {
-  grid-area: aside_1;
+  grid-area: aside_0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -575,7 +575,7 @@ footer a:hover {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       'article_0'
-      'aside_1';
+      'aside_0';
     padding: 24px 20px;
 
   }
