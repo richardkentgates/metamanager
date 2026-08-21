@@ -78,6 +78,8 @@ header nav a:hover {
 /* ── Hero ──────────────────────────────────────────────────────────────── */
 .hero {
   background-color: var(--dark);
+  border: none;
+  border-radius: 0;
   padding: 0 40px 32px;
 }
 .hero-badge {
