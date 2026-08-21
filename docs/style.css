@@ -185,7 +185,6 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   grid-template-areas:
-    'heading  aside_1'
     'article_0 aside_1';
   column-gap: 32px;
   max-width: 1200px;
@@ -193,15 +192,7 @@ main {
   padding: 32px 40px;
   min-width: 0;
 }
-main > h2 {
-  grid-area: heading;
-  font-size: 22px;
-  font-weight: 300;
-  color: var(--muted);
-  margin: 0 0 24px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
+
 
 /* ── Article ───────────────────────────────────────────────────────────── */
 article {
@@ -582,7 +573,6 @@ footer a:hover {
   main {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      'heading'
       'article_0'
       'aside_1';
     padding: 24px 20px;
