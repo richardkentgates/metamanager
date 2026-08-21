@@ -35,7 +35,9 @@
         let index = 0;
         let sibling = el;
         while ((sibling = sibling.previousElementSibling) !== null) {
-            ++index;
+            if (sibling.tagName === el.tagName) {
+                ++index;
+            }
         }
         return index;
     };
