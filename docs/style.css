@@ -96,6 +96,10 @@ header nav a:hover {
   border-bottom: 1px solid rgba(45,140,240,.2) !important;
   max-width: 100% !important;
   margin: 0 !important;
+  grid-column: 1 / -1;
+  margin-left: -40px !important;
+  margin-right: -40px !important;
+  width: calc(100% + 80px) !important;
 }
 .hero-badge {
   display: inline-flex;
