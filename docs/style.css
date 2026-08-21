@@ -25,7 +25,7 @@
 }
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 80px;
+
 }
 html, body {
   margin: 0;
@@ -37,11 +37,6 @@ html, body {
 
 /* ── Header ────────────────────────────────────────────────────────────── */
 header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -49,9 +44,8 @@ header {
   gap: 8px;
   padding: 10px 40px;
   background-color: rgba(15, 22, 35, 0.97);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+
+
   min-height: 56px;
 }
 header h1 {
@@ -91,9 +85,11 @@ header nav a:hover {
 
 /* ── Hero ──────────────────────────────────────────────────────────────── */
 .hero {
+  background: linear-gradient(135deg, var(--dark) 0%, #0a1628 50%, #0d1f38 100%) !important;
+  padding: 80px 64px !important;
+  border-bottom: 1px solid rgba(45,140,240,.2) !important;
   max-width: 100% !important;
   margin: 0 !important;
-  padding-top: 24px !important;
 }
 .hero-badge {
   display: inline-flex;
@@ -599,13 +595,13 @@ footer a:hover {
       'article_0'
       'aside_1';
     padding: 24px 20px;
-    margin-top: 72px;
+
   }
   aside {
     position: static;
   }
   .hero {
-    padding-top: 20px !important;
+    padding: 60px 32px !important;
   }
   .layer-grid {
     grid-template-columns: 1fr;
@@ -623,7 +619,7 @@ footer a:hover {
   }
   main {
     padding: 16px 12px;
-    margin-top: 72px;
+
   }
   article {
     padding: 20px 16px;
@@ -638,7 +634,7 @@ footer a:hover {
     font-size: 11px;
   }
   .hero {
-    padding-top: 16px !important;
+    padding: 40px 20px !important;
   }
   .feature-grid {
     grid-template-columns: 1fr;
