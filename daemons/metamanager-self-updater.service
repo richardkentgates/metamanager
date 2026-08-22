@@ -18,4 +18,5 @@ SyslogIdentifier=metamanager-self-update
 NoNewPrivileges=false
 ProtectSystem=strict
 ProtectHome=true
+PrivateTmp=true
 ReadWritePaths=/var/run /var/log
