@@ -5,21 +5,36 @@
 
 set -e
 
+stop_daemon_units() {
+    for svc in metamanager-compress-daemon metamanager-meta-daemon; do
+        systemctl stop "$svc.service" 2>/dev/null || true
+        systemctl disable "$svc.service" 2>/dev/null || true
+        rm -f "/etc/systemd/system/$svc.service"
+        rm -f "/usr/local/bin/$svc.sh"
+    done
+    # Self-updater: stop the timer and remove its units and script.
+    systemctl stop metamanager-self-updater.timer 2>/dev/null || true
+    systemctl disable metamanager-self-updater.timer 2>/dev/null || true
+    rm -f /etc/systemd/system/metamanager-self-updater.timer
+    rm -f /etc/systemd/system/metamanager-self-updater.service
+    rm -f /usr/local/bin/metamanager-self-updater.sh
+    rm -f /etc/systemd/system/timers.target.wants/metamanager-self-updater.timer
+    systemctl daemon-reload 2>/dev/null || true
+}
+
 case "$1" in
     remove)
-        for svc in metamanager-compress-daemon metamanager-meta-daemon; do
-            systemctl stop "$svc.service" 2>/dev/null || true
-            systemctl disable "$svc.service" 2>/dev/null || true
-            rm -f "/etc/systemd/system/$svc.service"
-            rm -f "/usr/local/bin/$svc.sh"
-        done
-        systemctl daemon-reload 2>/dev/null || true
+        stop_daemon_units
         echo "MetaManager daemons stopped and removed."
         ;;
     purge)
+        stop_daemon_units
         rm -rf /usr/local/lib/metamanager
+        rm -f /usr/local/bin/daemon-common.sh
         rm -f /var/log/metamanager-compress.log* /var/log/metamanager-meta.log*
-        rm -f /var/log/metamanager-update.log
+        rm -f /var/log/metamanager-self-updater.log*
+        rm -f /var/run/metamanager-status.json
+        rm -f /var/run/metamanager-self-updater.lock
         rm -f /etc/logrotate.d/metamanager
         rm -f /etc/sudoers.d/sudoers-metamanager
         ;;

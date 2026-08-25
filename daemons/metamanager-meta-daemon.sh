@@ -135,10 +135,11 @@ process_job() {
         # -G1 : include group name prefix (Group:Tag) for disambiguation
         # -s  : tag names, not descriptions
         # -j  : JSON output (array with one element per file)
-        embedded_json=$( "${EXIFTOOL}" -a -G1 -s -j "${file_path}" 2>/dev/null | jq -c '.[0] // {}' )
-        local et_exit=$?
+        # Guarded: under set -e an unguarded failure here would abort the
+        # job subshell before write_result, stranding the job as .processing.
+        embedded_json=$( "${EXIFTOOL}" -a -G1 -s -j "${file_path}" 2>/dev/null | jq -c '.[0] // {}' ) || embedded_json=""
         exec 9>&-; rm -f "${lockfile}"
-        if [[ ${et_exit} -ne 0 ]] || [[ -z "${embedded_json}" ]]; then
+        if [[ -z "${embedded_json}" ]]; then
             write_result "${tmpfile}" "failed" "ExifTool read failed for: ${file_path}"
             return 1
         fi

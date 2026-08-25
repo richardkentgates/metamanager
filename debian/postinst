@@ -25,10 +25,9 @@ case "$1" in
         fi
         # Ensure self-updater script is executable.
         chmod 0755 /usr/local/bin/metamanager-self-updater.sh 2>/dev/null || true
-        # Install sudoers rule for daemon self-updates.
-        if [ -f /etc/sudoers.d/sudoers-metamanager ]; then
-            chmod 0440 /etc/sudoers.d/sudoers-metamanager
-        fi
+        # Remove legacy sudoers grant (updater runs as root; plugin never
+        # triggers updates).
+        rm -f /etc/sudoers.d/sudoers-metamanager
         # Enable and start the self-updater timer.
         if [ -f /etc/systemd/system/metamanager-self-updater.timer ]; then
             systemctl daemon-reload 2>/dev/null || true

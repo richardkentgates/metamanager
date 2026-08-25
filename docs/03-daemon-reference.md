@@ -44,7 +44,7 @@ Watches `wp-content/metamanager-jobs/compress/` via `inotifywait`.
 
 ## Metadata Daemon (`metamanager-meta-daemon.sh`)
 
-Watches `wp-content/metamanager-jobs/meta/` and `wp-content/metamanager-jobs/import/`.
+Watches `wp-content/metamanager-jobs/meta/`. Import jobs are import-type jobs inside `meta/` — no separate directory exists.
 
 ### Job Types
 

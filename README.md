@@ -119,7 +119,7 @@ Metamanager runs two systemd services, each implemented as a bash script:
 
 ### Metadata daemon (`metamanager-meta-daemon.sh`)
 
-- Watches `wp-content/metamanager-jobs/meta/` and `wp-content/metamanager-jobs/import/`
+- Watches `wp-content/metamanager-jobs/meta/` (import jobs arrive as `job_type: "import"` inside `meta/`)
 - **Import jobs**: reads embedded tags (EXIF/IPTC/XMP, ID3, QuickTime, Vorbis) via ExifTool, returns JSON for WP-Cron to apply
 - **Embed jobs**: writes current WordPress field values back into files via ExifTool
 - Handles all media types including PDF (XMP fields)
@@ -202,11 +202,13 @@ sudo systemctl restart metamanager-meta-daemon
 # Fresh install
 sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
-# Update (daemon files only — skips dependency installation)
-sudo bash metamanager-install.sh --update --wp-path /srv/www/wordpress
+# Update: daemon updates are automatic via the self-updater (apt).
+# To re-run the installer manually (e.g. after a WordPress path change):
+sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
 # Uninstall
-sudo bash metamanager-install.sh --uninstall --wp-path /srv/www/wordpress
+sudo apt-get remove metamanager      # stops daemons, removes units/scripts
+sudo apt-get purge metamanager       # also removes logs, state, config
 ```
 
 ---
@@ -247,7 +249,7 @@ The apt repo at `apt.richardkentgates.com` serves two channels:
 | Stable | `main` | `2.4.x` | Production |
 | Test | `test` | `2.4.x~test<timestamp>` | Pre-release testing |
 
-The plugin reads the `VERSION` file to detect daemon version and trigger updates automatically.
+The plugin reads the `VERSION` file for dashboard display only — it never triggers updates.
 
 ---
 
@@ -266,7 +268,7 @@ CI auto-bumps `debian/changelog` and `VERSION` on every push to `dev`. They must
 ## Updating
 
 **Via WordPress admin (recommended):**
-The daemon updates automatically via apt whenever the plugin triggers an update — no manual server intervention is needed.
+The self-updater (systemd timer, every 60 seconds) compares the installed daemon version against the required version declared by the plugin's `daemon-compatibility.json` and runs `apt-get upgrade` automatically. No manual intervention is needed.
 
 **Via apt directly:**
 
@@ -311,7 +313,7 @@ rm -rf /path/to/wordpress/wp-content/plugins/metamanager
 Or via the installer:
 
 ```bash
-sudo bash metamanager-install.sh --uninstall --wp-path /srv/www/wordpress
+sudo apt-get purge metamanager
 ```
 
 ### Removing plugin data via WordPress admin

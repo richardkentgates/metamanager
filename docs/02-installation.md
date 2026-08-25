@@ -74,11 +74,13 @@ sudo bash metamanager/metamanager-install.sh --wp-path /srv/www/wordpress
 # Fresh install
 sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
-# Update (daemon files only)
-sudo bash metamanager-install.sh --update --wp-path /srv/www/wordpress
+# Update: daemon updates are automatic via the self-updater (apt).
+# To re-run the installer manually (e.g. after a WordPress path change):
+sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
 # Uninstall
-sudo bash metamanager-install.sh --uninstall --wp-path /srv/www/wordpress
+sudo apt-get remove metamanager      # stops daemons, removes units/scripts
+sudo apt-get purge metamanager       # also removes logs, state, config
 ```
 
 ## Verifying Installation
@@ -111,7 +113,7 @@ If all commands succeed, the daemon installation is complete. Install and activa
 ## Updating
 
 **Via WordPress admin (recommended):**
-The daemon updates automatically via apt whenever the plugin triggers an update.
+The self-updater timer upgrades daemons via apt whenever the plugin's compatibility map requires a newer version.
 
 **Via apt directly:**
 
@@ -130,7 +132,7 @@ sudo dnf update metamanager
 ### Via installer (recommended)
 
 ```bash
-sudo bash metamanager-install.sh --uninstall --wp-path /srv/www/wordpress
+sudo apt-get purge metamanager
 ```
 
 ### Manual uninstall
