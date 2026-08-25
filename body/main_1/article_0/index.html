@@ -142,7 +142,7 @@
     <h2>Quick Install</h2>
     <p class="section-lead">
         The install script detects your distro (apt / dnf / yum), installs all OS dependencies,
-        copies the daemon scripts, installs systemd units, and activates the plugin.
+        copies the daemon scripts, installs systemd units, and WordPress plugin installs separately.
     </p>
 
     <h3>From apt repository</h3>
@@ -204,7 +204,7 @@ sudo bash metamanager-install.sh --wp-path /srv/www/wordpress</code></pre>
     <table>
         <thead><tr><th>Format</th><th>Tool</th><th>Method</th></tr></thead>
         <tbody>
-            <tr><td>JPEG</td><td>jpegtran</td><td>Lossless optimization (no re-encoding). Strips unnecessary metadata if file already has embedded XMP/IPTC/EXIF preserved separately.</td></tr>
+            <tr><td>JPEG</td><td>jpegtran</td><td>Lossless optimization (no re-encoding). Preserves all metadata (-copy all) if file already has embedded XMP/IPTC/EXIF preserved separately.</td></tr>
             <tr><td>PNG</td><td>optipng</td><td>Lossless deflate optimization. File is only replaced if result is smaller.</td></tr>
             <tr><td>WebP</td><td>cwebp -lossless</td><td>Lossless re-encode. Original replaced only if output is smaller.</td></tr>
             <tr><td>Video</td><td>ffmpeg</td><td>Container remux (not re-encode). Cleans malformed containers, writes metadata atoms. No video quality change.</td></tr>
@@ -262,7 +262,7 @@ wp metamanager compress --post-id=123</code></pre>
 <!-- ── Daemons ───────────────────────────────────────────────────────────── -->
 <section id="daemons">
     <h2>Daemon Management</h2>
-    <p class="section-lead">Two systemd services handle all media processing. They run as the web server user (www-data or similar) and watch job directories via inotifywait.</p>
+    <p class="section-lead">Three systemd units run: two worker daemons plus a 60-second self-updater. They run as the web server user (www-data or similar) and watch job directories via inotifywait.</p>
 
     <table>
         <thead><tr><th>Service</th><th>Watches</th><th>Tools called</th></tr></thead>
@@ -384,7 +384,7 @@ sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon</code
         <thead><tr><th>Channel</th><th>Branch</th><th>Package version</th><th>Use case</th></tr></thead>
         <tbody>
             <tr><td>Stable</td><td><code>main</code></td><td><code>2.4.x</code></td><td>Production</td></tr>
-            <tr><td>Test</td><td><code>test</code></td><td><code>2.4.x~test&lt;timestamp&gt;</code></td><td>Pre-release testing</td></tr>
+            <tr><td>Test</td><td><code>test</code></td><td><code>2.4.x-1 &mdash; pin with <code>-t test</code></code></td><td>Pre-release testing</td></tr>
         </tbody>
     </table>
 
