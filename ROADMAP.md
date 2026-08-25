@@ -157,7 +157,7 @@ Research confirmed all audit items were already fixed. No restoration needed.
 
 | # | Item | Priority | Description |
 |---|------|----------|-------------|
-| E-1 | AVIF compression support | LOW | Add `avifenc` to compression pipeline (currently JPEG/PNG/WebP only). |
+| E-1 | AVIF compression support | LOW | Done — avifenc lossless branch implemented (skips with warning when binary absent). |
 | E-2 | Job priority levels | LOW | Allow high-priority jobs to skip queue (currently FIFO only). |
 | E-3 | Progress reporting | LOW | Expose compression progress via status file or API endpoint. |
 
@@ -176,10 +176,10 @@ Research confirmed all audit items were already fixed. No restoration needed.
 
 | # | File | Line | Issue | Severity | Status |
 |---|------|------|-------|----------|--------|
-| U-1 | `metamanager-self-updater.sh` | 9 | Service passes `--check` flag but script never parses arguments | MEDIUM | — |
-| U-2 | `metamanager-self-updater.sh` | 27-35 | No early exit when WordPress installation not found — proceeds with empty paths | MEDIUM | — |
-| U-3 | `metamanager-self-updater.sh` | 233-234 | Daemon restart failures silently swallowed (`|| true`) — status still reports "updated" | MEDIUM | — |
-| U-4 | `metamanager-self-updater.sh` | 132-173 | `write_status()` uses heredoc instead of atomic `.tmp` + `mv` — partial reads possible | LOW | — |
+| U-1 | `metamanager-self-updater.sh` | 9 | Service passes `--check` flag but script never parses arguments | MEDIUM | ✅ Fixed — script parses args; service no longer passes --check (was bricking auto-update) |
+| U-2 | `metamanager-self-updater.sh` | 27-35 | No early exit when WordPress installation not found — proceeds with empty paths | MEDIUM | ✅ Fixed — early exit with error |
+| U-3 | `metamanager-self-updater.sh` | 233-234 | Daemon restart failures silently swallowed (`|| true`) — status still reports "updated" | MEDIUM | ✅ Fixed — failures tracked, status reports partial; sudo prefixes dropped |
+| U-4 | `metamanager-self-updater.sh` | 132-173 | `write_status()` uses heredoc instead of atomic `.tmp` + `mv` — partial reads possible | LOW | ✅ Fixed — atomic write |
 
 ### Documentation Stale
 

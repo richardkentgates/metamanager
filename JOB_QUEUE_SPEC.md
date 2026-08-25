@@ -54,14 +54,14 @@ Queued by PHP when an image is uploaded or regenerated.
 | `size` | string | Yes | Image size slug (`"full"`, `"thumbnail"`, etc.) |
 | `image_name` | string | Yes | Original filename for logging |
 | `submitted_at` | string | Yes | ISO 8601 timestamp |
-| `optimize_level` | int | No | Compression level (1-3, default 2) |
+| `optimize_level` | int | No | Compression level (0-7, default 2) |
 
 **Daemon Processing:**
 - JPEG: `jpegtran -copy all -optimize -progressive`
 - PNG: `optipng -o2`
-- WebP: `cwebp -m 6 -q 100` (lossless)
+- WebP: `cwebp -lossless -mt -quiet` (lossless)
 - Video: `ffmpeg -i input -c copy output` (container remux)
-- AVIF: Skipped (already optimal)
+- AVIF: `avifenc --min 0 --max 0 --speed 6 --lossless` (lossless; skipped with a warning if avifenc is not installed)
 
 ### 2. Metadata Embedding Job (`meta/`)
 
@@ -96,17 +96,21 @@ Queued by PHP when metadata is saved or after import.
 | `trigger` | string | No | `"save"` (default) or `"import"` |
 
 **Metadata Fields:**
-| Key | EXIF | IPTC | XMP |
+Keys are PascalCase (as sent by the plugin's `MM_Metadata::get_fields_for_job()`
+and consumed by the daemon's field map):
+
+| Key (PascalCase) | EXIF | IPTC | XMP |
 |-----|------|------|-----|
-| `title` | Title | ObjectName | Title |
-| `description` | ImageDescription | Caption-Abstract | Description |
-| `caption` | — | Caption-Abstract | Caption |
-| `alt_text` | — | — | AltTextAccessibility |
-| `creator` | Artist | By-line | Creator |
-| `copyright` | Copyright | CopyrightNotice | Rights |
-| `owner` | OwnerName | — | Owner |
-| `publisher` | — | Source | Publisher |
-| `website` | — | — | WebStatement |
+| `Title` | Title | ObjectName | Title |
+| `Description` | ImageDescription | Caption-Abstract | Description |
+| `Caption` | — | Caption-Abstract | Caption |
+| `AltText` | — | — | XMP:AltTextAccessibility |
+| `Creator` | Artist | By-line | Creator |
+| `Copyright` | Copyright | CopyrightNotice | Rights |
+| `Owner` | OwnerName | — | Owner |
+| `Publisher` | — | Source | XMP:Publisher |
+| `Website` | — | — | XMP:WebStatement |
+| `Headline` | — | IPTC:Headline | XMP:Headline |
 
 ### 3. Import Job (`meta/` with `job_type: "import"`)
 
@@ -185,9 +189,10 @@ For import jobs, the result includes embedded tags.
   "status": "completed",
   "completed_at": "2026-07-22 12:00:05",
   "embedded_tags": {
-    "Title": "My Image",
-    "Artist": "John Doe",
-    "Copyright": "© 2026 John Doe"
+    "EXIF:Artist": "John Doe",
+    "EXIF:Copyright": "© 2026 John Doe",
+    "XMP:Title": "My Image",
+    "IPTC:ObjectName": "My Image"
   }
 }
 ```

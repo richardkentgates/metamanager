@@ -13,7 +13,7 @@ This document describes the server-side components of the Metamanager system: th
 | **OS executes, PHP coordinates** | Daemons are bash scripts using `inotifywait` to watch job directories. They never call back into WordPress. |
 | **Job queue is the contract** | Both the plugin and daemons agree on directory layout and JSON job file format. The plugin writes job files; daemons read, process, and write results. |
 | **Atomic ownership** | `.processing` extension rename prevents two daemon instances from processing the same file simultaneously. |
-| **Safe defaults** | Daemons write PID files for health checks. systemd provides process supervision, restart on failure, and resource limits. |
+| **Safe defaults** | Daemons write PID files for health checks. systemd provides process supervision and restart-on-failure; concurrency is throttled by MAX_CONCURRENT. |
 | **No plugin coupling** | Daemons only care about the filesystem. They never load WordPress or query the database. |
 
 ---
@@ -23,33 +23,39 @@ This document describes the server-side components of the Metamanager system: th
 ```
 metamanager/
 ├── daemons/
-│   ├── metamanager-compress-daemon.sh    Lossless compression: jpegtran/optipng/cwebp/ffmpeg
-│   ├── metamanager-meta-daemon.sh        Metadata read/write: ExifTool
-│   ├── metamanager-compress-daemon.service   systemd unit template
-│   └── metamanager-meta-daemon.service       systemd unit template
+│   ├── daemon-common.sh                       Shared library: logging, status, PID/lock,
+│   │                                          job-dir wait, result writing, drain loop
+│   ├── metamanager-compress-daemon.sh         Lossless compression: jpegtran/optipng/cwebp/avifenc/ffmpeg
+│   ├── metamanager-meta-daemon.sh             Metadata read/write/import: ExifTool
+│   ├── metamanager-compress-daemon.service    systemd unit
+│   ├── metamanager-meta-daemon.service        systemd unit
+│   ├── metamanager-self-updater.sh            Version check + apt upgrade against plugin compat map
+│   ├── metamanager-self-updater.service       systemd unit
+│   └── metamanager-self-updater.timer         60-second check timer
 │
-├── metamanager-install.sh    Server installer: OS deps, systemd, job queue setup
+├── logrotate/metamanager     Log rotation config for all three daemons
+├── sudoers...                (removed — updater runs as root; no www-data grants)
+│
+├── metamanager-install.sh    Server installer: OS deps, systemd units, job queue setup,
+│                             daemon-common.sh deployment to /usr/local/bin
 │
 ├── debian/                   .deb packaging
 │   ├── control               Package metadata
 │   ├── rules                 Build rules
-│   ├── postinst              Post-install: systemd daemon-reload
-│   ├── prerm                 Pre-remove: stop daemons
-│   ├── postrm                Post-remove: cleanup apt config
-│   ├── metamanager.install   File list for dpkg-deb
-│   └── apt-metamanager.conf  APT timeout config (installed to /etc/apt/apt.conf.d/)
+│   ├── postinst              Post-install: runs installer, enables self-updater timer
+│   ├── postrm                Post-remove/purge: stop/disable units, cleanup logs/state
+│   └── metamanager.install   File list for dpkg-deb
 │
-├── apt-metamanager.conf      Source file for the apt config
-├── VERSION                   Current version (e.g. 2.4.15)
-├── CHANGELOG.md              Release notes
+├── VERSION                   Current version (kept in sync with debian/changelog)
+├── JOB_QUEUE_SPEC.md         Cross-repo contract: job/result JSON formats
+├── CHANGELOG.md              Plugin changelog reference; server history in debian/changelog
 ├── ARCHITECTURE.md           This file
 │
-├── .github/workflows/
-│   ├── ci.yml                "Dev CI — Lint & Version Bump" (ShellCheck + auto-bump)
-│   ├── build-deb.yml         "Promote to Test — Build & Deploy" (build .deb + apt repo)
-│   └── main-release.yml      "Promote to Release — Tag & GitHub Release"
-│
-└── .shellcheckrc             ShellCheck configuration
+└── .github/workflows/
+    ├── ci.yml                     "Dev CI — Lint & Version Bump" (ShellCheck + auto-bump)
+    ├── promote-to-test.yml        Manual: merge dev→test, build .deb, deploy bookworm-test channel
+    ├── promote-to-main.yml        Manual: merge test→main, tag, release, deploy stable channel
+    └── pages.yml                  GitHub Pages docs deploy
 ```
 
 ---
