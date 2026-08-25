@@ -79,10 +79,15 @@ jobs:
               -o APT::FTPArchive::Release::Description="GCM apt repository (test)" \
               release dists/test > dists/test/Release
 
-            sudo gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
-              --clearsign --output dists/test/InRelease dists/test/Release
-            sudo gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
-              --armor --detach-sign --output dists/test/Release.gpg dists/test/Release
+            # Sign as the deploy user (key lives in its keyring); root has no
+            # secret key, so `sudo gpg` silently produced a stale InRelease.
+            set -e
+            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+              --clearsign -o /tmp/InRelease dists/test/Release
+            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
+              --armor --detach-sign -o /tmp/Release.gpg dists/test/Release
+            sudo cp /tmp/InRelease dists/test/InRelease
+            sudo cp /tmp/Release.gpg dists/test/Release.gpg
 
             echo "Test .deb deployed to apt repo (test)"
           REMOTE
