@@ -6,17 +6,18 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/metamanager-self-updater.sh --check
+ExecStart=/usr/local/bin/metamanager-self-updater.sh
 User=root
 Group=root
-TimeoutStartSec=120
+TimeoutStartSec=300
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=metamanager-self-update
 
-# Security hardening
-NoNewPrivileges=false
-ProtectSystem=strict
+# Security hardening. The updater runs apt-get and restarts services, so it
+# needs write access to package and unit directories.
+NoNewPrivileges=true
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/run /var/log
+ProtectSystem=strict
+ReadWritePaths=/var/run /var/log /usr/local/lib/metamanager /etc/systemd/system /var/lib/apt /var/lib/dpkg /var/cache/apt
