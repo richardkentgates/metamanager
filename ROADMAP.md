@@ -163,6 +163,33 @@ Research confirmed all audit items were already fixed. No restoration needed.
 
 ---
 
+## Audit #4 — 2026-08-24 (Cross-Repo Audit)
+
+### Forked / Duplicate Logic
+
+| # | Files | Issue | Severity | Status |
+|---|-------|-------|----------|--------|
+| F-1 | `compress-daemon.sh` vs `meta-daemon.sh` | ~100 lines of boilerplate duplicated: bash check, dependency check, JOB_ROOT config, write_status(), PID stale-check, startup cleanup, drain loop | MEDIUM | — |
+| F-2 | `compress-daemon.sh:337-368` vs `meta-daemon.sh:410-436` | `write_result()` duplicated with minor differences (bytes_before/bytes_after) | MEDIUM | — |
+
+### Self-Updater Issues
+
+| # | File | Line | Issue | Severity | Status |
+|---|------|------|-------|----------|--------|
+| U-1 | `metamanager-self-updater.sh` | 9 | Service passes `--check` flag but script never parses arguments | MEDIUM | — |
+| U-2 | `metamanager-self-updater.sh` | 27-35 | No early exit when WordPress installation not found — proceeds with empty paths | MEDIUM | — |
+| U-3 | `metamanager-self-updater.sh` | 233-234 | Daemon restart failures silently swallowed (`|| true`) — status still reports "updated" | MEDIUM | — |
+| U-4 | `metamanager-self-updater.sh` | 132-173 | `write_status()` uses heredoc instead of atomic `.tmp` + `mv` — partial reads possible | LOW | — |
+
+### Documentation Stale
+
+| # | File | Issue | Severity | Status |
+|---|------|-------|----------|--------|
+| D-1 | `ARCHITECTURE.md:26-29` | Repo layout doesn't mention self-updater script | MEDIUM | — |
+| D-2 | `README.md:325-357` | Lists `daemon-compatibility.json` in wrong repo, lists `debian/preinst` which doesn't exist | MEDIUM | — |
+
+---
+
 ## Conventions
 
 - All work on `dev` only. Never checkout/edit/push `test` or `main`.
