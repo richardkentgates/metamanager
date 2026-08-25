@@ -165,12 +165,12 @@ Research confirmed all audit items were already fixed. No restoration needed.
 
 ## Audit #4 — 2026-08-24 (Cross-Repo Audit)
 
-### Forked / Duplicate Logic
+### Forked / Duplicate Logic — RESOLVED
 
 | # | Files | Issue | Severity | Status |
 |---|-------|-------|----------|--------|
-| F-1 | `compress-daemon.sh` vs `meta-daemon.sh` | ~100 lines of boilerplate duplicated: bash check, dependency check, JOB_ROOT config, write_status(), PID stale-check, startup cleanup, drain loop | MEDIUM | — |
-| F-2 | `compress-daemon.sh:337-368` vs `meta-daemon.sh:410-436` | `write_result()` duplicated with minor differences (bytes_before/bytes_after) | MEDIUM | — |
+| F-1 | `compress-daemon.sh` vs `meta-daemon.sh` | ~100 lines of boilerplate duplicated | MEDIUM | ✅ Fixed — extracted to `daemon-common.sh` |
+| F-2 | `write_result()` | Duplicated with minor differences | MEDIUM | ✅ Fixed — unified in `daemon-common.sh` with optional bytes args |
 
 ### Self-Updater Issues
 
