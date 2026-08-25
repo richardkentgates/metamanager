@@ -55,7 +55,12 @@ json_escape() {
 }
 
 get_installed() {
-    [[ -f "$INSTALLED_VERSION_FILE" ]] && cat "$INSTALLED_VERSION_FILE" 2>/dev/null | tr -d '[:space:]'
+    if [[ ! -f "$INSTALLED_VERSION_FILE" ]]; then
+        echo ""
+        return 0
+    fi
+    cat "$INSTALLED_VERSION_FILE" 2>/dev/null | tr -d '[:space:]'
+    return 0
 }
 
 # Get the required daemon version by reading daemon-compatibility.json
@@ -235,14 +240,14 @@ main() {
     write_status "$installed" "$required" "updating" "Updating from v${installed} to v${required}..."
 
     # apt-get update
-    if ! sudo -n apt-get update -qq >> "$LOG_FILE" 2>&1; then
+    if ! apt-get update -qq >> "$LOG_FILE" 2>&1; then
         log "ERROR" "apt-get update failed"
         write_status "$installed" "$required" "failed" "apt-get update failed"
         exit 1
     fi
 
     # apt-get install
-    if ! sudo -n apt-get install -y -qq metamanager >> "$LOG_FILE" 2>&1; then
+    if ! apt-get install -y -qq metamanager >> "$LOG_FILE" 2>&1; then
         log "ERROR" "apt-get install metamanager failed"
         write_status "$installed" "$required" "failed" "apt-get install failed"
         exit 1
@@ -254,11 +259,11 @@ main() {
 
     # U-3: Restart daemons and check for failures.
     local restart_ok=true
-    if ! sudo -n systemctl restart metamanager-compress-daemon 2>> "$LOG_FILE"; then
+    if ! systemctl restart metamanager-compress-daemon 2>> "$LOG_FILE"; then
         log "ERROR" "Failed to restart metamanager-compress-daemon"
         restart_ok=false
     fi
-    if ! sudo -n systemctl restart metamanager-meta-daemon 2>> "$LOG_FILE"; then
+    if ! systemctl restart metamanager-meta-daemon 2>> "$LOG_FILE"; then
         log "ERROR" "Failed to restart metamanager-meta-daemon"
         restart_ok=false
     fi

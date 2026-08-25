@@ -320,6 +320,16 @@ for daemon in metamanager-compress-daemon metamanager-meta-daemon; do
     success "Daemon installed: ${dest}"
 done
 
+# Daemons source daemon-common.sh from their own directory — it must be
+# installed alongside them in /usr/local/bin.
+if [[ ! -f "${DAEMON_SRC}/daemon-common.sh" ]]; then
+    error "Shared library not found: ${DAEMON_SRC}/daemon-common.sh"
+fi
+cp "${DAEMON_SRC}/daemon-common.sh" /usr/local/bin/daemon-common.sh
+chmod 755 /usr/local/bin/daemon-common.sh
+chown root:root /usr/local/bin/daemon-common.sh
+success "Shared daemon library installed: /usr/local/bin/daemon-common.sh"
+
 # =============================================================================
 # Patch and install systemd service files
 # =============================================================================
