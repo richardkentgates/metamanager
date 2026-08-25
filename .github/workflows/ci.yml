@@ -56,5 +56,6 @@ jobs:
 
       - name: Lint daemon scripts
         run: |
+          shellcheck -S error daemons/daemon-common.sh
           shellcheck -S error daemons/metamanager-compress-daemon.sh
           shellcheck -S error daemons/metamanager-meta-daemon.sh

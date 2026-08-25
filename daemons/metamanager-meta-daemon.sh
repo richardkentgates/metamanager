@@ -53,58 +53,15 @@ MAX_CONCURRENT=4
 
 EXIFTOOL="/usr/bin/exiftool"
 
-# --- Logging ---
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [meta] $*" >> "${LOG_FILE}"
-}
+DAEMON_TAG="meta"
 
-# --- Write daemon status to status.json for WordPress to read ---
-# Atomic write: .tmp then mv so PHP never reads a partial file.
-write_status() {
-    local queue_depth="${1:-0}"
-    local last_completed="${2:-}"
-    local status_tmp="${STATUS_FILE}.tmp"
-
-    jq -n \
-        --arg pid            "$$" \
-        --argjson queue_depth "${queue_depth}" \
-        --arg last_completed  "${last_completed}" \
-        --arg updated_at     "$(date '+%Y-%m-%d %H:%M:%S')" \
-        '{pid: ($pid | tonumber), queue_depth: $queue_depth, last_completed: $last_completed, updated_at: $updated_at}' \
-        > "${status_tmp}" 2>/dev/null || true
-
-    mv "${status_tmp}" "${STATUS_FILE}" 2>/dev/null || true
-}
-
-# --- Wait for job queue directory ---
-# The plugin creates this on activation. If not present yet, wait for it.
-wait_for_job_dir() {
-    while [[ ! -d "${JOB_DIR}" ]]; do
-        log "Job directory ${JOB_DIR} not found — waiting 10s..."
-        sleep 10
-    done
-    # Ensure subdirectories exist
-    mkdir -p "${JOB_DONE}" "${JOB_FAILED}"
-}
+# --- Source shared daemon functions ---
+META_DAEMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=daemon-common.sh
+source "${META_DAEMON_DIR}/daemon-common.sh"
 
 wait_for_job_dir
-
-# --- Write PID file so WordPress can check daemon health without systemctl ---
-mkdir -p "$(dirname "${PID_FILE}")"
-
-# S-10: Check for stale PID file from previous daemon instance
-if [[ -f "${PID_FILE}" ]]; then
-    old_pid=$(cat "${PID_FILE}" 2>/dev/null)
-    if [[ -n "${old_pid}" ]] && kill -0 "${old_pid}" 2>/dev/null; then
-        echo "ERROR: Another instance is already running (PID ${old_pid}). Exiting." >&2
-        exit 1
-    fi
-    log "Removing stale PID file (PID ${old_pid} no longer exists)"
-    rm -f "${PID_FILE}"
-fi
-
-echo $$ > "${PID_FILE}"
-trap 'rm -f "${PID_FILE}" "${STATUS_FILE}"' EXIT
+setup_pid_file
 
 log "Daemon started (PID $$). Watching ${JOB_DIR}"
 write_status 0 ""
@@ -404,116 +361,6 @@ process_job() {
     fi
 }
 
-# Write a result JSON file for WP-Cron to pick up.
-# Writes to a .tmp file first, then atomically renames to .json so the
-# PHP cron handler never reads a partially-written result file.
-write_result() {
-    local tmpfile="$1"
-    local status="$2"
-    local message="$3"
-    local out_dir
-
-    if [[ "${status}" == "completed" ]]; then
-        out_dir="${JOB_DONE}"
-    else
-        out_dir="${JOB_FAILED}"
-    fi
-
-    local result_file
-    result_file="${out_dir}/$(basename "${tmpfile}" .processing)-result.json"
-    local result_tmp
-    result_tmp="${result_file}.tmp"
-
-    jq --arg status "${status}" \
-       --arg msg    "${message}" \
-       --arg ts     "$(date '+%Y-%m-%d %H:%M:%S')" \
-       '. + {status: $status, completed_at: $ts, details: {message: $msg}}' \
-       "${tmpfile}" > "${result_tmp}" 2>/dev/null || true
-
-    # Atomic rename — only replaces .json once write is complete.
-    mv "${result_tmp}" "${result_file}" 2>/dev/null || true
-    rm -f "${tmpfile}"
-}
-
-# --- Drain any jobs that were queued while the daemon was offline ---
-# S-13: Clean up leftover .mm_tmp files from previous crash
-log "Startup scan: cleaning up leftover .mm_tmp files"
-for tmpfile in "${JOB_DIR}"/*.mm_tmp; do
-    [[ -e "${tmpfile}" ]] || continue
-    log "Removing leftover .mm_tmp: $(basename "${tmpfile}")"
-    rm -f "${tmpfile}"
-done
-
-# Also recover any .json.processing orphans left behind by a previous crash.
-log "Startup scan: processing any pre-existing jobs in ${JOB_DIR}"
-for orphan in "${JOB_DIR}"/*.json.processing; do
-    [[ -e "${orphan}" ]] || continue
-    recovered="${orphan%.processing}"
-    mv "${orphan}" "${recovered}" 2>/dev/null || true
-    log "Recovered orphaned job: $(basename "${recovered}")"
-done
-# Loop until the queue is empty.  Concurrent jobs may get LOCKED (e.g. by the
-# compress daemon) and re-queue themselves back as *.json.  Those files land
-# before inotifywait starts, so they would never be picked up without this loop.
-_pass=0
-_max_passes=30
-while (( _pass < _max_passes )); do
-    _pending=()
-    for _f in "${JOB_DIR}"/*.json; do
-        [[ -e "${_f}" ]] && _pending+=( "${_f}" )
-    done
-    [[ ${#_pending[@]} -eq 0 ]] && break
-    (( ++_pass ))
-
-    # Sort by priority (descending) — higher priority jobs process first.
-    _sorted=()
-    while IFS= read -r line; do
-        _sorted+=( "$line" )
-    done < <(
-        for _f in "${_pending[@]}"; do
-            _pri=$(jq -r '.priority // 0' "${_f}" 2>/dev/null) || _pri=0
-            printf '%s\t%s\n' "${_pri}" "${_f}"
-        done | sort -t$'\t' -k1,1nr -k2,2 | cut -f2
-    )
-
-    log "Startup scan pass ${_pass}: ${#_sorted[@]} job(s)"
-    for jobfile in "${_sorted[@]}"; do
-        while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
-            wait -n 2>/dev/null || true
-        done
-        process_job "${jobfile}" &
-    done
-    wait || true
-    write_status "${#_sorted[@]}" ""
-    # Brief pause between passes so lock-contention with other daemons can clear.
-    sleep 2
-done
-unset _pass _max_passes _pending _f _sorted _pri
-write_status 0 ""
-log "Startup scan complete."
-
-# --- Main loop ---
-# close_write: new job written by PHP
-# moved_to:    LOCKED re-queue — daemon renames .processing back to .json via mv
-while true; do
-    if [[ ! -d "${JOB_DIR}" ]]; then
-        log "Job directory ${JOB_DIR} disappeared — waiting..."
-        wait_for_job_dir
-        log "Job directory reappeared — resuming."
-    fi
-    inotifywait -m -e close_write,moved_to --format '%w%f' "${JOB_DIR}" 2>/dev/null \
-    | while IFS= read -r jobfile; do
-        if [[ "${jobfile}" == *.json ]]; then
-            while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
-                wait -n 2>/dev/null || true
-            done
-            process_job "${jobfile}" &
-            # Update status with current queue depth (count remaining .json files).
-            _qdepth=$(find "${JOB_DIR}" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l)
-            write_status "${_qdepth}" "$(date '+%Y-%m-%d %H:%M:%S')"
-        fi
-    done
-    # If inotifywait exits (e.g. directory deleted), wait and retry
-    log "inotifywait exited — retrying in 5s..."
-    sleep 5
-done
+# --- Drain queued jobs and enter main loop ---
+drain_jobs_loop
+run_main_loop
