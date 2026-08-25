@@ -107,7 +107,7 @@ History table updated
 
 ## Daemon Architecture
 
-Metamanager runs two systemd services, each implemented as a bash script:
+Metamanager runs three systemd units: two worker daemons and a self-updater (with 60-second timer):
 
 ### Compression daemon (`metamanager-compress-daemon.sh`)
 
@@ -138,7 +138,7 @@ Metamanager runs two systemd services, each implemented as a bash script:
 
 ## Systemd Services
 
-Both services run as `www-data` (the WordPress user) with security hardening:
+Both daemons run as the web-server user (patched at install time) (the WordPress user) with security hardening:
 
 ```ini
 [Service]
@@ -152,7 +152,7 @@ RestartSec=5
 # Security hardening
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/path/to/wordpress/wp-content
+ReadWritePaths=/path/to/wordpress/wp-content/metamanager-jobs /path/to/wordpress/wp-content/uploads /var/log
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectKernelTunables=true
@@ -247,7 +247,7 @@ The apt repo at `apt.richardkentgates.com` serves two channels:
 | Channel | Branch | Package version | Use case |
 |---------|--------|----------------|----------|
 | Stable | `main` | `2.4.x` | Production |
-| Test | `test` | `2.4.x~test<timestamp>` | Pre-release testing |
+| Test | `dists/test` | `2.4.x-1` (same format; pin with `-t test`) | Pre-release testing |
 
 The plugin reads the `VERSION` file for dashboard display only — it never triggers updates.
 
@@ -336,7 +336,7 @@ metamanager/
 │   ├── changelog                         # Debian package version
 │   ├── control                           # Package metadata
 │   ├── postinst                          # Post-install script
-│   ├── preinst                           # Pre-install script
+│   ├── postrm                            # Post-remove/purge cleanup
 │   └── metamanager.install               # Files to install
 ├── .github/
 │   ├── workflows/

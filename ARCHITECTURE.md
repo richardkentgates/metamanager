@@ -53,7 +53,7 @@ metamanager/
 │
 └── .github/workflows/
     ├── ci.yml                     "Dev CI — Lint & Version Bump" (ShellCheck + auto-bump)
-    ├── promote-to-test.yml        Manual: merge dev→test, build .deb, deploy bookworm-test channel
+    ├── promote-to-test.yml        Manual: merge dev→test, build .deb, deploy dists/test channel
     ├── promote-to-main.yml        Manual: merge test→main, tag, release, deploy stable channel
     └── pages.yml                  GitHub Pages docs deploy
 ```
@@ -112,7 +112,7 @@ wp-content/metamanager-jobs/
   "job_trigger": "edit",
   "file_path": "/srv/www/wordpress/wp-content/uploads/2026/03/photo.jpg",
   "size": "full",
-  "fields": {
+  "metadata": {
     "title": "Sunrise over the ridge",
     "creator": "Jane Doe",
     "copyright": "© 2026 Jane Doe",
@@ -236,7 +236,6 @@ The installer handles server-side setup only. It does **not** manage the WordPre
 1. **OS dependencies**: `inotify-tools`, `libimage-exiftool-perl`, `libjpeg-turbo-progs`, `optipng`, `libwebp-tools`, `ffmpeg`
 2. **Daemon scripts**: `/usr/local/bin/metamanager-compress-daemon.sh`, `/usr/local/bin/metamanager-meta-daemon.sh`
 3. **systemd services**: `/etc/systemd/system/metamanager-*.service`
-4. **APT timeout config**: `/etc/apt/apt.conf.d/apt-metamanager.conf` (prevents apt hanging on slow connections)
 
 ### What it does NOT install
 
@@ -274,9 +273,9 @@ dev  ──push──►  test (build .deb + deploy to apt)  ──promote──
 | Channel | Version format | Example | Source |
 |---------|---------------|---------|--------|
 | **Release** | `X.Y.Z` | `2.4.15` | `main` branch (tagged releases) |
-| **Test** | `X.Y.Z~testEPOCH` | `2.4.15~test1722500000` | `test` branch (pre-release builds) |
+| **Test** | `X.Y.Z-1` from `dists/test` | same version format as stable; channel separates it | `test` branch (pre-release builds) |
 
-Debian version ordering: `2.4.15~test...` < `2.4.15`, so `apt upgrade` always prefers release over test.
+Both channels carry the same `X.Y.Z-1` version format; clients select the channel via sources.list and `-t test` pinning.
 
 ```bash
 # Install latest stable
@@ -286,10 +285,9 @@ sudo apt update && sudo apt install metamanager
 apt-cache policy metamanager
 
 # Install a specific test build
-sudo apt install metamanager=2.4.15~test1722500000
+sudo apt-get install -t test metamanager
 
 # Return to stable
-sudo apt-mark unhold metamanager
 sudo apt update && sudo apt install metamanager
 ```
 
