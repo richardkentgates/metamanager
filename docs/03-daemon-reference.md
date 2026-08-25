@@ -76,7 +76,7 @@ Watches `wp-content/metamanager-jobs/meta/`. Import jobs are import-type jobs in
   "job_trigger": "edit",
   "file_path": "/srv/www/wordpress/wp-content/uploads/2026/03/photo.jpg",
   "size": "full",
-  "fields": {
+  "metadata": {
     "title": "Sunrise over the ridge",
     "creator": "Jane Doe",
     "copyright": "© 2026 Jane Doe",
