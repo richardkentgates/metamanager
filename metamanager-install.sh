@@ -65,8 +65,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            warn "Unknown argument: $1"
-            shift
+            error "Unknown argument: $1 (run with --help for usage)"
             ;;
     esac
 done
