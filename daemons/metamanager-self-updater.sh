@@ -34,6 +34,12 @@ for p in "${WP_CANDIDATES[@]}"; do
     fi
 done
 
+# U-2: Exit early when WordPress installation not found.
+if [[ -z "$WP_CONTENT_DIR" ]]; then
+    echo "ERROR: No WordPress installation found in any of: ${WP_CANDIDATES[*]}" >&2
+    exit 1
+fi
+
 log() {
     local level="$1"; shift
     local ts
@@ -129,7 +135,9 @@ write_status() {
         meta_uptime=$(systemctl show metamanager-meta-daemon --property=ActiveEnterTimestamp --value 2>/dev/null || echo "")
     fi
 
-    cat > "$STATUS_FILE" << EOJSON
+    # U-4: Atomic write — .tmp then mv so PHP never reads a partial file.
+    local status_tmp="${STATUS_FILE}.tmp"
+    cat > "$status_tmp" << EOJSON
 {
   "ts": "$ts",
   "updater": {
@@ -171,11 +179,20 @@ write_status() {
   }
 }
 EOJSON
+    mv "$status_tmp" "$STATUS_FILE" 2>/dev/null || true
     chmod 0644 "$STATUS_FILE" 2>/dev/null || true
     chown root:www-data "$STATUS_FILE" 2>/dev/null || true
 }
 
 main() {
+    # U-1: Parse arguments — --check reports status without triggering updates.
+    local check_only=false
+    for arg in "$@"; do
+        case "$arg" in
+            --check) check_only=true ;;
+        esac
+    done
+
     # Single instance lock.
     exec 200>"$LOCK_FILE"
     flock -n 200 || { log "WARN" "Another instance running, skipping"; exit 0; }
@@ -208,6 +225,12 @@ main() {
         exit 0
     fi
 
+    # U-1: --check mode — report status without updating.
+    if [[ "$check_only" == "true" ]]; then
+        write_status "$installed" "$required" "outdated" "Update available: v${installed} → v${required}"
+        exit 0
+    fi
+
     log "INFO" "Update needed: v${installed} → v${required}"
     write_status "$installed" "$required" "updating" "Updating from v${installed} to v${required}..."
 
@@ -229,13 +252,25 @@ main() {
     local new_ver
     new_ver=$(get_installed)
 
-    # Restart daemons.
-    sudo -n systemctl restart metamanager-compress-daemon 2>> "$LOG_FILE" || true
-    sudo -n systemctl restart metamanager-meta-daemon 2>> "$LOG_FILE" || true
+    # U-3: Restart daemons and check for failures.
+    local restart_ok=true
+    if ! sudo -n systemctl restart metamanager-compress-daemon 2>> "$LOG_FILE"; then
+        log "ERROR" "Failed to restart metamanager-compress-daemon"
+        restart_ok=false
+    fi
+    if ! sudo -n systemctl restart metamanager-meta-daemon 2>> "$LOG_FILE"; then
+        log "ERROR" "Failed to restart metamanager-meta-daemon"
+        restart_ok=false
+    fi
 
     if [[ "$new_ver" == "$required" ]]; then
-        log "INFO" "Update complete: v${new_ver}"
-        write_status "$new_ver" "$required" "updated" "Daemon updated to v${new_ver}"
+        if [[ "$restart_ok" == "true" ]]; then
+            log "INFO" "Update complete: v${new_ver}"
+            write_status "$new_ver" "$required" "updated" "Daemon updated to v${new_ver}"
+        else
+            log "WARN" "Update installed but daemon restart failed: v${new_ver}"
+            write_status "$new_ver" "$required" "partial" "Updated to v${new_ver} but daemon restart failed"
+        fi
     else
         log "ERROR" "Version mismatch after update: got v${new_ver}, expected v${required}"
         write_status "${new_ver:-unknown}" "$required" "failed" "Expected v${required}, got v${new_ver:-unknown}"
