@@ -1,0 +1,439 @@
+<!-- ── Hero ──────────────────────────────────────────────────────────────── -->
+<section class="hero" id="hero">
+    <div class="hero-badge">Open Source &middot; GPL v3 &middot; Linux</div>
+    <h1>OS-Level Daemons for<br><span class="accent">Lossless Media Processing.</span></h1>
+    <p class="hero-subtitle">
+        Metamanager Server provides compression and metadata embedding daemons
+        that watch a filesystem job queue and process media files using ExifTool,
+        jpegtran, optipng, cwebp, and ffmpeg — all outside of PHP so WordPress
+        never blocks on the hot path.
+    </p>
+    <div class="hero-pills">
+        <span class="hero-pill">🗜 Lossless compression &mdash; images, video &amp; audio</span>
+        <span class="hero-pill">🏷 File metadata &mdash; EXIF/IPTC/XMP, ID3, QuickTime, Vorbis</span>
+        <span class="hero-pill">⚡ Event-driven &mdash; inotifywait, no polling</span>
+        <span class="hero-pill">🔒 Security hardened &mdash; systemd sandboxing</span>
+        <span class="hero-pill">📦 APT repository &mdash; stable + test channels</span>
+    </div>
+    <div class="hero-actions">
+        <a href="#installation" class="btn btn-primary">Quick Install</a>
+        <a href="https://github.com/richardkentgates/metamanager" class="btn btn-outline" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+    <div class="hero-install">
+        <code>wget -qO- https://apt.richardkentgates.com/key.gpg | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/metamanager.gpg &amp;&amp; echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list &amp;&amp; sudo apt update &amp;&amp; sudo apt install metamanager</code>
+    </div>
+</section>
+
+<!-- ── Overview ──────────────────────────────────────────────────────────── -->
+<section id="overview">
+    <h2>What is Metamanager Server</h2>
+    <p class="section-lead">
+        PHP cannot do lossless compression. ExifTool cannot be called from PHP safely
+        in a request path. Metamanager solves this by delegating all media work to
+        purpose-built OS daemons via a filesystem job queue.
+    </p>
+
+    <div class="layer-grid">
+        <div class="layer-card layer-media">
+            <div class="layer-title">Compression Daemon</div>
+            <h3>Lossless Image &amp; Video</h3>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Watches job files via inotifywait and delegates to format-specific tools. A compressed file only replaces the original if it is strictly smaller in bytes.</p>
+            <ul>
+                <li>JPEG &mdash; <code>jpegtran</code> (lossless optimization)</li>
+                <li>PNG &mdash; <code>optipng</code> (lossless deflate)</li>
+                <li>WebP &mdash; <code>cwebp -lossless</code></li>
+                <li>Video &mdash; <code>ffmpeg -c copy</code> (container remux)</li>
+            </ul>
+        </div>
+        <div class="layer-card layer-web">
+            <div class="layer-title">Metadata Daemon</div>
+            <h3>EXIF/IPTC/XMP Embedding</h3>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Reads embedded tags from media files on import, and writes WordPress field values back into files after edits. Handles all supported formats via ExifTool.</p>
+            <ul>
+                <li>Import: reads EXIF, IPTC, XMP, ID3, QuickTime, Vorbis</li>
+                <li>Embed: writes WordPress fields back into files</li>
+                <li>PDF: XMP write-back for title, author, keywords</li>
+                <li>Bidirectional sync: file ↔ WordPress</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>Why OS daemons?</h3>
+    <p>
+        WordPress runs in PHP, which has no native image processing libraries and
+        cannot call ExifTool or ffmpeg safely in a request path. Metamanager writes
+        a small JSON job file on upload or scan. The daemon picks it up via inotifywait
+        and processes it outside the request lifecycle. WordPress never blocks.
+    </p>
+</section>
+
+<!-- ── Architecture ──────────────────────────────────────────────────────── -->
+<section id="architecture">
+    <h2>Architecture</h2>
+    <p class="section-lead">Metamanager is designed around one principle: PHP coordinates, OS executes.</p>
+
+    <table>
+        <thead><tr><th>Principle</th><th>In practice</th></tr></thead>
+        <tbody>
+            <tr><td><strong>PHP coordinates, OS executes</strong></td><td>PHP never calls <code>shell_exec()</code> or any subprocess API. All media work is delegated to OS daemons via JSON job files. The daemon reads the file and calls jpegtran, ExifTool, or ffmpeg. PHP's role is to write the job and read the result.</td></tr>
+            <tr><td><strong>No blocking in the request path</strong></td><td>Upload hooks only write a small JSON file. They never wait for a daemon result. Processing happens via inotifywait + WP-Cron.</td></tr>
+            <tr><td><strong>One source of truth per concern</strong></td><td><code>MM_DB</code> owns schema and SQL. <code>MM_Metadata</code> owns field names and sync logic. <code>MM_Job_Queue</code> owns all job filesystem I/O. <code>MM_Site_Settings</code> owns all site-level metadata configuration.</td></tr>
+            <tr><td><strong>Safe defaults</strong></td><td>Data is never deleted on uninstall unless explicitly opted in. Attribution fields (Creator, Copyright, Owner) are never set by bulk actions. Existing user values are never overwritten on import.</td></tr>
+            <tr><td><strong>Minimal WordPress coupling</strong></td><td>Classes are plain PHP using WordPress APIs (wpdb, Options, Post Meta, WP-Cron, REST, WP-CLI) but have no hard dependency on plugin bootstrap order.</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Component Map</h3>
+    <table>
+        <thead><tr><th>Subsystem</th><th>Key classes</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><strong>Core</strong></td><td><code>MM_DB</code>, <code>MM_Job_Queue</code></td><td>Database schema, job file I/O</td></tr>
+            <tr><td><strong>Media metadata</strong></td><td><code>MM_Metadata</code></td><td>Field constants, WP field sync, daemon payload builder</td></tr>
+            <tr><td><strong>Admin UI</strong></td><td><code>MM_Admin</code>, <code>MM_Settings</code></td><td>Top-level menu, job dashboard, bulk actions</td></tr>
+            <tr><td><strong>Site config</strong></td><td><code>MM_Site_Settings</code></td><td>Site-level and page-level metadata settings storage</td></tr>
+            <tr><td><strong>Head emitter</strong></td><td><code>MM_Head_Emitter</code>, <code>MM_Page_Context</code></td><td>Renders <code>&lt;meta&gt;</code>, OG tags, and JSON-LD into <code>wp_head</code></td></tr>
+            <tr><td><strong>Modules</strong></td><td><code>MM_Mod_*</code> (10 classes)</td><td>Head meta, social, schema, sitemaps, robots, authors, hygiene, links, local, HTML sitemap, business contact</td></tr>
+            <tr><td><strong>Metaboxes</strong></td><td><code>MM_Post_Meta_Panel</code>, <code>MM_Term_Meta_Panel</code>, <code>MM_User_Meta_Panel</code></td><td>Per-post, per-term, per-user metadata editing panels</td></tr>
+            <tr><td><strong>Sitemaps</strong></td><td><code>MM_Sitemap</code> (media), <code>MM_Mod_Sitemap_Web</code> (pages)</td><td>Media XML sitemap, web page sitemap, video sitemap</td></tr>
+            <tr><td><strong>Daemons</strong></td><td><code>metamanager-compress-daemon.sh</code>, <code>metamanager-meta-daemon.sh</code></td><td>inotifywait loops; call jpegtran/optipng/cwebp/ffmpeg/ExifTool</td></tr>
+            <tr><td><strong>CLI</strong></td><td><code>MM_CLI</code>, <code>MM_Metadata_CLI</code></td><td>WP-CLI commands: compress, embed, import, queue, scan, stats, metadata</td></tr>
+            <tr><td><strong>REST</strong></td><td>Routes in <code>MM_Admin</code></td><td>Job status polling; optional IP restriction</td></tr>
+            <tr><td><strong>Updates</strong></td><td><code>MM_Updater</code></td><td>Native WP update pipeline integration via GitHub releases</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ── Requirements ──────────────────────────────────────────────────────── -->
+<section id="requirements">
+    <h2>Requirements</h2>
+
+    <h3>Tested environments</h3>
+    <table>
+        <thead><tr><th>OS</th><th>PHP</th><th>WordPress</th><th>Package mgr</th><th>Result</th></tr></thead>
+        <tbody>
+            <tr><td>Ubuntu 22.04 LTS</td><td>8.1 – 8.3</td><td>6.0+</td><td>apt</td><td>✅ Full install</td></tr>
+            <tr><td>AlmaLinux 9.7 (RHEL 9-compat)</td><td>8.3.30</td><td>6.9.4</td><td>dnf + EPEL + CRB</td><td>✅ Full install</td></tr>
+            <tr><td>GitHub Actions (ubuntu-latest)</td><td>8.2</td><td>Latest</td><td>apt</td><td>✅ CI (every push)</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Component requirements</h3>
+    <table>
+        <thead><tr><th>Component</th><th>Minimum</th><th>Notes</th></tr></thead>
+        <tbody>
+            <tr><td>OS</td><td>Linux</td><td>systemd required; tested on Ubuntu 22.04+, Debian 12+, AlmaLinux/Rocky/RHEL 9+</td></tr>
+            <tr><td>bash</td><td>5.0+</td><td>Required by daemon scripts. Ubuntu 18.04 (bash 4.4) is not supported.</td></tr>
+            <tr><td>WordPress</td><td>6.0+</td><td></td></tr>
+            <tr><td>PHP</td><td>8.0+</td><td></td></tr>
+            <tr><td>ExifTool</td><td>any</td><td><code>libimage-exiftool-perl</code> (apt) or <code>perl-Image-ExifTool</code> (dnf via EPEL)</td></tr>
+            <tr><td>jpegtran</td><td>any</td><td><code>libjpeg-turbo-progs</code> (apt) or <code>libjpeg-turbo-utils</code> (dnf)</td></tr>
+            <tr><td>optipng</td><td>any</td><td><code>optipng</code> — in EPEL 9 for RHEL-based</td></tr>
+            <tr><td>cwebp</td><td>any</td><td><code>webp</code> (apt) or <code>libwebp-tools</code> (dnf via CRB)</td></tr>
+            <tr><td>ffmpeg</td><td>any</td><td>Required for video container remux; optional for other features. Via RPM Fusion on RHEL/AlmaLinux.</td></tr>
+            <tr><td>inotify-tools</td><td>any</td><td><code>inotify-tools</code> — in EPEL 9 for RHEL-based</td></tr>
+            <tr><td>jq</td><td>any</td><td>JSON parsing in daemon scripts</td></tr>
+            <tr><td>systemd</td><td>v232+</td><td>Required for <code>ProtectSystem=strict</code> and <code>ReadWritePaths=</code></td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ── Installation ──────────────────────────────────────────────────────── -->
+<section id="installation">
+    <h2>Quick Install</h2>
+    <p class="section-lead">
+        The install script detects your distro (apt / dnf / yum), installs all OS dependencies,
+        copies the daemon scripts, installs systemd units, and activates the plugin.
+    </p>
+
+    <h3>From apt repository</h3>
+    <pre><code># Import the GPG key
+wget -q -O /tmp/metamanager.key https://apt.richardkentgates.com/key.gpg
+sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/metamanager.gpg /tmp/metamanager.key
+
+# Add the apt repository
+echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+
+# Install
+sudo apt update &amp;&amp; sudo apt install metamanager</code></pre>
+
+    <p>This installs the compression and metadata daemons, systemd services (auto-enabled), and all OS dependencies.</p>
+
+    <h3 id="manual-install">Manual Install</h3>
+    <ol>
+        <li>Install OS dependencies for your distro:
+            <pre><code># Ubuntu / Debian
+sudo apt install -y libimage-exiftool-perl libjpeg-turbo-progs optipng webp ffmpeg inotify-tools jq
+
+# AlmaLinux / RHEL / Rocky (requires EPEL + CRB)
+sudo dnf install -y epel-release
+sudo dnf config-manager --set-enabled crb
+sudo dnf install -y perl-Image-ExifTool libjpeg-turbo-utils optipng libwebp-tools inotify-tools jq
+# ffmpeg: RPM Fusion is required on RHEL-compatible distros
+sudo dnf install -y https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm
+sudo dnf install -y ffmpeg</code></pre>
+        </li>
+        <li>Clone the server repository and run the installer:
+            <pre><code>git clone https://github.com/richardkentgates/metamanager.git
+cd metamanager
+sudo bash metamanager-install.sh --wp-path /srv/www/wordpress</code></pre>
+        </li>
+        <li>Install the <a href="https://github.com/richardkentgates/metamanager-plugin" target="_blank" rel="noopener">WordPress plugin</a> and activate it.</li>
+    </ol>
+
+    <h3 id="post-install">Post-Install Checklist</h3>
+    <ul>
+        <li>Confirm daemon status: <strong>Metamanager → Dashboard</strong> — green indicators mean both daemons are running.</li>
+        <li>Verify OS tools: the dashboard shows detection status for ExifTool, jpegtran, optipng, cwebp, and ffmpeg.</li>
+        <li>Configure site identity: <strong>Metamanager → Business Profile</strong> — set your site name, organization type, address, and social profiles.</li>
+        <li>Review title templates: <strong>Metamanager → Titles &amp; Descriptions</strong> — set default title format and description fallback for each post type.</li>
+        <li>Enable sitemaps: <strong>Metamanager → Sitemaps</strong> — choose which post types and taxonomies to include.</li>
+    </ul>
+
+    <h3 id="updating">Updating</h3>
+    <p>Updates appear natively in <strong>Dashboard → Updates</strong> when a new release is published on GitHub.
+    After updating, a notice will appear prompting you to restart the OS daemons:</p>
+    <pre><code>sudo systemctl restart metamanager-compress-daemon metamanager-meta-daemon</code></pre>
+    <p>This is required when daemon scripts change. The notice persists for 7 days and can be dismissed.</p>
+</section>
+
+<!-- ── Compression ───────────────────────────────────────────────────────── -->
+<section id="compression">
+    <h2>Lossless Compression</h2>
+    <p class="section-lead">PHP cannot do lossless compression. Metamanager delegates all media work to purpose-built OS tools via background daemons — no re-encoding, no quality loss.</p>
+
+    <table>
+        <thead><tr><th>Format</th><th>Tool</th><th>Method</th></tr></thead>
+        <tbody>
+            <tr><td>JPEG</td><td>jpegtran</td><td>Lossless optimization (no re-encoding). Strips unnecessary metadata if file already has embedded XMP/IPTC/EXIF preserved separately.</td></tr>
+            <tr><td>PNG</td><td>optipng</td><td>Lossless deflate optimization. File is only replaced if result is smaller.</td></tr>
+            <tr><td>WebP</td><td>cwebp -lossless</td><td>Lossless re-encode. Original replaced only if output is smaller.</td></tr>
+            <tr><td>Video</td><td>ffmpeg</td><td>Container remux (not re-encode). Cleans malformed containers, writes metadata atoms. No video quality change.</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout">
+        <p><strong>Safety guarantee:</strong> A compressed file only replaces the original if it is strictly smaller in bytes. If the tool produces a larger output (rare for optipng/cwebp), the original is kept unchanged.</p>
+    </div>
+
+    <h3>Bulk Compression</h3>
+    <p>Run compression on all uncompressed uploaded media from <strong>Metamanager → Media Processing</strong> or via WP-CLI:</p>
+    <pre><code>wp metamanager compress --all
+wp metamanager compress --post-id=123</code></pre>
+</section>
+
+<!-- ── File Metadata ─────────────────────────────────────────────────────── -->
+<section id="file-metadata">
+    <h2>File Metadata</h2>
+    <p class="section-lead">Metamanager reads and writes standard metadata formats for every supported media type. All writes happen in OS daemons using ExifTool and ffmpeg — not PHP.</p>
+
+    <table>
+        <thead><tr><th>Format</th><th>Standards written</th><th>Fields</th></tr></thead>
+        <tbody>
+            <tr><td>JPEG, PNG, TIFF</td><td>EXIF + IPTC + XMP</td><td>Title, Description, Creator, Copyright, Source, Keywords, Date Created, Rating, City, State, Country, GPS</td></tr>
+            <tr><td>WebP, GIF</td><td>XMP</td><td>Title, Description, Creator, Copyright, Keywords</td></tr>
+            <tr><td>MP4, MOV, M4A</td><td>QuickTime atoms + XMP</td><td>Title, Description, Creator, Copyright, Keywords, Date</td></tr>
+            <tr><td>AVI, WMV, WMA</td><td>XMP only</td><td>Title, Description, Creator, Copyright, Keywords</td></tr>
+            <tr><td>MKV, WebM, OGV</td><td>Read-only</td><td>Metadata imported on upload; write-back not supported</td></tr>
+            <tr><td>MP3</td><td>ID3v2</td><td>Title, Artist, Album, Comment, Genre, Year, Track</td></tr>
+            <tr><td>OGG, FLAC</td><td>Vorbis comments</td><td>Title, Artist, Album, Comment, Genre, Date</td></tr>
+            <tr><td>WAV, WMA</td><td>XMP only</td><td>Title, Description, Creator, Copyright</td></tr>
+            <tr><td>PDF</td><td>PDF metadata + XMP</td><td>Title, Author, Keywords, Creation Date — imported on upload; XMP written by daemon</td></tr>
+        </tbody>
+    </table>
+
+    <h3 id="bidirectional-sync">Bidirectional Sync</h3>
+    <p>Sync works in both directions:</p>
+    <ul>
+        <li><strong>File → WordPress:</strong> On upload, ExifTool reads embedded tags and pre-populates empty WordPress fields. Existing user values are <em>never</em> overwritten.</li>
+        <li><strong>WordPress → File:</strong> After you save a media item, the daemon reads the current WordPress values and writes them back into the file using ExifTool or ffmpeg.</li>
+    </ul>
+    <p>Extended WordPress fields added by Metamanager: Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating (0–5 stars), City, State/Province, Country, Publisher, Website URL. All fields are registered post meta, accessible via REST, and embedded by the daemon.</p>
+
+    <h3 id="gps">GPS &amp; Location</h3>
+    <p>GPS coordinates (latitude, longitude, altitude) embedded by camera hardware are automatically read from EXIF on upload and stored as <code>_mm_gps_lat</code>, <code>_mm_gps_lng</code>, <code>_mm_gps_alt</code>. When present, they are included in <code>ImageObject</code> JSON-LD output as a <code>GeoCoordinates</code> node — zero configuration required.</p>
+
+    <h3 id="pdf">PDF Support</h3>
+    <p>On PDF upload, Metamanager imports title, author, keywords, and creation date from the PDF document metadata. The daemon writes XMP back into the PDF. Schema.org output for PDFs uses <code>DigitalDocument</code> type.</p>
+
+    <h3 id="verification">Write-back Verification</h3>
+    <p>After the daemon successfully writes metadata into a file, Metamanager queues a re-read job to verify the embedded values match what WordPress holds. Discrepancies are recorded in <code>mm_verify_discrepancies</code> post meta and shown as an amber warning on the attachment edit screen.</p>
+</section>
+
+<!-- ── Daemons ───────────────────────────────────────────────────────────── -->
+<section id="daemons">
+    <h2>Daemon Management</h2>
+    <p class="section-lead">Two systemd services handle all media processing. They run as the web server user (www-data or similar) and watch job directories via inotifywait.</p>
+
+    <table>
+        <thead><tr><th>Service</th><th>Watches</th><th>Tools called</th></tr></thead>
+        <tbody>
+            <tr><td><code>metamanager-compress-daemon</code></td><td><code>wp-content/metamanager-jobs/compress/</code></td><td>jpegtran, optipng, cwebp, ffmpeg</td></tr>
+            <tr><td><code>metamanager-meta-daemon</code></td><td><code>wp-content/metamanager-jobs/meta/</code></td><td>ExifTool (read + write)</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Common daemon patterns</h3>
+    <table>
+        <thead><tr><th>Pattern</th><th>Detail</th></tr></thead>
+        <tbody>
+            <tr><td><strong>Event-driven</strong></td><td><code>inotifywait</code> fires on file creation — no polling, no sleep loops</td></tr>
+            <tr><td><strong>Atomic ownership</strong></td><td>First daemon to rename a job file claims it (<code>mv ... .processing</code>)</td></tr>
+            <tr><td><strong>PID files</strong></td><td>Written to <code>wp-content/metamanager-jobs/</code> — used by plugin for health checks</td></tr>
+            <tr><td><strong>Error handling</strong></td><td>Failed jobs written to <code>failed/</code> with error message in result JSON</td></tr>
+            <tr><td><strong>Tool delegation</strong></td><td>Each tool handles one format family — no monolithic binary</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Systemd hardening</h3>
+    <p>Both services run with security hardening:</p>
+    <pre><code>[Service]
+Type=simple
+User=www-data
+Group=www-data
+ExecStart=/usr/local/bin/metamanager-compress-daemon.sh
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/path/to/wordpress/wp-content
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true</code></pre>
+
+    <h3>Managing daemons</h3>
+    <pre><code># Status
+sudo systemctl status metamanager-compress-daemon metamanager-meta-daemon
+
+# Restart (required after plugin updates)
+sudo systemctl restart metamanager-compress-daemon metamanager-meta-daemon
+
+# View logs
+sudo journalctl -u metamanager-compress-daemon -f
+sudo journalctl -u metamanager-meta-daemon -f
+
+# Stop / disable
+sudo systemctl stop metamanager-compress-daemon metamanager-meta-daemon
+sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon</code></pre>
+</section>
+
+<!-- ── Job Dashboard ─────────────────────────────────────────────────────── -->
+<section id="dashboard">
+    <h2>Job Dashboard</h2>
+    <p class="section-lead">Live view of the compression and metadata job queue, searchable history, daemon health indicators, and bulk action controls — all in one screen.</p>
+
+    <h3>Job Queue</h3>
+    <p>Every compression or metadata write operation creates a JSON job file in the appropriate queue directory. The daemon picks it up via inotifywait and processes it. The dashboard shows:</p>
+    <ul>
+        <li>Currently queued and in-progress jobs</li>
+        <li>Searchable, paginated job history with status (completed / failed)</li>
+        <li>One-click retry for any failed job</li>
+        <li>Amber clock icon in the Media Library column for attachments with pending jobs</li>
+    </ul>
+
+    <h3>Daemon Health</h3>
+    <p>Status indicators for both daemons (compress and meta) determined by PID file presence — no <code>systemctl</code> privilege required. Detection status for all OS tools (ExifTool, jpegtran, optipng, cwebp, ffmpeg) is shown inline.</p>
+
+    <h3 id="notifications">Upload Notifications</h3>
+    <p>The site admin receives a batched digest email after uploads (one email per 60-second window). Other WordPress users can opt in via their profile page. A configurable extra CC address is available. Failed sends surface as a dismissible admin notice with one-click retry.</p>
+</section>
+
+<!-- ── WP-CLI ────────────────────────────────────────────────────────────── -->
+<section id="cli">
+    <h2>WP-CLI</h2>
+    <p class="section-lead">All Metamanager operations are available as WP-CLI commands under the <code>wp metamanager</code> namespace.</p>
+
+    <h3>Media commands</h3>
+    <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>wp metamanager compress --all</code></td><td>Queue compression jobs for all uncompressed attachments</td></tr>
+            <tr><td><code>wp metamanager compress --post-id=&lt;id&gt;</code></td><td>Queue compression for a specific attachment</td></tr>
+            <tr><td><code>wp metamanager embed --all</code></td><td>Queue metadata write-back for all attachments</td></tr>
+            <tr><td><code>wp metamanager embed --post-id=&lt;id&gt;</code></td><td>Queue metadata write-back for a specific attachment</td></tr>
+            <tr><td><code>wp metamanager import --post-id=&lt;id&gt;</code></td><td>Re-read file metadata and sync to WordPress fields</td></tr>
+            <tr><td><code>wp metamanager queue list</code></td><td>List pending jobs in the queue</td></tr>
+            <tr><td><code>wp metamanager queue clear</code></td><td>Clear all pending jobs</td></tr>
+            <tr><td><code>wp metamanager scan</code></td><td>Scan all attachments and report metadata status</td></tr>
+            <tr><td><code>wp metamanager stats</code></td><td>Show compression savings, job counts, and daemon status</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Metadata commands</h3>
+    <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>wp metamanager metadata flush-cache</code></td><td>Flush cached sitemap transients</td></tr>
+            <tr><td><code>wp metamanager metadata ping-sitemap</code></td><td>Send sitemap ping to search engines</td></tr>
+            <tr><td><code>wp metamanager metadata check-links</code></td><td>Queue a full link check pass</td></tr>
+            <tr><td><code>wp metamanager metadata import-settings &lt;file&gt;</code></td><td>Import settings from a JSON export</td></tr>
+            <tr><td><code>wp metamanager metadata export-settings</code></td><td>Export all settings to JSON</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ── APT Repository ────────────────────────────────────────────────────── -->
+<section id="apt-repo">
+    <h2>APT Repository</h2>
+    <p class="section-lead">The apt repo at <code>apt.richardkentgates.com</code> serves two channels with signed packages.</p>
+
+    <table>
+        <thead><tr><th>Channel</th><th>Branch</th><th>Package version</th><th>Use case</th></tr></thead>
+        <tbody>
+            <tr><td>Stable</td><td><code>main</code></td><td><code>2.4.x</code></td><td>Production</td></tr>
+            <tr><td>Test</td><td><code>test</code></td><td><code>2.4.x~test&lt;timestamp&gt;</code></td><td>Pre-release testing</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Version files</h3>
+    <table>
+        <thead><tr><th>File</th><th>Purpose</th><th>Format</th></tr></thead>
+        <tbody>
+            <tr><td><code>debian/changelog</code></td><td>Debian package version</td><td><code>2.4.17-1</code> (upstream-revision)</td></tr>
+            <tr><td><code>VERSION</code></td><td>Installed daemon version (read by plugin)</td><td><code>2.4.17</code> (plain semver, no <code>-1</code>)</td></tr>
+            <tr><td><code>daemon-compatibility.json</code></td><td>Plugin-to-daemon version mapping</td><td><code>{ "2.3.58": "2.4.8" }</code></td></tr>
+        </tbody>
+    </table>
+
+    <p>CI auto-bumps <code>debian/changelog</code> and <code>VERSION</code> on every push to <code>dev</code>. They must stay in sync — CI handles this automatically; never edit either file manually.</p>
+</section>
+
+<!-- ── Contributing ──────────────────────────────────────────────────────── -->
+<section id="contributing">
+    <h2>Contributing</h2>
+    <p class="section-lead">Metamanager is open source under GPL v3. Contributions of all kinds are welcome.</p>
+
+    <h3>Branch structure</h3>
+    <table>
+        <thead><tr><th>Branch</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><code>dev</code></td><td>All development. CI runs ShellCheck + version bump. Direct pushes allowed.</td></tr>
+            <tr><td><code>test</code></td><td>Pre-release. Builds .deb, deploys to apt server (test channel).</td></tr>
+            <tr><td><code>main</code></td><td>Stable, tagged releases. Builds .deb, deploys to apt server (stable channel).</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Promotion flow</h3>
+    <ol>
+        <li><strong>dev → test:</strong> Trigger <code>promote-to-test</code> workflow via GitHub Actions <code>workflow_dispatch</code>. Merges dev into test, builds .deb, deploys to apt test channel.</li>
+        <li><strong>test → main:</strong> Trigger <code>promote-to-main</code> workflow via GitHub Actions <code>workflow_dispatch</code>. Merges test into main, builds .deb, creates git tag, creates GitHub release, deploys to apt stable channel.</li>
+    </ol>
+
+    <h3>Pull requests</h3>
+    <ul>
+        <li>All PRs must pass ShellCheck (shell scripts) and PHPStan level 5 (PHP).</li>
+        <li>Follow the existing code style: WordPress coding standards, tabs for indentation, spaces around operators.</li>
+        <li>Add a CHANGELOG entry in the appropriate version section.</li>
+    </ul>
+
+    <h3>Links</h3>
+    <ul>
+        <li><a href="https://github.com/richardkentgates/metamanager" target="_blank" rel="noopener">GitHub repository</a></li>
+        <li><a href="https://metamanager.richardkentgates.com" target="_blank" rel="noopener">Documentation</a></li>
+        <li><a href="https://github.com/richardkentgates/metamanager/issues" target="_blank" rel="noopener">Issue tracker</a></li>
+        <li><a href="https://github.com/sponsors/richardkentgates" target="_blank" rel="noopener">Sponsor this project</a></li>
+    </ul>
+</section>
