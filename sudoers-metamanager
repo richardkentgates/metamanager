@@ -1,4 +1,0 @@
-# Metamanager daemon update permissions
-# Allows the WordPress web server to trigger daemon package updates.
-# Installed by the metamanager .deb package.
-www-data ALL=(ALL) NOPASSWD: /usr/bin/apt-get update -qq, /usr/bin/apt-get install -y -qq metamanager, /usr/bin/systemctl restart metamanager-compress-daemon, /usr/bin/systemctl restart metamanager-meta-daemon
