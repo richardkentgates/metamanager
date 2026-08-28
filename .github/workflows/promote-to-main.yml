@@ -33,6 +33,31 @@ jobs:
           VERSION=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
+      - name: Validate compatibility map
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DAEMON_VER="${{ steps.version.outputs.version }}"
+          echo "Checking daemon-compatibility.json for daemon v${DAEMON_VER}..."
+
+          MAP=$(gh api repos/richardkentgates/metamanager-plugin/contents/daemon-compatibility.json?ref=dev \
+            -q '.content' | base64 -d 2>/dev/null || echo "{}")
+
+          if echo "$MAP" | jq -e --arg dv "$DAEMON_VER" 'to_entries[] | select(.value == $dv)' > /dev/null 2>&1; then
+            echo "✓ daemon-compatibility.json maps daemon v${DAEMON_VER}"
+          else
+            echo ""
+            echo "═══════════════════════════════════════════════════════════════"
+            echo "  BLOCKED: daemon-compatibility.json missing mapping for v${DAEMON_VER}"
+            echo "═══════════════════════════════════════════════════════════════"
+            echo ""
+            echo "  Update daemon-compatibility.json in the plugin repo first."
+            echo "  Map the current plugin version to daemon v${DAEMON_VER}."
+            echo "  Then re-run this promotion."
+            echo ""
+            exit 1
+          fi
+
       - name: Check if tag exists
         id: check
         run: |
