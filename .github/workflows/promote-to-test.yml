@@ -37,29 +37,73 @@ jobs:
           VERSION=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Validate compatibility map
+      # ── Cross-repo: ensure daemon-compatibility.json in the plugin repo ──
+      # The daemon gets promoted to apt BEFORE the plugin is released. The
+      # self-updater reads daemon-compatibility.json from the installed plugin
+      # to know which daemon version is required. If the map is not updated
+      # first, the self-updater shows "ahead" (daemon newer than map expects).
+      #
+      # This step clones the plugin repo, reads its current MM_VERSION, adds
+      # a map entry if missing, and pushes to dev. The plugin CI will then
+      # auto-bump MM_VERSION on the next push — the entry remains valid for
+      # the version that was on dev when this ran.
+      #
+      # REQUIRES: PLUGIN_REPO_PAT secret — GitHub PAT with `contents: write`
+      # on richardkentgates/metamanager-plugin.
+      - name: Auto-update compatibility map
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLUGIN_PAT: ${{ secrets.PLUGIN_REPO_PAT }}
         run: |
+          set -euo pipefail
           DAEMON_VER="${{ steps.version.outputs.version }}"
-          echo "Checking daemon-compatibility.json for daemon v${DAEMON_VER}..."
+          echo "Ensuring daemon-compatibility.json maps daemon v${DAEMON_VER}..."
 
-          # Fetch the current map from the plugin repo's dev branch.
+          # Fetch current plugin version from plugin repo dev branch
+          PLUGIN_VER=$(gh api repos/richardkentgates/metamanager-plugin/contents/metamanager.php?ref=dev \
+            -q '.content' | base64 -d | grep "define('MM_VERSION'" | sed "s/.*'\\([^']*\\)'.*/\\1/")
+          echo "Current plugin version on dev: ${PLUGIN_VER}"
+
+          # Check if the map already has this daemon version
           MAP=$(gh api repos/richardkentgates/metamanager-plugin/contents/daemon-compatibility.json?ref=dev \
             -q '.content' | base64 -d 2>/dev/null || echo "{}")
 
-          # Check if any value in the map matches the new daemon version.
           if echo "$MAP" | jq -e --arg dv "$DAEMON_VER" 'to_entries[] | select(.value == $dv)' > /dev/null 2>&1; then
-            echo "✓ daemon-compatibility.json maps daemon v${DAEMON_VER}"
+            echo "✓ daemon-compatibility.json already maps daemon v${DAEMON_VER}"
+          else
+            echo "Adding mapping: plugin v${PLUGIN_VER} → daemon v${DAEMON_VER}"
+
+            TMPDIR=$(mktemp -d)
+            git clone --depth 1 https://x-access-token:${PLUGIN_PAT}@github.com/richardkentgates/metamanager-plugin.git "$TMPDIR"
+            cd "$TMPDIR"
+
+            # Add/update the entry
+            jq --arg pv "$PLUGIN_VER" --arg dv "$DAEMON_VER" '.[$pv] = $dv' \
+              daemon-compatibility.json > daemon-compatibility.json.tmp
+            mv daemon-compatibility.json.tmp daemon-compatibility.json
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add daemon-compatibility.json
+            git commit -m "ci: map plugin v${PLUGIN_VER} → daemon v${DAEMON_VER}"
+            git push origin dev
+
+            cd /
+            rm -rf "$TMPDIR"
+            echo "✓ daemon-compatibility.json updated: plugin v${PLUGIN_VER} → daemon v${DAEMON_VER}"
+          fi
+
+          # Final validation — fail promotion if map is still missing
+          MAP=$(gh api repos/richardkentgates/metamanager-plugin/contents/daemon-compatibility.json?ref=dev \
+            -q '.content' | base64 -d 2>/dev/null || echo "{}")
+          if echo "$MAP" | jq -e --arg dv "$DAEMON_VER" 'to_entries[] | select(.value == $dv)' > /dev/null 2>&1; then
+            echo "✓ daemon-compatibility.json validated for daemon v${DAEMON_VER}"
           else
             echo ""
             echo "═══════════════════════════════════════════════════════════════"
             echo "  BLOCKED: daemon-compatibility.json missing mapping for v${DAEMON_VER}"
             echo "═══════════════════════════════════════════════════════════════"
             echo ""
-            echo "  Update daemon-compatibility.json in the plugin repo first."
-            echo "  Map the current plugin version to daemon v${DAEMON_VER}."
-            echo "  Then re-run this promotion."
+            echo "  Auto-update failed. Check PLUGIN_REPO_PAT secret and plugin repo access."
             echo ""
             exit 1
           fi

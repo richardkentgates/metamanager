@@ -60,6 +60,7 @@ main  ──  tag + GitHub release + deploy to apt repo
 - Server wiki populated (3 pages: Home, Installation, Daemon Management)
 - GitHub Pages rewritten for daemon layer
 - AGENTS.md mandatory workflow rules
+- **Cross-repo automation**: Daemon promotion workflows auto-update `daemon-compatibility.json` in the plugin repo before deploying to apt (eliminates manual coordination, prevents "ahead" status)
 
 ---
 
