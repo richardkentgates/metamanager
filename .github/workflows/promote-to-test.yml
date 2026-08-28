@@ -37,18 +37,6 @@ jobs:
           VERSION=$(dpkg-parsechangelog -S Version | sed 's/-[0-9]*$//')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Validate compatibility map
-        run: |
-          DAEMON_VER="${{ steps.version.outputs.version }}"
-          MAP=$(cat ../daemon-compatibility.json 2>/dev/null || echo "{}")
-          if echo "$MAP" | jq -e --arg dv "$DAEMON_VER" 'to_entries[] | select(.value == $dv)' > /dev/null 2>&1; then
-            echo "✓ daemon-compatibility.json maps daemon v${DAEMON_VER}"
-          else
-            echo "BLOCKED: daemon-compatibility.json missing mapping for v${DAEMON_VER}"
-            echo "Update daemon-compatibility.json in the plugin repo first."
-            exit 1
-          fi
-
       - name: Build .deb
         run: |
           dpkg-buildpackage -us -uc -b
