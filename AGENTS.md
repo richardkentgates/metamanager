@@ -109,6 +109,35 @@ The `VERSION` file is the installed daemon version. The shell self-updater reads
 
 **Format difference**: `debian/changelog` uses Debian epoch format `2.4.10-1` (upstream-revision). The `VERSION` file uses plain semver `2.4.10` (no `-1` suffix). The CI strips the `-1` when writing `VERSION`.
 
+## Cross-Repo Automation: daemon-compatibility.json
+
+**Problem**: The daemon gets promoted to apt BEFORE the plugin is released. The self-updater reads `daemon-compatibility.json` from the installed plugin to know which daemon version is required. If the map is not updated first, the self-updater shows "ahead" (daemon newer than map expects). This was a recurring process flaw — the daemon and plugin CI were blind to each other.
+
+**Solution**: The daemon promotion workflows (`promote-to-test.yml`, `promote-to-main.yml`) automatically update `daemon-compatibility.json` in the plugin repo before deploying the daemon to apt.
+
+**How it works**:
+1. Workflow reads the current plugin version from the plugin repo (`MM_VERSION` in `metamanager.php`)
+2. Reads `daemon-compatibility.json` from the plugin repo
+3. If no entry exists for the new daemon version → clones plugin repo, adds entry, commits and pushes
+4. Final validation ensures the entry exists before proceeding to build/deploy
+
+**What gets mapped**: The current plugin version on the target branch (dev for test promotion, main for main promotion) → the new daemon version. This is correct because:
+- The self-updater checks the *installed* plugin version against the map
+- The entry covers the version that was on dev when the daemon was promoted
+- Plugin CI will auto-bump `MM_VERSION` on the next push — future versions will need their own entries (added by the next daemon promotion or manually)
+
+**Branch targeting**:
+- `promote-to-test.yml` → updates plugin repo's `dev` branch
+- `promote-to-main.yml` → updates plugin repo's `main` branch
+
+**Secrets required**: `PLUGIN_REPO_PAT` — GitHub Personal Access Token with `contents: write` scope on `richardkentgates/metamanager-plugin`. Without this secret, the workflow fails with a clear error message.
+
+**Idempotency**: If the map already has an entry for the daemon version, the step is a no-op (just validates).
+
+**Failure handling**: If the auto-update fails (bad PAT, network error, etc.), the final validation step catches it and blocks the promotion with a clear error message.
+
+**Historical context**: Before this automation, the release checklist required manually updating `daemon-compatibility.json` in the plugin repo before promoting the daemon. This was a frequent source of the "ahead" status because the steps were容易 forgotten or done in the wrong order. The automation eliminates the manual coordination between repos.
+
 ## Repos
 
 - Server repo: `richardkentgates/metamanager`
