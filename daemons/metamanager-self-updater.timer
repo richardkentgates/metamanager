@@ -4,7 +4,7 @@ Documentation=https://github.com/richardkentgates/metamanager
 
 [Timer]
 OnBootSec=10s
-OnCalendar=*:*:0/60
+OnUnitActiveSec=60s
 Persistent=true
 
 [Install]
