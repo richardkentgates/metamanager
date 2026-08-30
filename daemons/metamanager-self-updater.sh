@@ -87,7 +87,7 @@ version_gt() {
 count_jobs() {
     local dir="$1"
     if [[ -d "$dir" ]]; then
-        find "$dir" -maxdepth 1 -name '*.json' -type f 2>/dev/null | wc -l | tr -d '[:space:]'
+        find "$dir" -maxdepth 1 \( -name '*.json' -o -name '*.json.processing' \) -type f 2>/dev/null | wc -l | tr -d '[:space:]'
     else
         echo "0"
     fi
