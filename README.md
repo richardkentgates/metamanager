@@ -107,7 +107,7 @@ History table updated
 
 ## Daemon Architecture
 
-Metamanager runs three systemd units: two worker daemons and a self-updater (with 60-second timer):
+Metamanager runs two systemd units: a compression daemon and a metadata daemon:
 
 ### Compression daemon (`metamanager-compress-daemon.sh`)
 
@@ -202,7 +202,7 @@ sudo systemctl restart metamanager-meta-daemon
 # Fresh install
 sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
-# Update: daemon updates are automatic via the self-updater (apt).
+# Update: daemon updates are automatic via the WordPress plugin's MM_Daemon_Updater (triggers apt-get when versions mismatch).
 # To re-run the installer manually (e.g. after a WordPress path change):
 sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
@@ -268,7 +268,7 @@ CI auto-bumps `debian/changelog` and `VERSION` on every push to `dev`. They must
 ## Updating
 
 **Via WordPress admin (recommended):**
-The self-updater (systemd timer, every 60 seconds) compares the installed daemon version against the required version declared by the plugin's `daemon-compatibility.json` and runs `apt-get upgrade` automatically. No manual intervention is needed.
+The WordPress plugin's `MM_Daemon_Updater` compares the installed daemon version against the required version declared by the plugin's `daemon-compatibility.json` and triggers `apt-get install` automatically when a mismatch is detected after a plugin update. No manual intervention is needed.
 
 **Via apt directly:**
 
