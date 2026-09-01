@@ -12,7 +12,7 @@ stop_daemon_units() {
         rm -f "/etc/systemd/system/$svc.service"
         rm -f "/usr/local/bin/$svc.sh"
     done
-    # Self-updater: stop the timer and remove its units and script.
+    # Remove legacy self-updater if present.
     systemctl stop metamanager-self-updater.timer 2>/dev/null || true
     systemctl disable metamanager-self-updater.timer 2>/dev/null || true
     rm -f /etc/systemd/system/metamanager-self-updater.timer
@@ -32,9 +32,7 @@ case "$1" in
         rm -rf /usr/local/lib/metamanager
         rm -f /usr/local/bin/daemon-common.sh
         rm -f /var/log/metamanager-compress.log* /var/log/metamanager-meta.log*
-        rm -f /var/log/metamanager-self-updater.log*
         rm -f /var/run/metamanager-status.json
-        rm -f /var/run/metamanager-self-updater.lock
         rm -f /etc/logrotate.d/metamanager
         rm -f /etc/sudoers.d/sudoers-metamanager
         ;;

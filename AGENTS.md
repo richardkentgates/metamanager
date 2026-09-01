@@ -53,53 +53,23 @@ The only exception is temporary testing during active development sessions, wher
 
 ## How Daemon Updates Work
 
-The daemon self-updater is the single authority for daemon version management. The plugin PHP does NOT trigger daemon updates — it only reads version info for display.
+The plugin is the single authority for daemon version management. The plugin PHP reads `daemon-compatibility.json` (bundled with the plugin) and the installed `VERSION` file, and triggers `apt-get update && apt-get install -y metamanager` when versions don't match.
 
-### Self-Updater
+### How Daemon Updates Work
 
-**`/usr/local/bin/metamanager-self-updater.sh`** — Bash script that:
-1. Detects the WordPress installation path
-2. Reads `daemon-compatibility.json` from the plugin directory (`wp-content/plugins/metamanager/`)
-3. Extracts the installed plugin version from the plugin header (`metamanager.php`)
-4. Looks up the required daemon version from the compatibility map
-5. Compares to the installed `VERSION` file at `/usr/local/lib/metamanager/VERSION`
-6. If version mismatch → runs `sudo apt-get update && apt-get install -y metamanager` + restarts daemons
-7. Writes comprehensive status JSON to `/var/run/metamanager-status.json`
+The plugin's `MM_Daemon_Updater` class handles daemon updates:
 
-**Runs every 60 seconds** via systemd timer.
+1. Reads `daemon-compatibility.json` from the plugin directory
+2. Extracts the installed plugin version from `MM_VERSION`
+3. Looks up the required daemon version from the compatibility map
+4. Compares to the installed `VERSION` file at `/usr/local/lib/metamanager/VERSION`
+5. If version mismatch → triggers `apt-get update && apt-get install -y metamanager` + restarts daemons
 
-**Components:**
-- **`/usr/local/bin/metamanager-self-updater.sh`** — Main script
-- **`/etc/systemd/system/metamanager-self-updater.service`** — Systemd service unit
-- **`/etc/systemd/system/metamanager-self-updater.timer`** — Systemd timer (every 60s)
-
-**Status JSON** (`/var/run/metamanager-status.json`) — read by WordPress dashboard widget and REST API:
-```json
-{
-  "ts": "2026-08-20T19:22:16Z",
-  "updater": {
-    "installed_version": "2.4.56",
-    "required_version": "2.4.56",
-    "last_check": "2026-08-20T19:22:16Z",
-    "last_update": "",
-    "status": "ok",
-    "message": "Daemon v2.4.56 is current"
-  },
-  "daemons": {
-    "compress": { "running": true, "pid": "3812755", "started": "..." },
-    "meta": { "running": true, "pid": "3812830", "started": "..." }
-  },
-  "queues": { "compress": 0, "meta": 0, "completed": 0, "failed": 0 },
-  "tools": { "exiftool": true, "jpegtran": true, "optipng": true, "cwebp": true, "ffmpeg": true, "avifenc": true },
-  "config": { "wp_content_dir": "/srv/www/wordpress/wp-content" }
-}
-```
-
-**Status values:** `ok` (current), `ahead` (installed > required), `updating` (in progress), `failed` (error), `waiting` (can't determine required version)
+The update is triggered via `MM_Daemon_Updater::handle_plugin_update()` which is called by `MM_Updater` after a plugin update.
 
 ## VERSION File
 
-The `VERSION` file is the installed daemon version. The shell self-updater reads it to compare against `daemon-compatibility.json` from the plugin directory.
+The `VERSION` file is the installed daemon version. The plugin reads it to compare against `daemon-compatibility.json`.
 
 **Format**: Plain semver string, e.g. `2.4.10` (no Debian revision suffix).
 
