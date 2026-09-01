@@ -27,13 +27,11 @@ metamanager/
 │   │                                          job-dir wait, result writing, drain loop
 │   ├── metamanager-compress-daemon.sh         Lossless compression: jpegtran/optipng/cwebp/avifenc/ffmpeg
 │   ├── metamanager-meta-daemon.sh             Metadata read/write/import: ExifTool
+│   ├── daemon-common.sh                       Shared daemon functions (logging, status, PID, job helpers)
 │   ├── metamanager-compress-daemon.service    systemd unit
-│   ├── metamanager-meta-daemon.service        systemd unit
-│   ├── metamanager-self-updater.sh            Version check + apt upgrade against plugin compat map
-│   ├── metamanager-self-updater.service       systemd unit
-│   └── metamanager-self-updater.timer         60-second check timer
+│   └── metamanager-meta-daemon.service        systemd unit
 │
-├── logrotate/metamanager     Log rotation config for all three daemons
+├── logrotate/metamanager     Log rotation config for both daemons
 ├── sudoers...                (removed — updater runs as root; no www-data grants)
 │
 ├── metamanager-install.sh    Server installer: OS deps, systemd units, job queue setup,
@@ -42,7 +40,7 @@ metamanager/
 ├── debian/                   .deb packaging
 │   ├── control               Package metadata
 │   ├── rules                 Build rules
-│   ├── postinst              Post-install: runs installer, enables self-updater timer
+│   ├── postinst              Post-install: runs installer, cleans up legacy self-updater
 │   ├── postrm                Post-remove/purge: stop/disable units, cleanup logs/state
 │   └── metamanager.install   File list for dpkg-deb
 │

@@ -53,53 +53,23 @@ The only exception is temporary testing during active development sessions, wher
 
 ## How Daemon Updates Work
 
-The daemon self-updater is the single authority for daemon version management. The plugin PHP does NOT trigger daemon updates — it only reads version info for display.
+The plugin is the single authority for daemon version management. The plugin PHP reads `daemon-compatibility.json` (bundled with the plugin) and the installed `VERSION` file, and triggers `apt-get update && apt-get install -y metamanager` when versions don't match.
 
-### Self-Updater
+### How Daemon Updates Work
 
-**`/usr/local/bin/metamanager-self-updater.sh`** — Bash script that:
-1. Detects the WordPress installation path
-2. Reads `daemon-compatibility.json` from the plugin directory (`wp-content/plugins/metamanager/`)
-3. Extracts the installed plugin version from the plugin header (`metamanager.php`)
-4. Looks up the required daemon version from the compatibility map
-5. Compares to the installed `VERSION` file at `/usr/local/lib/metamanager/VERSION`
-6. If version mismatch → runs `sudo apt-get update && apt-get install -y metamanager` + restarts daemons
-7. Writes comprehensive status JSON to `/var/run/metamanager-status.json`
+The plugin's `MM_Daemon_Updater` class handles daemon updates:
 
-**Runs every 60 seconds** via systemd timer.
+1. Reads `daemon-compatibility.json` from the plugin directory
+2. Extracts the installed plugin version from `MM_VERSION`
+3. Looks up the required daemon version from the compatibility map
+4. Compares to the installed `VERSION` file at `/usr/local/lib/metamanager/VERSION`
+5. If version mismatch → triggers `apt-get update && apt-get install -y metamanager` + restarts daemons
 
-**Components:**
-- **`/usr/local/bin/metamanager-self-updater.sh`** — Main script
-- **`/etc/systemd/system/metamanager-self-updater.service`** — Systemd service unit
-- **`/etc/systemd/system/metamanager-self-updater.timer`** — Systemd timer (every 60s)
-
-**Status JSON** (`/var/run/metamanager-status.json`) — read by WordPress dashboard widget and REST API:
-```json
-{
-  "ts": "2026-08-20T19:22:16Z",
-  "updater": {
-    "installed_version": "2.4.56",
-    "required_version": "2.4.56",
-    "last_check": "2026-08-20T19:22:16Z",
-    "last_update": "",
-    "status": "ok",
-    "message": "Daemon v2.4.56 is current"
-  },
-  "daemons": {
-    "compress": { "running": true, "pid": "3812755", "started": "..." },
-    "meta": { "running": true, "pid": "3812830", "started": "..." }
-  },
-  "queues": { "compress": 0, "meta": 0, "completed": 0, "failed": 0 },
-  "tools": { "exiftool": true, "jpegtran": true, "optipng": true, "cwebp": true, "ffmpeg": true, "avifenc": true },
-  "config": { "wp_content_dir": "/srv/www/wordpress/wp-content" }
-}
-```
-
-**Status values:** `ok` (current), `ahead` (installed > required), `updating` (in progress), `failed` (error), `waiting` (can't determine required version)
+The update is triggered via `MM_Daemon_Updater::handle_plugin_update()` which is called by `MM_Updater` after a plugin update.
 
 ## VERSION File
 
-The `VERSION` file is the installed daemon version. The shell self-updater reads it to compare against `daemon-compatibility.json` from the plugin directory.
+The `VERSION` file is the installed daemon version. The plugin reads it to compare against `daemon-compatibility.json`.
 
 **Format**: Plain semver string, e.g. `2.4.10` (no Debian revision suffix).
 
@@ -109,34 +79,19 @@ The `VERSION` file is the installed daemon version. The shell self-updater reads
 
 **Format difference**: `debian/changelog` uses Debian epoch format `2.4.10-1` (upstream-revision). The `VERSION` file uses plain semver `2.4.10` (no `-1` suffix). The CI strips the `-1` when writing `VERSION`.
 
-## Cross-Repo Automation: daemon-compatibility.json
+## Cross-Repo: daemon-compatibility.json
 
-**Problem**: The daemon gets promoted to apt BEFORE the plugin is released. The self-updater reads `daemon-compatibility.json` from the installed plugin to know which daemon version is required. If the map is not updated first, the self-updater shows "ahead" (daemon newer than map expects). This was a recurring process flaw — the daemon and plugin CI were blind to each other.
+**The plugin is the single authority for daemon version management.** The plugin manages `daemon-compatibility.json`, reads the installed daemon `VERSION` file, and triggers `apt-get update && apt-get install -y metamanager` when versions don't match. The daemon repo does NOT write to the plugin repo.
 
-**Solution**: The daemon promotion workflows (`promote-to-test.yml`, `promote-to-main.yml`) automatically update `daemon-compatibility.json` in the plugin repo before deploying the daemon to apt.
+**How it works:**
+1. Plugin reads `daemon-compatibility.json` (bundled with the plugin)
+2. Plugin reads installed daemon `VERSION` file at `/usr/local/lib/metamanager/VERSION`
+3. If versions don't match → plugin triggers `apt-get update && apt-get install -y metamanager`
+4. Plugin restarts daemons after update
 
-**How it works**:
-1. Workflow reads the current plugin version from the plugin repo (`MM_VERSION` in `metamanager.php`)
-2. Reads `daemon-compatibility.json` from the plugin repo
-3. If no entry exists for the new daemon version → clones plugin repo, adds entry, commits and pushes
-4. Final validation ensures the entry exists before proceeding to build/deploy
+**Daemon repo responsibility:** Build and deploy the `.deb` package to the apt server. Nothing else.
 
-**What gets mapped**: The current plugin version on the target branch (dev for test promotion, main for main promotion) → the new daemon version. This is correct because:
-- The self-updater checks the *installed* plugin version against the map
-- The entry covers the version that was on dev when the daemon was promoted
-- Plugin CI will auto-bump `MM_VERSION` on the next push — future versions will need their own entries (added by the next daemon promotion or manually)
-
-**Branch targeting**:
-- `promote-to-test.yml` → updates plugin repo's `dev` branch
-- `promote-to-main.yml` → updates plugin repo's `main` branch
-
-**Secrets required**: `PLUGIN_REPO_PAT` — GitHub Personal Access Token with `contents: write` scope on `richardkentgates/metamanager-plugin`. Without this secret, the workflow fails with a clear error message.
-
-**Idempotency**: If the map already has an entry for the daemon version, the step is a no-op (just validates).
-
-**Failure handling**: If the auto-update fails (bad PAT, network error, etc.), the final validation step catches it and blocks the promotion with a clear error message.
-
-**Historical context**: Before this automation, the release checklist required manually updating `daemon-compatibility.json` in the plugin repo before promoting the daemon. This was a frequent source of the "ahead" status because the steps were容易 forgotten or done in the wrong order. The automation eliminates the manual coordination between repos.
+**Plugin repo responsibility:** Maintain `daemon-compatibility.json` with entries mapping plugin versions to required daemon versions. Trigger daemon updates when needed.
 
 ## Repos
 
