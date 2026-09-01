@@ -1,6 +1,6 @@
 # Metamanager Server Roadmap
 
-Last updated 2026-08-09.
+Last updated 2026-09-01.
 
 ---
 
@@ -37,6 +37,17 @@ main  ──  tag + GitHub release + deploy to apt repo
 
 ## What's Done
 
+### Self-Updater Removal (2026-09-01)
+
+The shell self-updater has been removed from the daemon repo. The plugin's `MM_Daemon_Updater` is now the single authority for daemon updates.
+
+- [x] Deleted `metamanager-self-updater.sh`, `.service`, `.timer` from `daemons/`
+- [x] Removed from `debian/metamanager.install`
+- [x] Updated `debian/postinst` to clean up legacy self-updater on upgrade (stops timer, removes files)
+- [x] Updated `debian/postrm` to clean up on remove/purge
+- [x] Updated `AGENTS.md`, `README.md`, `ARCHITECTURE.md` to reflect plugin-controlled updates
+- [x] All four servers updated and self-updater removed
+
 ### Original Audit Items — All Fixed
 
 | # | Issue | Fix | Date |
@@ -60,7 +71,7 @@ main  ──  tag + GitHub release + deploy to apt repo
 - Server wiki populated (3 pages: Home, Installation, Daemon Management)
 - GitHub Pages rewritten for daemon layer
 - AGENTS.md mandatory workflow rules
-- **Cross-repo automation**: Daemon promotion workflows auto-update `daemon-compatibility.json` in the plugin repo before deploying to apt (eliminates manual coordination, prevents "ahead" status)
+- **Plugin manages daemon updates**: Plugin reads `daemon-compatibility.json` and triggers `apt-get install metamanager` when versions don't match. Daemon repo only builds and deploys the .deb package.
 
 ---
 
@@ -173,14 +184,16 @@ Research confirmed all audit items were already fixed. No restoration needed.
 | F-1 | `compress-daemon.sh` vs `meta-daemon.sh` | ~100 lines of boilerplate duplicated | MEDIUM | ✅ Fixed — extracted to `daemon-common.sh` |
 | F-2 | `write_result()` | Duplicated with minor differences | MEDIUM | ✅ Fixed — unified in `daemon-common.sh` with optional bytes args |
 
-### Self-Updater Issues
+### Self-Updater Issues — RESOLVED (self-updater removed)
+
+The shell self-updater has been removed from the daemon repo. The plugin's `MM_Daemon_Updater` is now the single authority for daemon updates. The `postinst` script actively cleans up legacy self-updater files on upgrade.
 
 | # | File | Line | Issue | Severity | Status |
 |---|------|------|-------|----------|--------|
-| U-1 | `metamanager-self-updater.sh` | 9 | Service passes `--check` flag but script never parses arguments | MEDIUM | ✅ Fixed — script parses args; service no longer passes --check (was bricking auto-update) |
-| U-2 | `metamanager-self-updater.sh` | 27-35 | No early exit when WordPress installation not found — proceeds with empty paths | MEDIUM | ✅ Fixed — early exit with error |
-| U-3 | `metamanager-self-updater.sh` | 233-234 | Daemon restart failures silently swallowed (`|| true`) — status still reports "updated" | MEDIUM | ✅ Fixed — failures tracked, status reports partial; sudo prefixes dropped |
-| U-4 | `metamanager-self-updater.sh` | 132-173 | `write_status()` uses heredoc instead of atomic `.tmp` + `mv` — partial reads possible | LOW | ✅ Fixed — atomic write |
+| U-1 | `metamanager-self-updater.sh` | 9 | Service passes `--check` flag but script never parses arguments | MEDIUM | ✅ Removed — self-updater deleted |
+| U-2 | `metamanager-self-updater.sh` | 27-35 | No early exit when WordPress installation not found | MEDIUM | ✅ Removed — self-updater deleted |
+| U-3 | `metamanager-self-updater.sh` | 233-234 | Daemon restart failures silently swallowed | MEDIUM | ✅ Removed — self-updater deleted |
+| U-4 | `metamanager-self-updater.sh` | 132-173 | `write_status()` uses heredoc instead of atomic write | LOW | ✅ Removed — self-updater deleted |
 
 ### Documentation Stale
 
