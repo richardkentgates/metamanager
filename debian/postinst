@@ -23,18 +23,16 @@ case "$1" in
         if [ -f "$MM_LIB/VERSION" ]; then
             chmod 0644 "$MM_LIB/VERSION"
         fi
-        # Ensure self-updater script is executable.
-        chmod 0755 /usr/local/bin/metamanager-self-updater.sh 2>/dev/null || true
-        # Remove legacy sudoers grant (updater runs as root; plugin never
-        # triggers updates).
+        # Remove legacy sudoers grant.
         rm -f /etc/sudoers.d/sudoers-metamanager
-        # Enable and start the self-updater timer.
-        if [ -f /etc/systemd/system/metamanager-self-updater.timer ]; then
-            systemctl daemon-reload 2>/dev/null || true
-            systemctl enable metamanager-self-updater.timer 2>/dev/null || true
-            systemctl start metamanager-self-updater.timer 2>/dev/null || true
-            echo "MetaManager self-updater timer enabled (checks every 60s)."
-        fi
+        # Remove legacy self-updater (plugin now controls daemon updates).
+        systemctl stop metamanager-self-updater.timer 2>/dev/null || true
+        systemctl disable metamanager-self-updater.timer 2>/dev/null || true
+        rm -f /etc/systemd/system/metamanager-self-updater.timer
+        rm -f /etc/systemd/system/metamanager-self-updater.service
+        rm -f /usr/local/bin/metamanager-self-updater.sh
+        rm -f /etc/systemd/system/timers.target.wants/metamanager-self-updater.timer
+        systemctl daemon-reload 2>/dev/null || true
         ;;
 esac
 

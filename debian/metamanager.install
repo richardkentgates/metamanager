@@ -2,6 +2,3 @@ metamanager-install.sh usr/local/lib/metamanager
 daemons                usr/local/lib/metamanager
 VERSION                usr/local/lib/metamanager
 logrotate/metamanager  etc/logrotate.d
-daemons/metamanager-self-updater.sh    usr/local/bin
-daemons/metamanager-self-updater.service etc/systemd/system
-daemons/metamanager-self-updater.timer   etc/systemd/system
