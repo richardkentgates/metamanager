@@ -7,13 +7,3 @@
     notifempty
     create 0644 www-data www-data
 }
-
-/var/log/metamanager-self-updater.log {
-    weekly
-    rotate 8
-    compress
-    delaycompress
-    missingok
-    notifempty
-    create 0644 root root
-}

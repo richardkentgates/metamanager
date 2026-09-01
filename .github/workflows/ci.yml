@@ -59,4 +59,3 @@ jobs:
           shellcheck -S error daemons/daemon-common.sh
           shellcheck -S error daemons/metamanager-compress-daemon.sh
           shellcheck -S error daemons/metamanager-meta-daemon.sh
-          shellcheck -S error daemons/metamanager-self-updater.sh
