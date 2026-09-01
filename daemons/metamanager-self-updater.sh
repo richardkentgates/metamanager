@@ -87,7 +87,7 @@ version_gt() {
 count_jobs() {
     local dir="$1"
     if [[ -d "$dir" ]]; then
-        find "$dir" -maxdepth 1 -name '*.json' -type f 2>/dev/null | wc -l | tr -d '[:space:]'
+        find "$dir" -maxdepth 1 \( -name '*.json' -o -name '*.json.processing' \) -type f 2>/dev/null | wc -l | tr -d '[:space:]'
     else
         echo "0"
     fi
@@ -236,50 +236,8 @@ main() {
         exit 0
     fi
 
-    log "INFO" "Update needed: v${installed} → v${required}"
-    write_status "$installed" "$required" "updating" "Updating from v${installed} to v${required}..."
-
-    # apt-get update
-    if ! apt-get update -qq >> "$LOG_FILE" 2>&1; then
-        log "ERROR" "apt-get update failed"
-        write_status "$installed" "$required" "failed" "apt-get update failed"
-        exit 1
-    fi
-
-    # apt-get install
-    if ! apt-get install -y -qq metamanager >> "$LOG_FILE" 2>&1; then
-        log "ERROR" "apt-get install metamanager failed"
-        write_status "$installed" "$required" "failed" "apt-get install failed"
-        exit 1
-    fi
-
-    # Verify new version.
-    local new_ver
-    new_ver=$(get_installed)
-
-    # U-3: Restart daemons and check for failures.
-    local restart_ok=true
-    if ! systemctl restart metamanager-compress-daemon 2>> "$LOG_FILE"; then
-        log "ERROR" "Failed to restart metamanager-compress-daemon"
-        restart_ok=false
-    fi
-    if ! systemctl restart metamanager-meta-daemon 2>> "$LOG_FILE"; then
-        log "ERROR" "Failed to restart metamanager-meta-daemon"
-        restart_ok=false
-    fi
-
-    if [[ "$new_ver" == "$required" ]]; then
-        if [[ "$restart_ok" == "true" ]]; then
-            log "INFO" "Update complete: v${new_ver}"
-            write_status "$new_ver" "$required" "updated" "Daemon updated to v${new_ver}"
-        else
-            log "WARN" "Update installed but daemon restart failed: v${new_ver}"
-            write_status "$new_ver" "$required" "partial" "Updated to v${new_ver} but daemon restart failed"
-        fi
-    else
-        log "ERROR" "Version mismatch after update: got v${new_ver}, expected v${required}"
-        write_status "${new_ver:-unknown}" "$required" "failed" "Expected v${required}, got v${new_ver:-unknown}"
-    fi
+    log "INFO" "Update available: v${installed} → v${required}"
+    write_status "$installed" "$required" "outdated" "Update available: v${installed} → v${required}"
 }
 
 main
