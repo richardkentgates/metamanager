@@ -32,17 +32,7 @@ metamanager/
 │   └── metamanager-meta-daemon.service        systemd unit
 │
 ├── logrotate/metamanager     Log rotation config for both daemons
-├── sudoers...                (removed — updater runs as root; no www-data grants)
-│
-├── metamanager-install.sh    Server installer: OS deps, systemd units, job queue setup,
-│                             daemon-common.sh deployment to /usr/local/bin
-│
-├── debian/                   .deb packaging
-│   ├── control               Package metadata
-│   ├── rules                 Build rules
-│   ├── postinst              Post-install: runs installer, cleans up legacy self-updater
-│   ├── postrm                Post-remove/purge: stop/disable units, cleanup logs/state
-│   └── metamanager.install   File list for dpkg-deb
+├── logrotate/metamanager     Log rotation config for both daemons
 │
 ├── VERSION                   Current version (kept in sync with debian/changelog)
 ├── JOB_QUEUE_SPEC.md         Cross-repo contract: job/result JSON formats
