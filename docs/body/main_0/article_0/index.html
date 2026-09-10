@@ -181,6 +181,7 @@ sudo bash metamanager-install.sh --wp-path /srv/www/wordpress</code></pre>
             <tr><td>JPEG</td><td>jpegtran</td><td>Lossless optimization (no re-encoding). Strips unnecessary metadata if file already has embedded XMP/IPTC/EXIF preserved separately.</td></tr>
             <tr><td>PNG</td><td>optipng</td><td>Lossless deflate optimization. File is only replaced if result is smaller.</td></tr>
             <tr><td>WebP</td><td>cwebp -lossless</td><td>Lossless re-encode. Original replaced only if output is smaller.</td></tr>
+            <tr><td>AVIF</td><td>avifenc --lossless</td><td>Lossless AVIF encode. Original replaced only if output is smaller.</td></tr>
             <tr><td>Video</td><td>ffmpeg</td><td>Container remux (not re-encode). Cleans malformed containers, writes metadata atoms. No video quality change.</td></tr>
         </tbody>
     </table>
@@ -313,6 +314,63 @@ sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon</code
 
     <h3 id="notifications">Upload Notifications</h3>
     <p>The site admin receives a batched digest email after uploads (one email per 60-second window). Other WordPress users can opt in via their profile page. A configurable extra CC address is available. Failed sends surface as a dismissible admin notice with one-click retry.</p>
+</section>
+
+<!-- ── Memory Manager ───────────────────────────────────────────────────── -->
+<section id="memory-manager">
+    <h2>Fluid Memory Manager</h2>
+    <p class="section-lead">Metamanager scales batch processing to available system resources — no hardcoded limits that fail on small servers or waste resources on large ones.</p>
+
+    <table>
+        <thead><tr><th>Constraint</th><th>How it works</th></tr></thead>
+        <tbody>
+            <tr><td><strong>System memory pressure</strong></td><td>Pauses processing when free RAM drops below 10% of total. Resumes automatically when memory is freed.</td></tr>
+            <tr><td><strong>PHP memory limit</strong></td><td>Calculates safe batch size based on available PHP memory minus 8MB floor.</td></tr>
+            <tr><td><strong>Per-job cost estimation</strong></td><td>Base 2MB per job + 1MB per megapixel (images) or 5MB per minute (video).</td></tr>
+            <tr><td><strong>Dynamic batch sizing</strong></td><td>Automatically reduces batch size when memory is constrained, increases when memory is abundant.</td></tr>
+        </tbody>
+    </table>
+
+    <p>The memory manager ensures daemons never crash the server regardless of available RAM. On a 1GB VPS it processes fewer files per batch; on a 16GB server it processes more — same code, same reliability.</p>
+</section>
+
+<!-- ── Metadata History ─────────────────────────────────────────────────── -->
+<section id="metadata-history">
+    <h2>Metadata History &amp; Version Diffs</h2>
+    <p class="section-lead">Every change to Metamanager-managed metadata fields is tracked with full versioning — see exactly what changed, when, and by whom.</p>
+
+    <h3>Tracked Fields</h3>
+    <p>All 14 Metamanager metadata fields are version-tracked: Creator, Copyright, Owner, Headline, Credit, Keywords, Date Created, Rating, City, State, Country, GPS coordinates, Duration, and Verification status.</p>
+
+    <h3>Version History</h3>
+    <ul>
+        <li>Each change creates a timestamped snapshot with the user who made the change</li>
+        <li>Change sources tracked: edit, import, bulk, CLI, REST</li>
+        <li>Visual diff between any two versions showing field-by-field changes</li>
+        <li>Accessible from the Media Library attachment edit screen</li>
+    </ul>
+
+    <h3>Write-back Verification</h3>
+    <p>After the daemon writes metadata into a file, Metamanager queues a re-read job to verify the embedded values match WordPress. Discrepancies are recorded and shown as an amber warning on the attachment edit screen.</p>
+</section>
+
+<!-- ── Media Detector ───────────────────────────────────────────────────── -->
+<section id="media-detector">
+    <h2>Media Detector</h2>
+    <p class="section-lead">Scans post content for embedded media elements and resolves them to WordPress attachment IDs — useful for schema output and content analysis.</p>
+
+    <table>
+        <thead><tr><th>Element</th><th>Data extracted</th></tr></thead>
+        <tbody>
+            <tr><td><code>&lt;img&gt;</code></td><td>URL, attachment ID, width, height, alt text, caption</td></tr>
+            <tr><td><code>&lt;video&gt;</code></td><td>URL, attachment ID, width, height, duration</td></tr>
+            <tr><td><code>&lt;audio&gt;</code></td><td>URL, attachment ID</td></tr>
+            <tr><td><code>&lt;iframe&gt;</code></td><td>URL, type</td></tr>
+            <tr><td><code>&lt;a&gt;</code></td><td>URL, link type</td></tr>
+        </tbody>
+    </table>
+
+    <p>Used by the Schema module to include content-embedded images in <code>ImageObject</code> JSON-LD output with full metadata (creator, copyright, GPS coordinates).</p>
 </section>
 
 <!-- ── WP-CLI ────────────────────────────────────────────────────────────── -->
