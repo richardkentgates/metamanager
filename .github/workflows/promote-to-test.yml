@@ -31,7 +31,7 @@ jobs:
         run: |
           echo "Checking CI status for workflow 'ci.yml' on branch 'dev'..."
 
-          LATEST_RUN=$(gh run list \
+          LATEST_RUN=$(gh run list --repo ${{ github.repository }} \
             --workflow "ci.yml" \
             --branch "dev" \
             --limit 1 \
