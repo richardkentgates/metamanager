@@ -26,15 +26,15 @@ jobs:
     name: Verify CI Passed
     runs-on: ubuntu-latest
     steps:
-      - name: Check CI status on test
+      - name: Check CI status on dev
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Checking CI status for workflow 'ci.yml' on branch 'test'..."
+          echo "Checking CI status for workflow 'ci.yml' on branch 'dev'..."
 
           LATEST_RUN=$(gh run list --repo ${{ github.repository }} \
             --workflow "ci.yml" \
-            --branch "test" \
+            --branch "dev" \
             --limit 1 \
             --json status,conclusion,name \
             --jq '.[0]')
