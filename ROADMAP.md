@@ -1,6 +1,6 @@
 # Metamanager Server Roadmap
 
-Last updated 2026-09-01.
+Last updated 2026-09-09.
 
 ---
 
@@ -39,7 +39,7 @@ main  ──  tag + GitHub release + deploy to apt repo
 
 ### Self-Updater Removal (2026-09-01)
 
-The shell self-updater has been removed from the daemon repo. The plugin's `MM_Daemon_Updater` is now the single authority for daemon updates.
+The shell self-updater has been removed from the daemon repo. Daemon updates are handled by OS apt (root context), not the plugin.
 
 - [x] Deleted `metamanager-self-updater.sh`, `.service`, `.timer` from `daemons/`
 - [x] Removed from `debian/metamanager.install`
@@ -47,6 +47,14 @@ The shell self-updater has been removed from the daemon repo. The plugin's `MM_D
 - [x] Updated `debian/postrm` to clean up on remove/purge
 - [x] Updated `AGENTS.md`, `README.md`, `ARCHITECTURE.md` to reflect plugin-controlled updates
 - [x] All four servers updated and self-updater removed
+
+### Plugin Daemon Updater Removal (2026-09-09)
+
+The plugin's `MM_Daemon_Updater::trigger_update()` was removed because it ran `sudo apt-get` as www-data, which fails without sudoers grant. Daemon updates are now handled entirely by OS apt (root context via gcm-upgrade timer).
+
+- [x] Removed `trigger_update()`, `handle_plugin_update()`, `init()`, `admin_notice()` from plugin
+- [x] Kept `get_daemon_version()` for status reporting
+- [x] All five servers updated to plugin v2.3.173 via adopt
 
 ### Original Audit Items — All Fixed
 

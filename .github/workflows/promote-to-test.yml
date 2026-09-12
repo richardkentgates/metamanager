@@ -5,11 +5,62 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
+  validate:
+    name: Validate Source Branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch
+        env:
+          HEAD: ${{ github.ref_name }}
+        run: |
+          if [[ "$HEAD" != "dev" ]]; then
+            echo "::error::This workflow can only be run from the dev branch. Current branch: $HEAD"
+            exit 1
+          fi
+          echo "Promotion path valid: dev -> test"
+
+  check-ci:
+    name: Verify CI Passed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI status on dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking CI status for workflow 'ci.yml' on branch 'dev'..."
+
+          LATEST_RUN=$(gh run list --repo ${{ github.repository }} \
+            --workflow "ci.yml" \
+            --branch "dev" \
+            --limit 1 \
+            --json status,conclusion,name \
+            --jq '.[0]')
+
+          STATUS=$(echo "$LATEST_RUN" | jq -r '.status')
+          CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion')
+          NAME=$(echo "$LATEST_RUN" | jq -r '.name')
+
+          echo "Latest run: name=${NAME}, status=${STATUS}, conclusion=${CONCLUSION}"
+
+          if [[ "$STATUS" != "completed" ]]; then
+            echo "::error::CI is still running (status=${STATUS}). Wait for it to complete before promoting."
+            exit 1
+          fi
+
+          if [[ "$CONCLUSION" != "success" ]]; then
+            echo "::error::CI failed (conclusion=${CONCLUSION}). Fix the issues on dev before promoting."
+            exit 1
+          fi
+
+          echo "CI passed. Proceeding with promotion."
+
   promote:
     name: Merge, Build & Deploy to Apt
     runs-on: ubuntu-latest
+    needs: [validate, check-ci]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
