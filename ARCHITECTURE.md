@@ -164,6 +164,7 @@ Processes compression jobs. Detects media type by extension and delegates to:
 | `jpegtran` | JPEG |
 | `optipng` | PNG |
 | `cwebp` | WebP |
+| `avifenc` | AVIF |
 | `ffmpeg` | Video |
 
 ### Meta Daemon (`metamanager-meta-daemon.sh`)

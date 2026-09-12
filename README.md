@@ -202,7 +202,8 @@ sudo systemctl restart metamanager-meta-daemon
 # Fresh install
 sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
-# Update: daemon updates are automatic via the WordPress plugin's MM_Daemon_Updater (triggers apt-get when versions mismatch).
+# Update: daemon updates are handled by OS apt (gcm-upgrade timer runs as root).
+# The plugin reads the VERSION file for dashboard display only — it never triggers updates.
 # To re-run the installer manually (e.g. after a WordPress path change):
 sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
@@ -259,7 +260,6 @@ The plugin reads the `VERSION` file for dashboard display only — it never trig
 |------|---------|--------|
 | `debian/changelog` | Debian package version | `2.4.17-1` (upstream-revision) |
 | `VERSION` | Installed daemon version (read by plugin) | `2.4.17` (plain semver, no `-1`) |
-| `daemon-compatibility.json` | Plugin-to-daemon version mapping | `{ "2.3.58": "2.4.8" }` |
 
 CI auto-bumps `debian/changelog` and `VERSION` on every push to `dev`. They must stay in sync — CI handles this automatically; never edit either file manually.
 
@@ -267,8 +267,8 @@ CI auto-bumps `debian/changelog` and `VERSION` on every push to `dev`. They must
 
 ## Updating
 
-**Via WordPress admin (recommended):**
-The WordPress plugin's `MM_Daemon_Updater` compares the installed daemon version against the required version declared by the plugin's `daemon-compatibility.json` and triggers `apt-get install` automatically when a mismatch is detected after a plugin update. No manual intervention is needed.
+**Via apt (recommended):**
+Daemon updates are handled by OS apt. The `gcm-upgrade` timer runs `apt-get upgrade` daily as root. No manual intervention is needed.
 
 **Via apt directly:**
 
