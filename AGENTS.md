@@ -53,23 +53,13 @@ The only exception is temporary testing during active development sessions, wher
 
 ## How Daemon Updates Work
 
-The plugin is the single authority for daemon version management. The plugin PHP reads `daemon-compatibility.json` (bundled with the plugin) and the installed `VERSION` file, and triggers `apt-get update && apt-get install -y metamanager` when versions don't match.
+Daemon updates are handled by OS apt (root context), not the plugin. The `gcm-upgrade` timer runs `apt-get upgrade` daily as root. The server's apt channel (test/stable) — configured in GCM — determines which daemon version apt installs.
 
-### How Daemon Updates Work
-
-The plugin's `MM_Daemon_Updater` class handles daemon updates:
-
-1. Reads `daemon-compatibility.json` from the plugin directory
-2. Extracts the installed plugin version from `MM_VERSION`
-3. Looks up the required daemon version from the compatibility map
-4. Compares to the installed `VERSION` file at `/usr/local/lib/metamanager/VERSION`
-5. If version mismatch → triggers `apt-get update && apt-get install -y metamanager` + restarts daemons
-
-The update is triggered via `MM_Daemon_Updater::handle_plugin_update()` which is called by `MM_Updater` after a plugin update.
+The plugin's `MM_Daemon_Updater` only reads the VERSION file for dashboard display. It does not trigger updates.
 
 ## VERSION File
 
-The `VERSION` file is the installed daemon version. The plugin reads it to compare against `daemon-compatibility.json`.
+The `VERSION` file is the installed daemon version.
 
 **Format**: Plain semver string, e.g. `2.4.10` (no Debian revision suffix).
 
@@ -79,19 +69,18 @@ The `VERSION` file is the installed daemon version. The plugin reads it to compa
 
 **Format difference**: `debian/changelog` uses Debian epoch format `2.4.10-1` (upstream-revision). The `VERSION` file uses plain semver `2.4.10` (no `-1` suffix). The CI strips the `-1` when writing `VERSION`.
 
-## Cross-Repo: daemon-compatibility.json
+## Cross-Repo: Daemon Updates
 
-**The plugin is the single authority for daemon version management.** The plugin manages `daemon-compatibility.json`, reads the installed daemon `VERSION` file, and triggers `apt-get update && apt-get install -y metamanager` when versions don't match. The daemon repo does NOT write to the plugin repo.
+Daemon updates are handled by OS apt (root context), not the plugin.
 
 **How it works:**
-1. Plugin reads `daemon-compatibility.json` (bundled with the plugin)
-2. Plugin reads installed daemon `VERSION` file at `/usr/local/lib/metamanager/VERSION`
-3. If versions don't match → plugin triggers `apt-get update && apt-get install -y metamanager`
-4. Plugin restarts daemons after update
+1. `gcm-upgrade` timer runs `apt-get upgrade` daily as root
+2. Server's apt channel (test/stable) determines which version is installed
+3. Daemons restart after upgrade
 
 **Daemon repo responsibility:** Build and deploy the `.deb` package to the apt server. Nothing else.
 
-**Plugin repo responsibility:** Maintain `daemon-compatibility.json` with entries mapping plugin versions to required daemon versions. Trigger daemon updates when needed.
+**Plugin repo responsibility:** Read the VERSION file for dashboard display. Does not trigger updates.
 
 ## Repos
 
@@ -99,6 +88,41 @@ The `VERSION` file is the installed daemon version. The plugin reads it to compa
 - Plugin repo: `richardkentgates/metamanager-plugin`
 - Apt server: `34.136.87.92` (DNS: `apt.richardkentgates.com`)
 - Production: `34.10.253.160` (Debian 13 trixie, WordPress at `/srv/www/wordpress/`)
+
+## Cross-Repo Scope
+
+**This repo owns:**
+- Shell daemons (`metamanager-compress-daemon.sh`, `metamanager-meta-daemon.sh`)
+- `.deb` package build, VERSION file, `debian/changelog`
+- systemd service units
+- Install script (`metamanager-install.sh`)
+- Apt server deployment of daemon packages
+
+**Plugin repo (`metamanager-plugin`) owns:**
+- WordPress plugin PHP code (SEO, schema, OG tags, sitemaps, cron tracking)
+- Job queue contract: PHP writes JSON job files to `wp-content/metamanager-jobs/`
+- `MM_Updater` — WordPress auto-update from apt server `metadata.json`
+
+**GCM CLI repo (`gcm`) owns:**
+- Server provisioning (`gcm install`, `gcm adopt`)
+- Operation gating (MetaManager idle check before backup/upgrade)
+- MU plugin dashboard widget
+
+**Contract point:** `JOB_QUEUE_SPEC.md` defines the JSON format between PHP and Bash. Both repos must stay in sync.
+
+## Apt Server — Security Architecture
+
+```
+UFW (static) — base rules: 22, 80, 443 open, everything else denied
+    ↓
+iptables (dynamic under UFW) — fail2ban injects ban rules into ufw-before-input
+    ↓
+modsecurity — flood mitigation, request anomaly detection (no OWASP CRS)
+    ↓
+fail2ban — ban IPs based on modsecurity + SSH + Apache triggers (banaction = ufw)
+    ↓
+maldet — active daemon, daily malware scans of /var/www/
+```
 
 ## Apt Server Channels
 
