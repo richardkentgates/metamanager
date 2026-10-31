@@ -106,6 +106,44 @@ write_result() {
     rm -f "${tmpfile}"
 }
 
+# --- Cross-process gating (GCM busy state + MXRoute queue) ---
+# Receiving jobs is NEVER prevented. Processing pauses while another gated
+# process (backup, upgrade, restore) is working or MXRoute Mailer has queued
+# mail. Missing state files or uninstalled software = idle — move on without
+# it. Queued job files stay in place and are processed when the gate clears.
+gate_allows_processing() {
+    local f
+    for f in /var/lib/gcm/busy/backup /var/lib/gcm/busy/upgrade /var/lib/gcm/busy/restore; do
+        if [[ -f "${f}" ]]; then
+            log "Gate: $(basename "${f}") running — processing paused"
+            return 1
+        fi
+    done
+    # MXRoute Mailer pending count (missing file/jq = not installed = idle)
+    if command -v jq &>/dev/null && [[ -f /var/run/mxroute-status.json ]]; then
+        local mxr_pending
+        mxr_pending=$(jq -r '.pending // 0' /var/run/mxroute-status.json 2>/dev/null)
+        if [[ "${mxr_pending}" =~ ^[0-9]+$ ]] && (( mxr_pending > 0 )); then
+            log "Gate: MXRoute Mailer has ${mxr_pending} pending — processing paused"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Block until the gate opens. Jobs keep arriving while we wait.
+gate_wait_for_turn() {
+    local waited=false
+    until gate_allows_processing; do
+        waited=true
+        sleep 30
+    done
+    if "${waited}"; then
+        log "Gate clear — resuming processing"
+    fi
+    return 0
+}
+
 # --- Drain jobs queued while daemon was offline ---
 # Cleans up leftover .mm_tmp files, recovers orphaned .json.processing files,
 # then loops until the queue is empty. Concurrent jobs may get LOCKED by
@@ -148,6 +186,7 @@ drain_jobs_loop() {
 
         log "Startup scan pass ${_pass}: ${#_sorted[@]} job(s)"
         for jobfile in "${_sorted[@]}"; do
+            gate_wait_for_turn
             while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
                 wait -n 2>/dev/null || true
             done
@@ -175,6 +214,7 @@ run_main_loop() {
         inotifywait -m -e close_write,moved_to --format '%w%f' "${JOB_DIR}" 2>/dev/null \
         | while IFS= read -r jobfile; do
             if [[ "${jobfile}" == *.json ]]; then
+                gate_wait_for_turn
                 while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
                     wait -n 2>/dev/null || true
                 done
