@@ -131,6 +131,28 @@ maldet — active daemon, daily malware scans of /var/www/
 - **Test channel (plugin)**: `metamanager-test/` — WordPress detects update via `MM_Updater`
 - **Production channel (plugin)**: `metamanager/` — WordPress detects update via `MM_Updater`
 
+## Cross-Process Gating (daemons)
+
+`gate_allows_processing()` / `gate_wait_for_turn()`
+(`daemons/daemon-common.sh`) pause daemon **job processing** while another
+gated process is working:
+
+- `/var/lib/gcm/busy/{backup,upgrade,restore}` exists → wait
+- MXRoute queue non-empty (`/run/mxroute-status.json` `pending` > 0) → wait
+
+**Receiving is never prevented** — job files keep arriving while the gate
+waits; queued jobs stay in place and are processed when the gate clears.
+The daemon blocks (`gate_wait_for_turn`) rather than skipping or dropping
+work. Do not change this to skip queued jobs.
+
+## Activation Rule (plugin)
+
+MetaManager is **never activated by software** (enforced by a structure-test
+guard: `plugin activate.*metamanager` must not appear in any repo). GCM
+installs it flagged + absent-only during migrate/install; activation is a
+human decision. MXRoute Mailer is different — it is the site mail transport
+and is activated via the manual post-migration checklist.
+
 ## Conventions
 
 - Branch protection on `test` and `main`: PRs required, no direct pushes
