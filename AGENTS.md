@@ -53,7 +53,7 @@ The only exception is temporary testing during active development sessions, wher
 
 ## How Daemon Updates Work
 
-Daemon updates are handled by OS apt (root context), not the plugin. The `gcm-upgrade` timer runs `apt-get upgrade` daily as root. The server's apt channel (test/stable) — configured in GCM — determines which daemon version apt installs.
+Daemon updates are handled by OS apt (root context), not the plugin. The `gcm-maintenance` timer runs `apt-get dist-upgrade` daily as root (inside GCM's OS maintenance window). The server's apt channel (test/stable) — configured in GCM — determines which daemon version apt installs.
 
 The plugin's `MM_Daemon_Updater` only reads the VERSION file for dashboard display. It does not trigger updates.
 
@@ -74,7 +74,7 @@ The `VERSION` file is the installed daemon version.
 Daemon updates are handled by OS apt (root context), not the plugin.
 
 **How it works:**
-1. `gcm-upgrade` timer runs `apt-get upgrade` daily as root
+1. `gcm-maintenance` timer runs `apt-get dist-upgrade` daily as root
 2. Server's apt channel (test/stable) determines which version is installed
 3. Daemons restart after upgrade
 

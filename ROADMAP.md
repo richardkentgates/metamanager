@@ -50,7 +50,7 @@ The shell self-updater has been removed from the daemon repo. Daemon updates are
 
 ### Plugin Daemon Updater Removal (2026-09-09)
 
-The plugin's `MM_Daemon_Updater::trigger_update()` was removed because it ran `sudo apt-get` as www-data, which fails without sudoers grant. Daemon updates are now handled entirely by OS apt (root context via gcm-upgrade timer).
+The plugin's `MM_Daemon_Updater::trigger_update()` was removed because it ran `sudo apt-get` as www-data, which fails without sudoers grant. Daemon updates are now handled entirely by OS apt (root context via the gcm-maintenance timer/window).
 
 - [x] Removed `trigger_update()`, `handle_plugin_update()`, `init()`, `admin_notice()` from plugin
 - [x] Kept `get_daemon_version()` for status reporting

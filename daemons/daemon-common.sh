@@ -108,12 +108,14 @@ write_result() {
 
 # --- Cross-process gating (GCM busy state + MXRoute queue) ---
 # Receiving jobs is NEVER prevented. Processing pauses while another gated
-# process (backup, upgrade, restore) is working or MXRoute Mailer has queued
-# mail. Missing state files or uninstalled software = idle — move on without
-# it. Queued job files stay in place and are processed when the gate clears.
+# process is working — the GCM busy scopes: backup, the OS maintenance
+# window (maint), a standalone update (update), a standalone security scan
+# (scan), or restore — or MXRoute Mailer has queued mail. Missing state
+# files or uninstalled software = idle — move on without it. Queued job
+# files stay in place and are processed when the gate clears.
 gate_allows_processing() {
     local f
-    for f in /var/lib/gcm/busy/backup /var/lib/gcm/busy/upgrade /var/lib/gcm/busy/restore; do
+    for f in /var/lib/gcm/busy/backup /var/lib/gcm/busy/maint /var/lib/gcm/busy/update /var/lib/gcm/busy/scan /var/lib/gcm/busy/restore; do
         if [[ -f "${f}" ]]; then
             log "Gate: $(basename "${f}") running — processing paused"
             return 1
