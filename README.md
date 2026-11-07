@@ -202,7 +202,7 @@ sudo systemctl restart metamanager-meta-daemon
 # Fresh install
 sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
 
-# Update: daemon updates are handled by OS apt (gcm-upgrade timer runs as root).
+# Update: daemon updates are handled by OS apt (gcm-maintenance timer runs as root).
 # The plugin reads the VERSION file for dashboard display only — it never triggers updates.
 # To re-run the installer manually (e.g. after a WordPress path change):
 sudo bash metamanager-install.sh --wp-path /srv/www/wordpress
@@ -268,7 +268,7 @@ CI auto-bumps `debian/changelog` and `VERSION` on every push to `dev`. They must
 ## Updating
 
 **Via apt (recommended):**
-Daemon updates are handled by OS apt. The `gcm-upgrade` timer runs `apt-get upgrade` daily as root. No manual intervention is needed.
+Daemon updates are handled by OS apt. The `gcm-maintenance` timer runs `apt-get dist-upgrade` daily as root (inside GCM's OS maintenance window). No manual intervention is needed.
 
 **Via apt directly:**
 
