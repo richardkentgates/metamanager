@@ -26,6 +26,10 @@ jobs:
     name: Verify CI Passed
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
       - name: Check CI status for the dev tree
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
