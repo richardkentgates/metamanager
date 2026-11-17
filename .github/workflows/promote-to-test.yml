@@ -56,14 +56,23 @@ jobs:
           # tested push). If no green pinned run exists, CAUSE one and wait:
           # tests are never skipped.
           PARENT_SHA=$(git rev-parse "$DEV_SHA^1" 2>/dev/null || echo none)
-          needs_ci=false
-          [[ "$STATUS" != "completed" || "$STATUS" == "null" || -z "$STATUS" ]] && needs_ci=true
-          if [[ "$HEAD_SHA" != "$DEV_SHA" && "$HEAD_SHA" != "$PARENT_SHA" ]]; then
-            needs_ci=true
-          fi
-          if [[ "$needs_ci" == "true" ]]; then
-            echo "No green CI run for the dev tree ($DEV_SHA) — dispatching CI and waiting..."
-            gh workflow run "Dev CI — Lint & Version Bump" --ref dev
+          pinned() { [[ "$HEAD_SHA" == "$DEV_SHA" || "$HEAD_SHA" == "$PARENT_SHA" ]]; }
+
+          if [[ "$STATUS" == "completed" ]] && pinned; then
+            : # green run already covers the tree
+          else
+            # A run in flight for the tree: wait for it. Dispatch only when
+            # nothing covers the tree — and never rely on dispatch while a
+            # run exists (GITHUB_TOKEN may be unable to dispatch: 403).
+            if [[ "$STATUS" == "in_progress" || "$STATUS" == "queued" ]] && pinned; then
+              echo "CI in flight for the dev tree — waiting for it..."
+            else
+              echo "No CI run for the dev tree ($DEV_SHA) — dispatching CI..."
+              if ! gh workflow run "Dev CI — Lint & Version Bump" --ref dev; then
+                echo "::error::Cannot dispatch CI (token permissions). Trigger the CI workflow manually, then re-run this promotion."
+                exit 1
+              fi
+            fi
             for i in $(seq 1 40); do
               sleep 15
               LATEST_RUN=$(gh run list --repo ${{ github.repository }} \
@@ -76,8 +85,7 @@ jobs:
               CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion')
               HEAD_SHA=$(echo "$LATEST_RUN" | jq -r '.headSha')
               echo "  wait $i: status=${STATUS} head=${HEAD_SHA}"
-              if [[ "$STATUS" == "completed" ]] \
-                 && { [[ "$HEAD_SHA" == "$DEV_SHA" ]] || [[ "$HEAD_SHA" == "$PARENT_SHA" ]]; }; then
+              if [[ "$STATUS" == "completed" ]] && pinned; then
                 break
               fi
             done
