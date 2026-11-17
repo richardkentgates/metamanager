@@ -27,98 +27,46 @@ metamanager/
 │   │                                          job-dir wait, result writing, drain loop
 │   ├── metamanager-compress-daemon.sh         Lossless compression: jpegtran/optipng/cwebp/avifenc/ffmpeg
 │   ├── metamanager-meta-daemon.sh             Metadata read/write/import: ExifTool
-│   ├── daemon-common.sh                       Shared daemon functions (logging, status, PID, job helpers)
 │   ├── metamanager-compress-daemon.service    systemd unit
 │   └── metamanager-meta-daemon.service        systemd unit
 │
 ├── logrotate/metamanager     Log rotation config for both daemons
-├── logrotate/metamanager     Log rotation config for both daemons
 │
 ├── VERSION                   Current version (kept in sync with debian/changelog)
 ├── JOB_QUEUE_SPEC.md         Cross-repo contract: job/result JSON formats
-├── CHANGELOG.md              Plugin changelog reference; server history in debian/changelog
+├── CHANGELOG.md              Historical pre-split plugin record (kept for reference);
+│                             daemon history lives in debian/changelog
 ├── ARCHITECTURE.md           This file
 │
 └── .github/workflows/
     ├── ci.yml                     "Dev CI — Lint & Version Bump" (ShellCheck + auto-bump)
-    ├── promote-to-test.yml        Manual: merge dev→test, build .deb, deploy dists/test channel
-    ├── promote-to-main.yml        Manual: merge test→main, tag, release, deploy stable channel
-    └── pages.yml                  GitHub Pages docs deploy
+    ├── promote-to-test.yml        Manual (workflow_dispatch): merge dev→test, build .deb, deploy dists/test channel
+    └── promote-to-main.yml        Manual (workflow_dispatch): merge test→main, tag, release, deploy stable channel
 ```
 
 ---
 
 ## Job Queue Contract
 
-The plugin and daemons communicate exclusively through JSON job files in `wp-content/metamanager-jobs/`. This is the interface contract.
+The plugin and daemons communicate exclusively through JSON job files in
+`wp-content/metamanager-jobs/`. **The contract is `JOB_QUEUE_SPEC.md`** (repo
+root; an identical copy lives in the plugin repo) — exact key names
+(`metadata`, `trigger`, …), filenames, result format, trigger vocabulary, and
+tool invocations. This file is the design reference and does not duplicate
+payload examples.
 
 ### Directory Layout
 
 ```
 wp-content/metamanager-jobs/
-├── compress/          Incoming compression jobs
-├── meta/              Incoming metadata jobs
-├── completed/         Daemon-written result files
-├── failed/            Daemon-written failure files
+├── compress/          Incoming compression jobs (*.json, *.json.processing)
+├── meta/              Incoming metadata + import jobs
+├── completed/         Daemon-written result files (<job-name>.json-result.json)
+├── failed/            Daemon-written failure files (same naming)
 ├── compress-daemon.pid    PID file for compress daemon
-└── meta-daemon.pid        PID file for meta daemon
-```
-
-### Job File Format
-
-**Compression job** (`compress/{uuid}.json`):
-```json
-{
-  "attachment_id": 42,
-  "image_name": "photo.jpg",
-  "job_type": "compression",
-  "job_trigger": "upload",
-  "file_path": "/srv/www/wordpress/wp-content/uploads/2026/03/photo.jpg",
-  "size": "full",
-  "dimensions": "3000x2000"
-}
-```
-
-**Metadata import job** (`meta/{uuid}.json`):
-```json
-{
-  "attachment_id": 42,
-  "image_name": "photo.jpg",
-  "job_type": "import",
-  "job_trigger": "upload",
-  "file_path": "/srv/www/wordpress/wp-content/uploads/2026/03/photo.jpg",
-  "size": "full"
-}
-```
-
-**Metadata write-back job** (`meta/{uuid}.json`):
-```json
-{
-  "attachment_id": 42,
-  "image_name": "photo.jpg",
-  "job_type": "metadata",
-  "job_trigger": "edit",
-  "file_path": "/srv/www/wordpress/wp-content/uploads/2026/03/photo.jpg",
-  "size": "full",
-  "metadata": {
-    "title": "Sunrise over the ridge",
-    "creator": "Jane Doe",
-    "copyright": "© 2026 Jane Doe",
-    "keywords": "landscape; sunrise; nature"
-  }
-}
-```
-
-**Result file** (`completed/{uuid}.json` or `failed/{uuid}.json`):
-```json
-{
-  "attachment_id": 42,
-  "job_type": "compression",
-  "status": "completed",
-  "bytes_before": 524288,
-  "bytes_after": 491520,
-  "details": {}
-}
+├── meta-daemon.pid        PID file for meta daemon
+├── compress-status.json   Daemon-written status
+└── meta-status.json       Daemon-written status
 ```
 
 ---
@@ -130,16 +78,16 @@ Both shell scripts follow the same pattern:
 ```bash
 # 1. Write PID to ${JOB_ROOT}/<name>.pid
 echo $$ > "${PID_FILE}"
-trap 'rm -f "${PID_FILE}"' EXIT
+trap 'rm -f "${PID_FILE}" "${STATUS_FILE}"' EXIT
 
 # 2. Wait for job directory (retry every 10s if missing)
 while [ ! -d "${JOB_DIR}" ]; do
-    logger -t "${LOGGER_TAG}" "Waiting for ${JOB_DIR}..."
+    log "Waiting for ${JOB_DIR}..."
     sleep 10
 done
 
 # 3. inotifywait loop
-inotifywait -m -e close_write "${JOB_DIR}" | while read ...; do
+inotifywait -m -e close_write,moved_to "${JOB_DIR}" | while read ...; do
     # rename to .processing (atomic ownership claim)
     mv "${file}" "${file}.processing"
     # do the work
@@ -153,7 +101,7 @@ done
 - **Directory waiting**: If the job queue directory doesn't exist (e.g., before plugin activation), daemons log and retry every 10 seconds instead of failing.
 - **Atomic ownership**: `.processing` extension rename prevents concurrent processing of the same file.
 - **PID files**: Written to `wp-content/metamanager-jobs/` for PHP health checks. PHP reads the PID file and checks `/proc/<pid>` to confirm the process is alive.
-- **Trap cleanup**: `trap 'rm -f "${PID_FILE}"' EXIT` ensures PID file is removed on any exit.
+- **Trap cleanup**: `trap 'rm -f "${PID_FILE}" "${STATUS_FILE}"' EXIT` ensures PID and status files are removed on any exit.
 
 ### Compress Daemon (`metamanager-compress-daemon.sh`)
 
@@ -236,19 +184,23 @@ The installer handles server-side setup only. It does **not** manage the WordPre
 
 ## CI/CD Pipeline
 
-Three-stage promotion flow:
+Three-stage promotion flow (all repos follow the workspace standard — see
+`GITHUB-ACTIONS-RULES.md` in the workspace):
 
 ```
-dev  ──push──►  test (build .deb + deploy to apt)  ──promote──►  main (tag + GitHub release)
+dev ──push──► CI (lint + version bump) ──gh workflow run──► test (build .deb + deploy dists/test) ──gh workflow run──► main (tag + GitHub release + deploy stable)
 ```
 
 ### Workflow Stages
 
 | Stage | Trigger | What happens |
 |-------|---------|--------------|
-| **Dev CI** | Push to `dev` | ShellCheck lint + auto-bump patch version |
-| **Promote to Test** | Merge to `test` | Build .deb + deploy to apt repo (`https://apt.richardkentgates.com`) |
-| **Promote to Release** | Merge to `main` | Tag + GitHub release + deploy to apt repo |
+| **Dev CI** (`ci.yml`) | Push to `dev` | ShellCheck lint + auto-bump patch version |
+| **Promote to Test** (`promote-to-test.yml`) | `workflow_dispatch` from `dev` | Merge dev→test, build .deb, deploy to apt `test` suite |
+| **Promote to Main** (`promote-to-main.yml`) | `workflow_dispatch` from `test` | Merge test→main, tag + GitHub release, deploy to apt `stable` suite |
+
+Never merge `test`/`main` manually and never push to them locally — promotion
+is `gh workflow run` only.
 
 ### Deployment
 
@@ -259,12 +211,13 @@ dev  ──push──►  test (build .deb + deploy to apt)  ──promote──
 
 ### Test vs Release Packages
 
-| Channel | Version format | Example | Source |
-|---------|---------------|---------|--------|
-| **Release** | `X.Y.Z` | `2.4.15` | `main` branch (tagged releases) |
-| **Test** | `X.Y.Z-1` from `dists/test` | same version format as stable; channel separates it | `test` branch (pre-release builds) |
+| Channel | Version format | Source |
+|---------|---------------|--------|
+| **stable** (release) | `X.Y.Z-N` (from `debian/changelog`) | `main` branch (tagged releases) |
+| **test** | `X.Y.Z-N` (same format) | `test` branch (pre-release builds) |
 
-Both channels carry the same `X.Y.Z-1` version format; clients select the channel via sources.list and `-t test` pinning.
+Both channels carry the same version format; the channel separates them.
+Clients select the channel via the sources.list suite and `-t test` pinning.
 
 ```bash
 # Install latest stable
@@ -305,18 +258,20 @@ The apt server (`apt.richardkentgates.com`) serves both daemon `.deb` packages a
 
 ### Signing
 
-- GPG key fingerprint: `E0395903AE72DD661AD11DF76C0D53C3F9B96454`
-- Public key installed on production: `/usr/share/keyrings/metamanager.gpg`
-- APT source: `deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main`
+- GPG key fingerprint: `17890A496B5EA6A16DB5707663EAEB3B32D83CA6`
+- Canonical public keyring URL: `https://apt.richardkentgates.com/gcm-repo-key.gpg`
+  — this is a **binary keyring; do NOT pipe it through `gpg --dearmor`**
+- APT source: `deb [signed-by=/usr/share/keyrings/gcm-repo-key.gpg] https://apt.richardkentgates.com stable main`
 
 ### User Installation
 
 ```bash
-# Import signing key
-curl -fsSL https://apt.richardkentgates.com/metamanager.asc | sudo gpg --dearmor -o /usr/share/keyrings/metamanager.gpg
+# Install the signing keyring (binary — download as-is, no dearmor)
+sudo curl -fsSL https://apt.richardkentgates.com/gcm-repo-key.gpg \
+    -o /usr/share/keyrings/gcm-repo-key.gpg
 
 # Add repository
-echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+echo "deb [signed-by=/usr/share/keyrings/gcm-repo-key.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list
 
 # Install
 sudo apt update && sudo apt install metamanager
@@ -336,6 +291,5 @@ systemctl status metamanager-meta-daemon
 | Plugin | `metamanager.php` (`MM_VERSION`) | `X.Y.Z` (semver, auto-bumped by CI) |
 
 Versions are bumped automatically by the CI pipeline:
-- Dev push → patch bump in version file + changelog entry
-- Test build → snapshot entry with commit hash
-- Release → tagged release, no further changes
+- Dev push → patch bump in `debian/changelog` + `VERSION` (auto-increment commit by CI)
+- Promotions build and deploy whatever the branch carries — no separate version rewrite

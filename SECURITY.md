@@ -2,9 +2,9 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-|---------|--------------------|
-| 2.x     | ✅ Current release |
+| Release | Supported |
+|---------|-----------|
+| Current | ✅       |
 
 ---
 
@@ -41,26 +41,13 @@ The `wp-content/metamanager-jobs/` directories contain JSON files with image fil
 ### Shell daemon execution
 The daemons run under systemd as the web-server user detected at install time by `metamanager-install.sh` (e.g. `www-data` on Debian/Ubuntu, `wordpress` or `apache` on RHEL/AlmaLinux/Rocky). They execute `jpegtran`, `optipng`, `cwebp`, `ffmpeg`, and `exiftool` with arguments derived from the job JSON. File paths in job files are written by PHP (which sanitises input) and are not user-controllable from the public web. The service files include `NoNewPrivileges=true`.
 
-### REST endpoints
+### WordPress plugin surface
 
-All REST endpoints under `/wp-json/metamanager/v1/` enforce WordPress capability checks and nonce validation. A summary:
-
-| Endpoint | Method | Capability |
-|---|---|---|
-| `/stats` | GET | `edit_others_posts` |
-| `/jobs` | GET | `edit_others_posts` |
-| `/jobs/{id}` | GET | `edit_others_posts` |
-| `/attachment/{id}/status` | GET | `upload_files` |
-| `/attachment/{id}/compress` | POST | `edit_others_posts` |
-| `/compression-status` | POST | `upload_files` |
-
-All endpoints also validate a `X-WP-Nonce` header or cookie on every request. The entire API can be disabled, or restricted to a list of allowed IP addresses, from **Media → MM Settings → REST API** — blocked requests receive `403 Forbidden` before any WordPress capability check runs.
-
-### AJAX handlers
-All AJAX actions verify nonces via `check_ajax_referer()` before processing. Re-queue and clear-history require `upload_files` and `manage_options` capabilities respectively.
-
-### Database
-All database queries use `$wpdb->prepare()` or parameterised inserts with format arrays. No raw SQL is constructed from user input.
+The plugin's own attack surface (REST endpoints under
+`/wp-json/metamanager/v1/`, AJAX handlers, database layer, and the
+Metamanager → Preferences REST API access controls) is documented in the
+plugin repository's `SECURITY.md` (`metamanager-plugin/SECURITY.md`). This
+repo covers only the server-side daemons and packaging.
 
 ---
 

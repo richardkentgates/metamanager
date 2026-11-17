@@ -26,24 +26,58 @@ jobs:
     name: Verify CI Passed
     runs-on: ubuntu-latest
     steps:
-      - name: Check CI status on dev
+      - name: Check CI status for the dev tree
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Checking CI status for workflow 'ci.yml' on branch 'dev'..."
+          set -e
+          git fetch origin dev
+          DEV_SHA=$(git rev-parse origin/dev)
+          echo "dev HEAD: $DEV_SHA"
 
           LATEST_RUN=$(gh run list --repo ${{ github.repository }} \
             --workflow "ci.yml" \
             --branch "dev" \
             --limit 1 \
-            --json status,conclusion,name \
+            --json status,conclusion,headSha \
             --jq '.[0]')
 
           STATUS=$(echo "$LATEST_RUN" | jq -r '.status')
           CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion')
-          NAME=$(echo "$LATEST_RUN" | jq -r '.name')
+          HEAD_SHA=$(echo "$LATEST_RUN" | jq -r '.headSha')
+          echo "latest dev CI: status=${STATUS} conclusion=${CONCLUSION} head=${HEAD_SHA}"
 
-          echo "Latest run: name=${NAME}, status=${STATUS}, conclusion=${CONCLUSION}"
+          # Pin the gate to the exact tree being promoted (accept dev HEAD
+          # or its parent — the CI bot's version bump sits on top of the
+          # tested push). If no green pinned run exists, CAUSE one and wait:
+          # tests are never skipped.
+          PARENT_SHA=$(git rev-parse "$DEV_SHA^1" 2>/dev/null || echo none)
+          needs_ci=false
+          [[ "$STATUS" != "completed" || "$STATUS" == "null" || -z "$STATUS" ]] && needs_ci=true
+          if [[ "$HEAD_SHA" != "$DEV_SHA" && "$HEAD_SHA" != "$PARENT_SHA" ]]; then
+            needs_ci=true
+          fi
+          if [[ "$needs_ci" == "true" ]]; then
+            echo "No green CI run for the dev tree ($DEV_SHA) — dispatching CI and waiting..."
+            gh workflow run "Dev CI — Lint & Version Bump" --ref dev
+            for i in $(seq 1 40); do
+              sleep 15
+              LATEST_RUN=$(gh run list --repo ${{ github.repository }} \
+                --workflow "ci.yml" \
+                --branch "dev" \
+                --limit 1 \
+                --json status,conclusion,headSha \
+                --jq '.[0]')
+              STATUS=$(echo "$LATEST_RUN" | jq -r '.status')
+              CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion')
+              HEAD_SHA=$(echo "$LATEST_RUN" | jq -r '.headSha')
+              echo "  wait $i: status=${STATUS} head=${HEAD_SHA}"
+              if [[ "$STATUS" == "completed" ]] \
+                 && { [[ "$HEAD_SHA" == "$DEV_SHA" ]] || [[ "$HEAD_SHA" == "$PARENT_SHA" ]]; }; then
+                break
+              fi
+            done
+          fi
 
           if [[ "$STATUS" != "completed" ]]; then
             echo "::error::CI is still running (status=${STATUS}). Wait for it to complete before promoting."
@@ -55,7 +89,12 @@ jobs:
             exit 1
           fi
 
-          echo "CI passed. Proceeding with promotion."
+          if [[ "$HEAD_SHA" != "$DEV_SHA" && "$HEAD_SHA" != "$PARENT_SHA" ]]; then
+            echo "::error::Green CI is for a different tree (head=${HEAD_SHA}, dev=${DEV_SHA})."
+            exit 1
+          fi
+
+          echo "CI passed for the promoted tree. Proceeding with promotion."
 
   promote:
     name: Merge, Build & Deploy to Apt
@@ -102,46 +141,19 @@ jobs:
           mkdir -p ~/.ssh
           echo "${SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${APT_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
 
-          ssh -i ~/.ssh/deploy_key \
-            "${APT_USER}@${APT_HOST}" \
-            "sudo mkdir -p /var/www/html/pool/m/metamanager && sudo chown -R ${APT_USER}:${APT_USER} /var/www/html/pool"
-
-          scp -i ~/.ssh/deploy_key \
+          # Two connections only (1 scp + 1 ssh) — the apt server rate-limits
+          # port 22 and burst deploys trip it. StrictHostKeyChecking=no covers
+          # what ssh-keyscan used to do.
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ../metamanager_*.deb \
-            "${APT_USER}@${APT_HOST}:/var/www/html/pool/m/metamanager/"
+            "${APT_USER}@${APT_HOST}:/tmp/"
 
-          # IMPORTANT: dpkg-scanpackages MUST scan entire pool/ (not pool/m/metamanager)
-          # so all packages (gcm + metamanager) appear in the Packages index.
-          ssh -i ~/.ssh/deploy_key "${APT_USER}@${APT_HOST}" << 'REMOTE'
-            cd /var/www/html
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${APT_USER}@${APT_HOST}" \
+            "sudo mkdir -p /var/www/html/pool/m/metamanager && sudo chown -R ${APT_USER}:${APT_USER} /var/www/html/pool && mv /tmp/metamanager_*.deb /var/www/html/pool/m/metamanager/ && bash /usr/local/bin/rebuild-apt-metadata.sh test"
 
-            sudo dpkg-scanpackages pool/ /dev/null > dists/test/main/binary-amd64/Packages
-            sudo gzip -k -f dists/test/main/binary-amd64/Packages
-
-            sudo apt-ftparchive \
-              -o APT::FTPArchive::Release::Origin="apt.richardkentgates.com" \
-              -o APT::FTPArchive::Release::Label="GCM APT Repository" \
-              -o APT::FTPArchive::Release::Suite="test" \
-              -o APT::FTPArchive::Release::Codename="test" \
-              -o APT::FTPArchive::Release::Architectures="amd64" \
-              -o APT::FTPArchive::Release::Components="main" \
-              -o APT::FTPArchive::Release::Description="GCM apt repository (test)" \
-              release dists/test > dists/test/Release
-
-            # Sign as the deploy user (key lives in its keyring); root has no
-            # secret key, so `sudo gpg` silently produced a stale InRelease.
-            set -e
-            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
-              --clearsign -o /tmp/InRelease dists/test/Release
-            gpg --batch --yes --default-key E0395903AE72DD661AD11DF76C0D53C3F9B96454 \
-              --armor --detach-sign -o /tmp/Release.gpg dists/test/Release
-            sudo cp /tmp/InRelease dists/test/InRelease
-            sudo cp /tmp/Release.gpg dists/test/Release.gpg
-
-            echo "Test .deb deployed to apt repo (test)"
-          REMOTE
+          echo "Test .deb deployed to apt repo (test)"
 
       - name: Summary
         run: |
