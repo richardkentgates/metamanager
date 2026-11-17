@@ -106,13 +106,36 @@ write_result() {
     rm -f "${tmpfile}"
 }
 
+# MXRoute Mailer pending count — the queue IS the database table; this
+# asks it through WP-CLI (PHP checks the DB and returns a result — the
+# bash side never touches the DB directly). The status JSON is
+# admin/monitor consumption only and is never read programmatically.
+# Missing WordPress / plugin / WP-CLI = not installed = idle.
+mxroute_pending_count() {
+    # JOB_DIR = <wp-content>/metamanager-jobs/{compress,meta} → WP root.
+    local wp_root count
+    wp_root="$(dirname "$(dirname "$(dirname "${JOB_DIR}")")")"
+    if [[ ! -f "${wp_root}/wp-load.php" && ! -f "${wp_root}/wp-config.php" ]]; then
+        echo 0
+        return 0
+    fi
+    command -v wp >/dev/null 2>&1 || { echo 0; return 0; }
+    count=$(sudo -u www-data wp --path="${wp_root}" mxroute queue count 2>/dev/null | tr -d '[:space:]')
+    if [[ "${count}" =~ ^[0-9]+$ ]]; then
+        echo "${count}"
+        return 0
+    fi
+    [[ -n "${count}" ]] && log "MXRoute queue count unreadable (got: ${count:0:40}) — treating as idle"
+    echo 0
+}
+
 # --- Cross-process gating (GCM busy state + MXRoute queue) ---
 # Receiving jobs is NEVER prevented. Processing pauses while another gated
 # process is working — the GCM busy scopes: backup, the OS maintenance
 # window (maint), a standalone update (update), a standalone security scan
-# (scan), or restore — or MXRoute Mailer has queued mail. Missing state
-# files or uninstalled software = idle — move on without it. Queued job
-# files stay in place and are processed when the gate clears.
+# (scan), or restore — or MXRoute Mailer has queued mail. Uninstalled
+# software = idle — move on without it. Queued job files stay in place and
+# are processed when the gate clears.
 gate_allows_processing() {
     local f
     for f in /var/lib/gcm/busy/backup /var/lib/gcm/busy/maint /var/lib/gcm/busy/update /var/lib/gcm/busy/scan /var/lib/gcm/busy/restore; do
@@ -121,14 +144,12 @@ gate_allows_processing() {
             return 1
         fi
     done
-    # MXRoute Mailer pending count (missing file/jq = not installed = idle)
-    if command -v jq &>/dev/null && [[ -f /var/run/mxroute-status.json ]]; then
-        local mxr_pending
-        mxr_pending=$(jq -r '.pending // 0' /var/run/mxroute-status.json 2>/dev/null)
-        if [[ "${mxr_pending}" =~ ^[0-9]+$ ]] && (( mxr_pending > 0 )); then
-            log "Gate: MXRoute Mailer has ${mxr_pending} pending — processing paused"
-            return 1
-        fi
+    # MXRoute Mailer pending count — read the queue DB via WP-CLI
+    local mxr_pending
+    mxr_pending=$(mxroute_pending_count)
+    if [[ "${mxr_pending}" =~ ^[0-9]+$ ]] && (( mxr_pending > 0 )); then
+        log "Gate: MXRoute Mailer has ${mxr_pending} pending — processing paused"
+        return 1
     fi
     return 0
 }
@@ -176,18 +197,10 @@ drain_jobs_loop() {
         [[ ${#_pending[@]} -eq 0 ]] && break
         (( ++_pass ))
 
-        _sorted=()
-        while IFS= read -r line; do
-            _sorted+=( "$line" )
-        done < <(
-            for _f in "${_pending[@]}"; do
-                _pri=$(jq -r '.priority // 0' "${_f}" 2>/dev/null) || _pri=0
-                printf '%s\t%s\n' "${_pri}" "${_f}"
-            done | sort -t$'\t' -k1,1nr -k2,2 | cut -f2
-        )
-
-        log "Startup scan pass ${_pass}: ${#_sorted[@]} job(s)"
-        for jobfile in "${_sorted[@]}"; do
+        # FIFO in filename order (glob order) — no priority field (B4,
+        # 2026-11-16: the drain sorted by a .priority nothing wrote).
+        log "Startup scan pass ${_pass}: ${#_pending[@]} job(s)"
+        for jobfile in "${_pending[@]}"; do
             gate_wait_for_turn
             while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
                 wait -n 2>/dev/null || true
@@ -195,7 +208,7 @@ drain_jobs_loop() {
             process_job "${jobfile}" &
         done
         wait || true
-        write_status "${#_sorted[@]}" ""
+        write_status "${#_pending[@]}" ""
         sleep 2
     done
     unset _pass _max_passes _pending _f _sorted _pri

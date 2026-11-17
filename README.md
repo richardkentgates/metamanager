@@ -18,16 +18,18 @@ The server installs compression and metadata embedding daemons that watch a file
 ## Quick Install
 
 ```bash
-# Import the GPG key
-wget -q -O /tmp/metamanager.key https://apt.richardkentgates.com/key.gpg
-sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/metamanager.gpg /tmp/metamanager.key
+# Install the signing keyring (binary keyring — download as-is, do NOT dearmor)
+sudo curl -fsSL https://apt.richardkentgates.com/gcm-repo-key.gpg \
+    -o /usr/share/keyrings/gcm-repo-key.gpg
 
 # Add the apt repository
-echo "deb [signed-by=/usr/share/keyrings/metamanager.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list
+echo "deb [signed-by=/usr/share/keyrings/gcm-repo-key.gpg] https://apt.richardkentgates.com stable main" | sudo tee /etc/apt/sources.list.d/metamanager.list
 
 # Install
 sudo apt update && sudo apt install metamanager
 ```
+
+Signing key fingerprint: `17890A496B5EA6A16DB5707663EAEB3B32D83CA6`.
 
 This installs:
 - Compression and metadata daemons
@@ -100,7 +102,7 @@ deletes result file
        │
        ▼
 History table updated
-(Media → Metamanager)
+(Metamanager → Dashboard)
 ```
 
 ---
@@ -237,7 +239,7 @@ Triggered manually via GitHub Actions `workflow_dispatch`:
 
 1. Merges `test` into `main` (with `-X theirs` for any doc conflicts)
 2. Builds `.deb` package
-3. Creates git tag (`v2.x.x`)
+3. Creates git tag (`v<X.Y.Z>`)
 4. Creates GitHub release with `.deb` attached
 5. Deploys to apt repo (stable channel)
 
@@ -247,8 +249,8 @@ The apt repo at `apt.richardkentgates.com` serves two channels:
 
 | Channel | Branch | Package version | Use case |
 |---------|--------|----------------|----------|
-| Stable | `main` | `2.4.x` | Production |
-| Test | `dists/test` | `2.4.x-1` (same format; pin with `-t test`) | Pre-release testing |
+| Stable | `main` | `X.Y.Z-N` (from `debian/changelog`) | Production |
+| Test | `dists/test` | `X.Y.Z-N` (same format; pin with `-t test`) | Pre-release testing |
 
 The plugin reads the `VERSION` file for dashboard display only — it never triggers updates.
 
@@ -258,8 +260,8 @@ The plugin reads the `VERSION` file for dashboard display only — it never trig
 
 | File | Purpose | Format |
 |------|---------|--------|
-| `debian/changelog` | Debian package version | `2.4.17-1` (upstream-revision) |
-| `VERSION` | Installed daemon version (read by plugin) | `2.4.17` (plain semver, no `-1`) |
+| `debian/changelog` | Debian package version | `X.Y.Z-N` (upstream-revision) |
+| `VERSION` | Installed daemon version (read by plugin for display) | `X.Y.Z` (plain semver, no `-N`) |
 
 CI auto-bumps `debian/changelog` and `VERSION` on every push to `dev`. They must stay in sync — CI handles this automatically; never edit either file manually.
 
@@ -280,17 +282,22 @@ sudo apt update && sudo apt upgrade metamanager
 
 ## Manual Install
 
+The daemons are server software — they live in `/usr/local/bin/` with systemd
+units in `/etc/systemd/system/`. They are **not** WordPress plugin files and
+never go in `wp-content/plugins/`. The `.deb` (Quick Install above) is the
+normal path; to run the installer from a source checkout instead:
+
 ```bash
 # 1. Clone
 git clone https://github.com/richardkentgates/metamanager.git
 
-# 2. Copy to WordPress plugins directory
-cp -r metamanager /path/to/wordpress/wp-content/plugins/
-
-# 3. Run installer (handles daemons + dependencies)
-sudo bash /path/to/wordpress/wp-content/plugins/metamanager/metamanager-install.sh \
-  --wp-path /path/to/wordpress
+# 2. Run installer from the checkout (installs daemons to /usr/local/bin,
+#    dependencies, and systemd units)
+sudo bash metamanager/metamanager-install.sh --wp-path /path/to/wordpress
 ```
+
+The WordPress plugin is a separate install (see the
+[plugin repository](https://github.com/richardkentgates/metamanager-plugin)).
 
 ---
 
@@ -305,12 +312,13 @@ sudo systemctl disable metamanager-compress-daemon metamanager-meta-daemon
 sudo rm /etc/systemd/system/metamanager-*.service
 sudo rm /usr/local/bin/metamanager-*-daemon.sh
 sudo systemctl daemon-reload
-
-# Remove the plugin if not already deleted via WP admin
-rm -rf /path/to/wordpress/wp-content/plugins/metamanager
 ```
 
-Or via the installer:
+The WordPress plugin is removed separately — see the
+[plugin README](https://github.com/richardkentgates/metamanager-plugin#uninstall)
+for the WordPress admin uninstall flow.
+
+Or via the package manager:
 
 ```bash
 sudo apt-get purge metamanager
@@ -327,14 +335,18 @@ See the [plugin README](https://github.com/richardkentgates/metamanager-plugin#u
 ```
 metamanager/
 ├── daemons/
-│   ├── metamanager-compress-daemon.sh    # Compression daemon
-│   └── metamanager-meta-daemon.sh        # Metadata daemon
-├── metamanager-install.sh                # Installer script
-├── VERSION                               # Installed daemon version
-├── daemon-compatibility.json             # Plugin ↔ daemon version map
+│   ├── daemon-common.sh                    # Shared daemon functions
+│   ├── metamanager-compress-daemon.sh      # Compression daemon
+│   ├── metamanager-meta-daemon.sh          # Metadata daemon
+│   ├── metamanager-compress-daemon.service # systemd unit
+│   └── metamanager-meta-daemon.service     # systemd unit
+├── metamanager-install.sh                  # Installer script
+├── logrotate/metamanager                   # Log rotation config
+├── VERSION                                 # Installed daemon version
+├── JOB_QUEUE_SPEC.md                       # Cross-repo job queue contract
 ├── debian/
-│   ├── changelog                         # Debian package version
-│   ├── control                           # Package metadata
+│   ├── changelog                           # Debian package version + daemon history
+│   ├── control                             # Package metadata
 │   ├── postinst                          # Post-install script
 │   ├── postrm                            # Post-remove/purge cleanup
 │   └── metamanager.install               # Files to install
@@ -349,11 +361,12 @@ metamanager/
 │   ├── 02-installation.md                # Installation guide
 │   ├── 03-daemon-reference.md            # Daemon scripts reference
 │   ├── 04-systemd.md                     # systemd services and hardening
-│   ├── 05-job-queue.md                   # Job queue contract
+│   ├── 05-job-queue.md                   # Job queue overview (contract: JOB_QUEUE_SPEC.md)
 │   └── 06-troubleshooting.md             # Common issues and fixes
 ├── ARCHITECTURE.md                       # Server architecture reference
 ├── CONTRIBUTING.md                       # Development guide
-├── CHANGELOG.md                          # Server release history
+├── CHANGELOG.md                          # Historical pre-split plugin record
+│                                         # (daemon history: debian/changelog)
 ├── SECURITY.md                           # Security policy
 └── AGENTS.md                             # AI agent workflow rules
 ```
