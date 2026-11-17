@@ -87,7 +87,7 @@ Daemon updates are handled by OS apt (root context), not the plugin.
 - Server repo: `richardkentgates/metamanager`
 - Plugin repo: `richardkentgates/metamanager-plugin`
 - Apt server: `34.136.87.92` (DNS: `apt.richardkentgates.com`)
-- Production: `34.10.253.160` (Debian 13 trixie, WordPress at `/srv/www/wordpress/`)
+- Fleet (production + test hosts): see the workspace `AGENTS.md` fleet table
 
 ## Cross-Repo Scope
 
@@ -137,8 +137,8 @@ maldet — active daemon, daily malware scans of /var/www/
 (`daemons/daemon-common.sh`) pause daemon **job processing** while another
 gated process is working:
 
-- `/var/lib/gcm/busy/{backup,upgrade,restore}` exists → wait
-- MXRoute queue non-empty (`/run/mxroute-status.json` `pending` > 0) → wait
+- `/var/lib/gcm/busy/{backup,maint,update,scan,restore}` exists → wait
+- MXRoute queue non-empty (read from the queue DB via `wp mxroute queue count` — never a status file) → wait
 
 **Receiving is never prevented** — job files keep arriving while the gate
 waits; queued jobs stay in place and are processed when the gate clears.
@@ -155,8 +155,7 @@ and is activated via the manual post-migration checklist.
 
 ## Conventions
 
-- Branch protection on `test` and `main`: PRs required, no direct pushes
-- Promotion = workflow_dispatch triggers direct git merge (no PRs)
+- Promotion = workflow_dispatch triggers direct git merge (no PRs; no manual merges to `test`/`main`)
 - VERSION file must stay in sync with debian/changelog (CI handles this automatically)
 - CI auto-bumps both `debian/changelog` and `VERSION` on every dev push — do not manually edit either
 - PHP 8.4 for WP-CLI (`php8.4 /usr/local/bin/wp --path=/srv/www/wordpress`)

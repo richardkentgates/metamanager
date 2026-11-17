@@ -22,9 +22,10 @@ sudo systemctl restart metamanager-compress-daemon metamanager-meta-daemon
 ls /srv/www/wordpress/wp-content/metamanager-jobs/compress/*.processing
 ls /srv/www/wordpress/wp-content/metamanager-jobs/meta/*.processing
 
-# If stuck, remove the .processing extension
-sudo mv /srv/www/wordpress/wp-content/metamanager-jobs/compress/{uuid}.json.processing \
-        /srv/www/wordpress/wp-content/metamanager-jobs/compress/{uuid}.json
+# If stuck, remove the .processing extension (job files are named
+# <attachment_id>-<size>-<time>-<uid>.json — see JOB_QUEUE_SPEC.md)
+sudo mv /srv/www/wordpress/wp-content/metamanager-jobs/compress/<job-name>.json.processing \
+        /srv/www/wordpress/wp-content/metamanager-jobs/compress/<job-name>.json
 ```
 
 ## Permission Denied Errors

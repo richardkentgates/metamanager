@@ -37,7 +37,7 @@ deletes result file
        │
        ▼
 History table updated
-(Media → Metamanager)
+(Metamanager → Dashboard)
 ```
 
 ## Key Concepts

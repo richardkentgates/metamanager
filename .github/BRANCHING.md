@@ -1,78 +1,28 @@
 # Branching Strategy
 
-Metamanager uses a simple three-branch promotion model.
+This repo follows the workspace standard three-branch pipeline. There is no
+GitFlow here — no `hotfix/*`, `release/*`, or PR-into-`main` flow.
 
 ## Branch map
 
-| Branch | Purpose | Branches from | Merges into |
-|---|---|---|---|
-| `main` | Stable, tagged releases. **Protected.** | — | — |
-| `dev` | Integration branch. Default PR target. Always deployable to staging. | `main` (one-time) | — |
-| `feature/*` | New features | `dev` | `dev` |
-| `fix/*` | Non-urgent bug fixes | `dev` | `dev` |
-| `hotfix/*` | Urgent production fixes | `main` | `main` AND `dev` |
-| `release/*` | Release prep: version bump, changelog | `dev` | `main` AND `dev` |
-| `docs/*` | Documentation-only changes | `dev` | `dev` |
-| `experiment/*` | Exploratory work — may never merge | `dev` | — |
+| Branch | Purpose | How it moves |
+|---|---|---|
+| `dev` | All development. Default branch for work. | Direct push (CI runs ShellCheck + auto-version bump) |
+| `test` | Pre-release channel (apt suite `test`) | `gh workflow run "Promote to Test" --ref dev` |
+| `main` | Stable releases (apt suite `stable`), tagged | `gh workflow run "Promote to Main" --ref test` |
 
 ## Rules
 
-- **Branch protection** on `test` and `main`: PRs required, no direct pushes, no force pushes.
-- **Promotion** = open PR, CI runs, review, merge.
-- `dev` has no protection — direct pushes are allowed.
-- Every merge into `main` gets a semver tag (`v2.x.x`).
-- `dev` is the **default branch** for contributor PRs.
-- Feature branches are deleted after merge.
-- PHPStan level 5 must pass before any PR is merged into `dev`.
+- All work happens on `dev`. Never checkout, edit, or push `test`/`main`
+  locally — never `git merge`/`rebase`/`reset` them.
+- Promotion is `gh workflow run` only (`promote-to-test.yml`,
+  `promote-to-main.yml`). Never bypass a broken workflow — fix it.
+- Pull before push: CI auto-bumps the version on every `dev` push and commits
+  the bump back — `git pull origin dev` first or you will conflict.
+- Never amend or force-push after CI has run on a commit; make a new commit.
+- CI auto-bumps `debian/changelog` and `VERSION` — never edit them manually.
+- ShellCheck must pass on all shell (`daemons/*.sh`, `metamanager-install.sh`).
+- Promotion workflow files must exist on the branch passed to `--ref`; YAML
+  must parse before pushing (GitHub takes 2–5 min to register workflow changes).
 
-## Naming conventions
-
-```
-feature/metadata-integration
-fix/sitemap-cache-flush
-hotfix/broken-link-crash
-```
-
-## Typical flow: new feature
-
-```bash
-git checkout dev
-git pull origin dev
-git checkout -b feature/my-feature
-
-# ... work ...
-
-git push origin feature/my-feature
-# Open PR → target: dev
-```
-
-## Typical flow: hotfix
-
-```bash
-git checkout dev
-git pull origin dev
-git checkout -b hotfix/critical-bug-description
-
-# ... fix ...
-
-git push origin hotfix/critical-bug-description
-# Open PR → target: main
-# After merge, also cherry-pick or merge into dev:
-git checkout dev
-git merge --no-ff hotfix/critical-bug-description
-```
-
-## Typical flow: promotion
-
-```bash
-git checkout dev
-git pull origin dev
-git checkout -b release/v2.2.0
-
-# Bump version in metamanager.php and CHANGELOG.md
-# Update docs if needed
-
-git push origin release/v2.2.0
-# Open PR → target: main
-# After merge: git tag v2.2.0 on main, then merge release/* back into dev
-```
+Full pipeline rules for all repos: workspace `GITHUB-ACTIONS-RULES.md`.

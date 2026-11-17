@@ -3,6 +3,7 @@ name: Dev CI — Lint & Version Bump
 on:
   push:
     branches: ["dev"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,7 +12,9 @@ jobs:
   version-bump:
     name: Auto-increment Version
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    # Bump on human pushes only — a gate-dispatched verification run must
+    # never rewrite the tree it is verifying (pinned-gate requirement).
+    if: github.actor != 'github-actions[bot]' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
         with:
