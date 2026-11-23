@@ -1,0 +1,23 @@
+[Unit]
+Description=Metamanager WebP Generation Daemon
+After=network.target apache2.service mariadb.service
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/metamanager-webp-daemon.sh
+Restart=on-failure
+RestartSec=10
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=metamanager-webp
+
+# Hardening
+NoNewPrivileges=false
+ProtectSystem=false
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target
