@@ -238,6 +238,7 @@ the original job JSON with these keys merged in:
 | `bytes_before` | int | compression only | Original size in bytes (`0` on failure) |
 | `bytes_after` | int | compression only | Result size in bytes (`0` on failure) |
 | `details` | object | always | `{"message": "<human-readable outcome>"}` |
+| `webp_path` | string | compression only, when WebP generated | Absolute path to the generated `.webp` alongside the JPEG/PNG original |
 | `embedded_tags` | object | import jobs only | Flat `"Group:Tag"` → value map from `exiftool -a -G1 -s -j`; values may be string or array |
 
 ### Completed compression example
@@ -258,7 +259,8 @@ the original job JSON with these keys merged in:
   "completed_at": "2026-11-16 12:00:05",
   "bytes_before": 1048576,
   "bytes_after": 923456,
-  "details": { "message": "JPEG lossless compressed: 1048576 → 923456 bytes" }
+  "webp_path": "/srv/www/wordpress/wp-content/uploads/2026/03/photo.webp",
+  "details": { "message": "JPEG lossless compressed: 1048576 → 923456 bytes; WebP generated: 345678 bytes" }
 }
 ```
 
