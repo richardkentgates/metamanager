@@ -290,7 +290,7 @@ mkdir -p "${WP_CONTENT_DIR}/metamanager-jobs"
 chown "${WP_OWNER}:${WP_OWNER}" "${WP_CONTENT_DIR}/metamanager-jobs"
 chmod 750 "${WP_CONTENT_DIR}/metamanager-jobs"
 
-for subdir in compress meta completed failed; do
+for subdir in compress meta webp completed failed; do
     dir="${WP_CONTENT_DIR}/metamanager-jobs/${subdir}"
     mkdir -p "${dir}"
     chown "${WP_OWNER}:${WP_OWNER}" "${dir}"
@@ -305,7 +305,7 @@ success "Job queue directories created."
 
 DAEMON_SRC="/usr/local/lib/metamanager/daemons"
 
-for daemon in metamanager-compress-daemon metamanager-meta-daemon; do
+for daemon in metamanager-compress-daemon metamanager-meta-daemon metamanager-webp-daemon; do
     src="${DAEMON_SRC}/${daemon}.sh"
     dest="/usr/local/bin/${daemon}.sh"
 
@@ -335,7 +335,7 @@ success "Shared daemon library installed: /usr/local/bin/daemon-common.sh"
 
 SYSTEMD_DIR="/etc/systemd/system"
 
-for svc in metamanager-compress-daemon metamanager-meta-daemon; do
+for svc in metamanager-compress-daemon metamanager-meta-daemon metamanager-webp-daemon; do
     src="${DAEMON_SRC}/${svc}.service"
     dest="${SYSTEMD_DIR}/${svc}.service"
 
@@ -355,13 +355,13 @@ done
 info "Reloading systemd and starting daemons..."
 systemctl daemon-reload
 
-for log_file in /var/log/metamanager-compress.log /var/log/metamanager-meta.log; do
+for log_file in /var/log/metamanager-compress.log /var/log/metamanager-meta.log /var/log/metamanager-webp.log; do
     touch "${log_file}"
     chown "${WP_OWNER}:${WP_OWNER}" "${log_file}"
     chmod 644 "${log_file}"
 done
 
-for svc in metamanager-compress-daemon metamanager-meta-daemon; do
+for svc in metamanager-compress-daemon metamanager-meta-daemon metamanager-webp-daemon; do
     systemctl enable "${svc}.service"
     systemctl restart "${svc}.service"
     sleep 1
@@ -386,11 +386,13 @@ echo "  Job queue:       ${WP_CONTENT_DIR}/metamanager-jobs/"
 echo ""
 echo "  Compress daemon: $(systemctl is-active metamanager-compress-daemon.service 2>/dev/null || echo 'check manually')"
 echo "  Metadata daemon: $(systemctl is-active metamanager-meta-daemon.service 2>/dev/null || echo 'check manually')"
+echo "  WebP daemon:     $(systemctl is-active metamanager-webp-daemon.service 2>/dev/null || echo 'check manually')"
 echo ""
 echo "  Install the WordPress plugin separately:"
 echo "    https://github.com/richardkentgates/metamanager-plugin"
 echo ""
 echo "  View logs:"
-echo "    journalctl -u metamanager-compress-daemon -f"
-echo "    journalctl -u metamanager-meta-daemon -f"
+    echo "    journalctl -u metamanager-compress-daemon -f"
+    echo "    journalctl -u metamanager-meta-daemon -f"
+    echo "    journalctl -u metamanager-webp-daemon -f"
 echo ""
