@@ -127,7 +127,7 @@ process_result() {
         return 1
     fi
 
-    sudo -u www-data wp --path="${wp_root}" eval-file "${plugin_script}" -- "${result_file}" 2>>"${LOG_FILE}" || {
+    sudo -u www-data wp --path="${wp_root}" eval-file "${plugin_script}" "${result_file}" 2>>"${LOG_FILE}" || {
         log "WARNING: process-result.php failed for $(basename "${result_file}")"
         return 1
     }
