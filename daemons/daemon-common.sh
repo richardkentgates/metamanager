@@ -104,6 +104,33 @@ write_result() {
     # Atomic rename — only replaces .json once write is complete.
     mv "${result_tmp}" "${result_file}" 2>/dev/null || true
     rm -f "${tmpfile}"
+
+    # Immediately process the result into the DB via wp eval-file.
+    # No cron dependency — the daemon owns the full lifecycle.
+    process_result "${result_file}"
+}
+
+# Call the plugin's process-result.php to log the job to DB and run
+# post-processing (import results, verification queuing). Called from
+# write_result — daemon handles everything, cron is status reporting only.
+process_result() {
+    local result_file="$1"
+    [[ -f "${result_file}" ]] || return 0
+
+    # Derive WP root from JOB_DIR (compress/meta/webp → metamanager-jobs → wp-content → root).
+    local wp_root plugin_script
+    wp_root="$(dirname "$(dirname "$(dirname "${JOB_DIR}")")")"
+    plugin_script="${wp_root}/wp-content/plugins/metamanager/includes/process-result.php"
+
+    if [[ ! -f "${plugin_script}" ]]; then
+        log "WARNING: process-result.php not found at ${plugin_script}"
+        return 1
+    fi
+
+    sudo -u www-data wp --path="${wp_root}" eval-file "${plugin_script}" -- "${result_file}" 2>>"${LOG_FILE}" || {
+        log "WARNING: process-result.php failed for $(basename "${result_file}")"
+        return 1
+    }
 }
 
 # MXRoute Mailer pending count — the queue IS the database table; this
