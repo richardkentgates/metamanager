@@ -157,7 +157,7 @@ gate_allows_processing() {
 # Block until the gate opens. Jobs keep arriving while we wait.
 gate_wait_for_turn() {
     local waited=false
-    until gate_allows_processing; do
+    until gate_allows_processing && gate_memory_ok; do
         waited=true
         sleep 30
     done
@@ -165,6 +165,49 @@ gate_wait_for_turn() {
         log "Gate clear — resuming processing"
     fi
     return 0
+}
+
+# Memory check: the daemon decides how many jobs to process based on
+# available system memory. Reads /proc/meminfo directly — no PHP round-trip.
+# Returns 0 (proceed) if sufficient memory, 1 (defer) if memory is low.
+gate_memory_ok() {
+    local mem_available_kb
+    mem_available_kb=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo 2>/dev/null)
+    if [[ -z "${mem_available_kb}" ]]; then
+        return 0  # Cannot determine — proceed (rule 14: absence is not evidence)
+    fi
+    local mem_available_mb=$(( mem_available_kb / 1024 ))
+    # Defer if less than 256MB available.
+    if (( mem_available_mb < 256 )); then
+        log "Memory low (${mem_available_mb}MB available) — deferring job"
+        return 1
+    fi
+    return 0
+}
+
+# Calculate optimal concurrency based on available memory.
+# Each job costs roughly 50MB (image processing). Adjusts MAX_CONCURRENT
+# dynamically — no hardcoded batch size. Fluid every pass.
+gate_calculate_concurrency() {
+    local mem_available_kb
+    mem_available_kb=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo 2>/dev/null)
+    if [[ -z "${mem_available_kb}" ]]; then
+        echo "${MAX_CONCURRENT:-4}"  # Cannot determine — use default
+        return
+    fi
+    local mem_available_mb=$(( mem_available_kb / 1024 ))
+    # Each job ~50MB. Leave 256MB headroom for OS/PHP.
+    local safe_mb=$(( mem_available_mb - 256 ))
+    if (( safe_mb < 50 )); then
+        echo 1
+        return
+    fi
+    local concurrency=$(( safe_mb / 50 ))
+    # Cap at MAX_CONCURRENT if set, otherwise no cap.
+    if [[ -n "${MAX_CONCURRENT:-}" ]] && (( concurrency > MAX_CONCURRENT )); then
+        concurrency=${MAX_CONCURRENT}
+    fi
+    echo "${concurrency}"
 }
 
 # --- Job router: dispatch by job_type ---
@@ -224,7 +267,9 @@ drain_jobs_loop() {
         log "Startup scan pass ${_pass}: ${#_pending[@]} job(s)"
         for jobfile in "${_pending[@]}"; do
             gate_wait_for_turn
-            while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
+            local _concurrency
+            _concurrency=$(gate_calculate_concurrency)
+            while (( $(jobs -rp | wc -l) >= _concurrency )); do
                 wait -n 2>/dev/null || true
             done
             dispatch_job "${jobfile}" &
@@ -252,7 +297,9 @@ run_main_loop() {
         | while IFS= read -r jobfile; do
             if [[ "${jobfile}" == *.json ]]; then
                 gate_wait_for_turn
-                while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
+                local _concurrency
+                _concurrency=$(gate_calculate_concurrency)
+                while (( $(jobs -rp | wc -l) >= _concurrency )); do
                     wait -n 2>/dev/null || true
                 done
                 dispatch_job "${jobfile}" &
