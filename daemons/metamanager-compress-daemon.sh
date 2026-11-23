@@ -280,9 +280,63 @@ process_job() {
     exec 9>&-
     rm -f "${lockfile}"
 
-    # Generate WebP copy alongside JPEG/PNG originals (lossy q80 — size wins).
-    if "${success}" && [[ "${ext}" =~ ^(jpg|jpeg|png)$ ]] && [[ -x "${CWEBP}" ]]; then
-        webp_path="${file_path%.*}.webp"
+    if "${success}"; then
+        log "OK: ${message}"
+        write_result "${tmpfile}" "completed" "${message}" "${orig_size}" "${new_size}"
+    else
+        log "FAIL: ${message}"
+        write_result "${tmpfile}" "failed" "${message}" "0" "0"
+    fi
+}
+
+# --- WebP generation job processor (separate job type, same queue) ---
+
+process_webp_job() {
+    local jobfile="$1"
+    local tmpfile="${jobfile}.processing"
+
+    mv "${jobfile}" "${tmpfile}" 2>/dev/null || return 0
+
+    local file_path attachment_id size
+    file_path=$(jq -r '.file_path // empty' "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
+    attachment_id=$(jq -r '.attachment_id // empty' "${tmpfile}") || {
+        log "ERROR: malformed JSON in ${tmpfile}"
+        write_result "${tmpfile}" "failed" "Malformed job JSON"
+        return 1
+    }
+    size=$(jq -r '.size // empty' "${tmpfile}")
+
+    if [[ ! -f "${file_path}" ]]; then
+        log "ERROR: file not found: ${file_path}"
+        write_result "${tmpfile}" "failed" "File not found: ${file_path}"
+        return 1
+    fi
+
+    if [[ -L "${file_path}" ]]; then
+        log "ERROR: symlink not allowed: ${file_path}"
+        write_result "${tmpfile}" "failed" "Symlink not allowed: ${file_path}"
+        return 1
+    fi
+
+    # Per-file lock.
+    local lockfile="${file_path}.mm.webp.lock"
+    exec 9>"${lockfile}"
+    if ! flock -n 9; then
+        log "LOCKED: ${file_path} — re-queuing"
+        mv "${tmpfile}" "${jobfile}"
+        exec 9>&-
+        return 0
+    fi
+
+    local webp_path="${file_path%.*}.webp"
+    local orig_size new_size message
+    orig_size=$(stat -c%s "${file_path}" 2>/dev/null) || orig_size=0
+
+    if [[ -x "${CWEBP}" ]]; then
         if timeout "${TOOL_TIMEOUT}" "${CWEBP}" -quiet -q 80 -o "${webp_path}" -- "${file_path}" 2>>"${LOG_FILE}"; then
             if [[ -f "${webp_path}" ]]; then
                 # Copy metadata from original to WebP (EXIF, IPTC, XMP).
@@ -295,26 +349,30 @@ process_job() {
                 if [[ -n "${orig_perms}" ]]; then
                     chmod "${orig_perms}" "${webp_path}" 2>/dev/null || true
                 fi
-                message="${message}; WebP generated: $(stat -c%s "${webp_path}") bytes"
-                log "WebP: ${webp_path}"
+                new_size=$(stat -c%s "${webp_path}" 2>/dev/null) || new_size=0
+                message="WebP generated: ${orig_size} → ${new_size} bytes"
+                log "OK: ${message} (id: ${attachment_id}, size: ${size})"
             else
-                webp_path=""
+                message="cwebp produced no output for: ${file_path}"
+                log "FAIL: ${message}"
             fi
         else
-            log "WARNING: cwebp failed to generate WebP for: ${file_path}"
-            webp_path=""
+            message="cwebp failed for: ${file_path}"
+            log "FAIL: ${message}"
         fi
+    else
+        message="cwebp not found at ${CWEBP}"
+        log "WARNING: ${message}"
     fi
 
-    if "${success}"; then
-        log "OK: ${message}"
+    exec 9>&-
+    rm -f "${lockfile}"
+
+    if [[ -f "${webp_path}" ]]; then
         # Inject webp_path into the job JSON so it flows into the result file.
-        if [[ -n "${webp_path}" ]]; then
-            jq --arg wp "${webp_path}" '. + {webp_path: $wp}' "${tmpfile}" > "${tmpfile}.wp" 2>/dev/null && mv "${tmpfile}.wp" "${tmpfile}" || true
-        fi
+        jq --arg wp "${webp_path}" '. + {webp_path: $wp}' "${tmpfile}" > "${tmpfile}.wp" 2>/dev/null && mv "${tmpfile}.wp" "${tmpfile}" || true
         write_result "${tmpfile}" "completed" "${message}" "${orig_size}" "${new_size}"
     else
-        log "FAIL: ${message}"
         write_result "${tmpfile}" "failed" "${message}" "0" "0"
     fi
 }
