@@ -167,6 +167,28 @@ gate_wait_for_turn() {
     return 0
 }
 
+# --- Job router: dispatch by job_type ---
+# Reads the job_type from the JSON and routes to the right processor.
+# Default is process_job (compression). process_webp_job handles WebP generation.
+dispatch_job() {
+    local jobfile="$1"
+    local job_type
+    job_type=$(jq -r '.job_type // "compression"' "${jobfile}" 2>/dev/null) || job_type="compression"
+    case "${job_type}" in
+        webp)
+            if declare -F process_webp_job >/dev/null 2>&1; then
+                process_webp_job "${jobfile}"
+            else
+                log "ERROR: webp job received but process_webp_job not defined"
+                write_result "${jobfile}" "failed" "webp processor not available"
+            fi
+            ;;
+        *)
+            process_job "${jobfile}"
+            ;;
+    esac
+}
+
 # --- Drain jobs queued while daemon was offline ---
 # Cleans up leftover .mm_tmp files, recovers orphaned .json.processing files,
 # then loops until the queue is empty. Concurrent jobs may get LOCKED by
@@ -205,7 +227,7 @@ drain_jobs_loop() {
             while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
                 wait -n 2>/dev/null || true
             done
-            process_job "${jobfile}" &
+            dispatch_job "${jobfile}" &
         done
         wait || true
         write_status "${#_pending[@]}" ""
@@ -233,7 +255,7 @@ run_main_loop() {
                 while (( $(jobs -rp | wc -l) >= MAX_CONCURRENT )); do
                     wait -n 2>/dev/null || true
                 done
-                process_job "${jobfile}" &
+                dispatch_job "${jobfile}" &
                 _qdepth=$(find "${JOB_DIR}" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l)
                 write_status "${_qdepth}" "$(date '+%Y-%m-%d %H:%M:%S')"
             fi
