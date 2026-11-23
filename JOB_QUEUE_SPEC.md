@@ -150,6 +150,29 @@ Tool invocation (as run; all under `timeout 120`):
 | mp4 m4v mov avi mkv wmv webm ogv 3gp 3gpp 3g2 3gpp2 ts mts m2ts flv | `ffmpeg -y -v quiet -i <file> -c copy -map_metadata 0 -movflags +faststart <out>` (remux; if ffmpeg absent → skipped, completed) | only if smaller |
 | anything else | unsupported — skipped, completed | n/a |
 
+### 1b. WebP Generation Job (`compress/`, `job_type: "webp"`)
+
+Queued alongside compression jobs for JPEG/PNG images at upload time
+(`MM_Job_Queue::on_upload` queues `compress+webp` for images) and by
+`wp metamanager generate_webp all` for backfill. Same envelope as compression.
+
+```json
+{
+  "attachment_id": 42,
+  "image_name": "photo",
+  "job_type": "webp",
+  "file_path": "/srv/www/wordpress/wp-content/uploads/2026/03/photo.jpg",
+  "size": "full",
+  "dimensions": "3000x2000",
+  "submitted_at": "2026-11-23 00:00:00",
+  "optimize_level": 2,
+  "metadata": {},
+  "trigger": "upload"
+}
+```
+
+Consumed keys: `file_path`, `attachment_id`, `size`. Tool: `cwebp -quiet -q 80 -o <file>.webp -- <file>`. After generation: `exiftool -tagsFromFile <original>` copies metadata to the WebP; permissions matched to original. Result includes `webp_path` key. The plugin registers the WebP as a WP attachment with post meta copied from the original (`mm_register_webp_attachment`).
+
 ### 2. Metadata Embedding Job (`meta/`, `job_type: "metadata"`)
 
 ```json
