@@ -285,6 +285,16 @@ process_job() {
         webp_path="${file_path%.*}.webp"
         if timeout "${TOOL_TIMEOUT}" "${CWEBP}" -quiet -q 80 -o "${webp_path}" -- "${file_path}" 2>>"${LOG_FILE}"; then
             if [[ -f "${webp_path}" ]]; then
+                # Copy metadata from original to WebP (EXIF, IPTC, XMP).
+                if command -v exiftool &>/dev/null; then
+                    timeout "${TOOL_TIMEOUT}" exiftool -overwrite_original -tagsFromFile "${file_path}" "${webp_path}" 2>>"${LOG_FILE}" || true
+                fi
+                # Match permissions with original.
+                local orig_perms
+                orig_perms=$(stat -c%a "${file_path}" 2>/dev/null) || orig_perms=""
+                if [[ -n "${orig_perms}" ]]; then
+                    chmod "${orig_perms}" "${webp_path}" 2>/dev/null || true
+                fi
                 message="${message}; WebP generated: $(stat -c%s "${webp_path}") bytes"
                 log "WebP: ${webp_path}"
             else
