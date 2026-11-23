@@ -59,7 +59,7 @@ The plugin's `MM_Daemon_Updater` only reads the VERSION file for dashboard displ
 
 ## VERSION File
 
-The `VERSION` file is the installed daemon version.
+The `VERSION` file is the single source of truth for the installed daemon version. The plugin reads it via `MM_Daemon_Updater::get_daemon_version()` to compare against `daemon-compatibility.json`.
 
 **Format**: Plain semver string, e.g. `2.4.10` (no Debian revision suffix).
 

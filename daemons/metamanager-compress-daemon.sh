@@ -122,6 +122,7 @@ process_job() {
     local success=false
     local message=""
     local orig_size=0 new_size=0
+    local webp_path=""
 
     case "${ext}" in
         jpg|jpeg)
@@ -279,8 +280,28 @@ process_job() {
     exec 9>&-
     rm -f "${lockfile}"
 
+    # Generate WebP copy alongside JPEG/PNG originals (lossy q80 — size wins).
+    if "${success}" && [[ "${ext}" =~ ^(jpg|jpeg|png)$ ]] && [[ -x "${CWEBP}" ]]; then
+        webp_path="${file_path%.*}.webp"
+        if timeout "${TOOL_TIMEOUT}" "${CWEBP}" -quiet -q 80 -o "${webp_path}" -- "${file_path}" 2>>"${LOG_FILE}"; then
+            if [[ -f "${webp_path}" ]]; then
+                message="${message}; WebP generated: $(stat -c%s "${webp_path}") bytes"
+                log "WebP: ${webp_path}"
+            else
+                webp_path=""
+            fi
+        else
+            log "WARNING: cwebp failed to generate WebP for: ${file_path}"
+            webp_path=""
+        fi
+    fi
+
     if "${success}"; then
         log "OK: ${message}"
+        # Inject webp_path into the job JSON so it flows into the result file.
+        if [[ -n "${webp_path}" ]]; then
+            jq --arg wp "${webp_path}" '. + {webp_path: $wp}' "${tmpfile}" > "${tmpfile}.wp" 2>/dev/null && mv "${tmpfile}.wp" "${tmpfile}" || true
+        fi
         write_result "${tmpfile}" "completed" "${message}" "${orig_size}" "${new_size}"
     else
         log "FAIL: ${message}"
