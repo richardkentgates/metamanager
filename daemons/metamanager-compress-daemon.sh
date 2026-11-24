@@ -183,9 +183,12 @@ process_job() {
                 local outfile="${file_path}.mm_tmp"
                 orig_size=$(stat -c%s "${file_path}")
                 # -lossless  : lossless WebP (no quality degradation)
+                # -z <n>     : lossless compression effort (0-9, maps from optimize_level 0-7)
                 # -mt        : multi-threading
                 # -quiet     : suppress progress output
-                if timeout "${TOOL_TIMEOUT}" "${CWEBP}" -lossless -mt -quiet -o "${outfile}" -- "${file_path}" 2>>"${LOG_FILE}"; then
+                local webp_effort="${optimize_level}"
+                [[ "${webp_effort}" =~ ^[0-7]$ ]] || webp_effort=2
+                if timeout "${TOOL_TIMEOUT}" "${CWEBP}" -lossless -z "${webp_effort}" -mt -quiet -o "${outfile}" -- "${file_path}" 2>>"${LOG_FILE}"; then
                     new_size=$(stat -c%s "${outfile}")
                     if (( new_size < orig_size )); then
                         mv "${outfile}" "${file_path}"
