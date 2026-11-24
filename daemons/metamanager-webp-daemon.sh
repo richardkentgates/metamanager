@@ -133,6 +133,13 @@ process_webp_job() {
                 if [[ -n "${orig_perms}" ]]; then
                     chmod "${orig_perms}" "${webp_path}" 2>/dev/null || true
                 fi
+                # Match ownership with original — www-data needs to read this
+                # for metadata embedding and registration.
+                local orig_owner
+                orig_owner=$(stat -c '%U:%G' "${file_path}" 2>/dev/null) || orig_owner=""
+                if [[ -n "${orig_owner}" ]]; then
+                    chown "${orig_owner}" "${webp_path}" 2>/dev/null || true
+                fi
                 new_size=$(stat -c%s "${webp_path}" 2>/dev/null) || new_size=0
                 message="WebP generated: ${orig_size} → ${new_size} bytes"
                 log "OK: ${message} (id: ${attachment_id}, size: ${size})"

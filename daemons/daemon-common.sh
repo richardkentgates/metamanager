@@ -105,6 +105,9 @@ write_result() {
     mv "${result_tmp}" "${result_file}" 2>/dev/null || true
     rm -f "${tmpfile}"
 
+    # Ensure www-data can read result files (root-written daemons).
+    chown www-data:www-data "${result_file}" 2>/dev/null || true
+
     # Immediately process the result into the DB via wp eval-file.
     # No cron dependency — the daemon owns the full lifecycle.
     process_result "${result_file}"
