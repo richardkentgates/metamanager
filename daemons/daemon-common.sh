@@ -127,7 +127,14 @@ process_result() {
         return 1
     fi
 
-    sudo -u www-data wp --path="${wp_root}" eval-file "${plugin_script}" "${result_file}" 2>>"${LOG_FILE}" || {
+    # Run wp as www-data. If already www-data (compress/meta daemons run
+    # as www-data with NoNewPrivileges), call wp directly — sudo is blocked.
+    local wp_cmd=( wp --path="${wp_root}" )
+    if [[ "$(id -un)" != "www-data" ]]; then
+        wp_cmd=( sudo -u www-data wp --path="${wp_root}" )
+    fi
+
+    "${wp_cmd[@]}" eval-file "${plugin_script}" "${result_file}" 2>>"${LOG_FILE}" || {
         log "WARNING: process-result.php failed for $(basename "${result_file}")"
         return 1
     }
