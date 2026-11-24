@@ -176,7 +176,11 @@ process_job() {
             write_result "${tmpfile}" "completed" "Read-only format — metadata embedding skipped: ${file_path}"
             return 0
             ;;
-        *)                              file_cat="image"     ;;
+        *)
+            exec 9>&-; rm -f "${lockfile}"
+            write_result "${tmpfile}" "completed" "Unsupported format — metadata embedding skipped: ${file_path}"
+            return 0
+            ;;
     esac
 
     # Build ExifTool argument list from the logical field map.
