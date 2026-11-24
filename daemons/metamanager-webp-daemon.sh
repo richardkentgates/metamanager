@@ -182,7 +182,12 @@ register_webp_attachment() {
         return 1
     fi
 
-    sudo -u www-data wp --path="${wp_root}" eval-file "${register_script}" "${attachment_id}" "${webp_path}" 2>>"${LOG_FILE}" || {
+    local wp_cmd=( wp --path="${wp_root}" )
+    if [[ "$(id -un)" != "www-data" ]]; then
+        wp_cmd=( sudo -u www-data wp --path="${wp_root}" )
+    fi
+
+    "${wp_cmd[@]}" eval-file "${register_script}" "${attachment_id}" "${webp_path}" 2>>"${LOG_FILE}" || {
         log "WARNING: register-webp.php failed for ${webp_path}"
         return 1
     }
