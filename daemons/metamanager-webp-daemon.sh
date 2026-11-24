@@ -180,12 +180,21 @@ register_webp_attachment() {
     local attachment_id="$1"
     local webp_path="$2"
 
+    log "REGISTER-START: id=${attachment_id} webp=${webp_path}"
+
     local wp_root register_script
     wp_root="$(dirname "$(dirname "$(dirname "${JOB_DIR}")")")"
     register_script="${wp_root}/wp-content/plugins/metamanager/includes/register-webp.php"
 
+    log "REGISTER-PATHS: wp_root=${wp_root} script=${register_script}"
+
     if [[ ! -f "${register_script}" ]]; then
-        log "WARNING: register-webp.php not found at ${register_script}"
+        log "REGISTER-FAIL: script not found at ${register_script}"
+        return 1
+    fi
+
+    if [[ ! -f "${webp_path}" ]]; then
+        log "REGISTER-FAIL: webp file missing at ${webp_path}"
         return 1
     fi
 
@@ -194,11 +203,25 @@ register_webp_attachment() {
         wp_cmd=( sudo -u www-data wp --path="${wp_root}" )
     fi
 
-    "${wp_cmd[@]}" eval-file "${register_script}" "${attachment_id}" "${webp_path}" 2>>"${LOG_FILE}" || {
-        log "WARNING: register-webp.php failed for ${webp_path}"
+    log "REGISTER-CMD: ${wp_cmd[*]} eval-file ${register_script} ${attachment_id} ${webp_path}"
+
+    local register_output
+    register_output=$("${wp_cmd[@]}" eval-file "${register_script}" "${attachment_id}" "${webp_path}" 2>&1) || {
+        local exit_code=$?
+        log "REGISTER-FAIL: exit=${exit_code} output=${register_output:0:500}"
         return 1
     }
-    log "Registered WebP attachment: ${webp_path} (parent: ${attachment_id})"
+
+    log "REGISTER-OK: output=${register_output:0:200}"
+
+    # Verify the attachment actually exists in DB.
+    local verify_cmd=( wp --path="${wp_root}" eval "echo (get_post(get_children(['post_parent'=>${attachment_id},'post_type'=>'attachment','post_mime_type'=>'image/webp','numberposts'=>1]) ? array_keys(get_children(['post_parent'=>${attachment_id},'post_type'=>'attachment','post_mime_type'=>'image/webp','numberposts'=>1]))[0] : 0) ? 'ATTACHMENT-EXISTS' : 'ATTACHMENT-MISSING');" )
+    if [[ "$(id -un)" != "www-data" ]]; then
+        verify_cmd=( sudo -u www-data "${verify_cmd[@]}" )
+    fi
+    local verify_output
+    verify_output=$("${verify_cmd[@]}" 2>&1) || verify_output="VERIFY-COMMAND-FAILED"
+    log "REGISTER-VERIFY: ${verify_output}"
 }
 
 # --- Drain queued jobs and enter main loop ---
