@@ -170,6 +170,26 @@ mxroute_pending_count() {
     echo 0
 }
 
+# --- Daily job history reset during GCM maintenance window ---
+# Wipes completed/ and failed/ directories when maint is running.
+# Resets once per day at the maintenance window (09:00 UTC).
+maint_daily_cleanup() {
+    if [[ ! -f /var/lib/gcm/busy/maint ]]; then
+        return 0
+    fi
+    local marker="${JOB_ROOT}/.maint-wiped-$(date +%Y%m%d)"
+    if [[ -f "${marker}" ]]; then
+        return 0
+    fi
+    log "Maint window active - resetting job history (completed/failed)"
+    find "${JOB_DONE}" -type f -name "*.json" -delete 2>/dev/null || true
+    find "${JOB_FAILED}" -type f -name "*.json" -delete 2>/dev/null || true
+    find "${JOB_FAILED}" -type f -name "*.unparseable" -delete 2>/dev/null || true
+    rm -rf "${JOB_ROOT}/failed-log" 2>/dev/null || true
+    touch "${marker}"
+    log "Job history reset complete"
+}
+
 # --- Cross-process gating (GCM busy state + MXRoute queue) ---
 # Receiving jobs is NEVER prevented. Processing pauses while another gated
 # process is working — the GCM busy scopes: backup, the OS maintenance
@@ -197,6 +217,7 @@ gate_allows_processing() {
 
 # Block until the gate opens. Jobs keep arriving while we wait.
 gate_wait_for_turn() {
+    maint_daily_cleanup
     local waited=false
     until gate_allows_processing && gate_memory_ok; do
         waited=true
