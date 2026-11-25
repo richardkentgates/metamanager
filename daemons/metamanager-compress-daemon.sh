@@ -89,11 +89,11 @@ process_job_json() {
 
     case "${ext}" in
         jpg|jpeg)
-            if timeout "${TOOL_TIMEOUT}" "${JPEGTRAN}" -copy all -optimize -progressive -outfile "${outfile}.tmp" -- "${file_path}" 2>>"${LOG_FILE}"; then
+            if timeout "${TOOL_TIMEOUT}" "${JPEGTRAN}" -copy all -optimize -progressive -outfile "${outfile}.tmp" "${file_path}" 2>>"${LOG_FILE}"; then
                 mv "${outfile}.tmp" "${outfile}" 2>/dev/null
                 new_size=$(stat -c%s "${outfile}" 2>/dev/null) || new_size=0
                 message="JPEG optimized: ${orig_size} → ${new_size} bytes"
-                finish_job_db compression "${job_id}" completed "${message}" --bytes-before="${orig_size}" --bytes-after="${new_size}"
+                finish_job_db compression "${job_id}" completed "${message}"
             else
                 rm -f "${outfile}.tmp"
                 message="jpegtran failed for: ${file_path}"
@@ -104,7 +104,7 @@ process_job_json() {
             if timeout "${TOOL_TIMEOUT}" "${OPTIPNG}" -o"${optimize_level}" -preserve -quiet "${file_path}" 2>>"${LOG_FILE}"; then
                 new_size=$(stat -c%s "${file_path}" 2>/dev/null) || new_size=0
                 message="PNG optimized: ${orig_size} → ${new_size} bytes"
-                finish_job_db compression "${job_id}" completed "${message}" --bytes-before="${orig_size}" --bytes-after="${new_size}"
+                finish_job_db compression "${job_id}" completed "${message}"
             else
                 message="optipng failed for: ${file_path}"
                 finish_job_db compression "${job_id}" failed "${message}"
