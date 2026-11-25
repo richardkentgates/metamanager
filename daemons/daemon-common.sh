@@ -67,6 +67,7 @@ setup_pid_file() {
 # PHP cron handler never reads a partially-written result file.
 # Usage: write_result <tmpfile> <status> <message> [bytes_before] [bytes_after]
 write_result() {
+    echo "$(date +%Y-%m-%d_%H:%M:%S) WR_CALLED tmpfile=$1 status=$2 msg=$3" >> /tmp/mm-test.log
     local tmpfile="$1"
     local status="$2"
     local message="$3"
@@ -101,6 +102,9 @@ write_result() {
            "${tmpfile}" > "${result_tmp}" 2>/dev/null || true
     fi
 
+    local _jq_size=$(stat -c%s "${result_tmp}" 2>/dev/null || echo 0)
+    local _tmp_exists=$([ -f "${tmpfile}" ] && echo YES || echo NO)
+    echo "$(date +%Y-%m-%d_%H:%M:%S) WR_JQ result_size=${_jq_size} tmpfile_exists=${_tmp_exists}" >> /tmp/mm-test.log
     # Atomic rename — only replaces .json once write is complete.
     mv "${result_tmp}" "${result_file}" 2>/dev/null || true
     rm -f "${tmpfile}"
