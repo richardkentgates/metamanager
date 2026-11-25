@@ -63,24 +63,14 @@ log "Daemon started (PID $$). Watching ${JOB_DIR}"
 write_status 0 ""
 
 # --- Job processor ---
-process_webp_job() {
-    local jobfile="$1"
-    local tmpfile="${jobfile}.processing"
-
-    mv "${jobfile}" "${tmpfile}" 2>/dev/null || return 0
+process_webp_job_json() {
+    local job_json="$1"
 
     local file_path attachment_id size
-    file_path=$(jq -r '.file_path // empty' "${tmpfile}") || {
-        log "ERROR: malformed JSON in ${tmpfile}"
-        write_result "${tmpfile}" "failed" "Malformed job JSON"
-        return 1
-    }
-    attachment_id=$(jq -r '.attachment_id // empty' "${tmpfile}") || {
-        log "ERROR: malformed JSON in ${tmpfile}"
-        write_result "${tmpfile}" "failed" "Malformed job JSON"
-        return 1
-    }
-    size=$(jq -r '.size // empty' "${tmpfile}")
+    file_path=$(echo "${job_json}" | jq -r '.file_path // empty')
+    attachment_id=$(echo "${job_json}" | jq -r '.attachment_id // empty')
+    size=$(echo "${job_json}" | jq -r '.size // empty')
+    local job_id=$(echo "${job_json}" | jq -r '.id // empty')
 
     # Type guard: only JPEG/PNG need WebP generation.
     local ext="${file_path##*.}"
@@ -89,31 +79,21 @@ process_webp_job() {
         jpg|jpeg|png) ;;
         *)
             log "SKIP: WebP generation not applicable for .${ext}: ${file_path}"
-            write_result "${tmpfile}" "completed" "Skipped — not a JPEG/PNG source" "0" "0"
+            finish_job_db webp "${job_id}" completed "Skipped — not a JPEG/PNG source"
             return 0
             ;;
     esac
 
     if [[ ! -f "${file_path}" ]]; then
         log "ERROR: file not found: ${file_path}"
-        write_result "${tmpfile}" "failed" "File not found: ${file_path}"
+        finish_job_db webp "${job_id}" failed "File not found: ${file_path}"
         return 1
     fi
 
     if [[ -L "${file_path}" ]]; then
         log "ERROR: symlink not allowed: ${file_path}"
-        write_result "${tmpfile}" "failed" "Symlink not allowed: ${file_path}"
+        finish_job_db webp "${job_id}" failed "Symlink not allowed: ${file_path}"
         return 1
-    fi
-
-    # Per-file lock.
-    local lockfile="${file_path}.mm.webp.lock"
-    exec 9>"${lockfile}"
-    if ! flock -n 9; then
-        log "LOCKED: ${file_path} — re-queuing"
-        mv "${tmpfile}" "${jobfile}"
-        exec 9>&-
-        return 0
     fi
 
     local webp_path="${file_path%.*}.webp"
@@ -123,18 +103,14 @@ process_webp_job() {
     if [[ -x "${CWEBP}" ]]; then
         if timeout "${TOOL_TIMEOUT}" "${CWEBP}" -quiet -q 80 -o "${webp_path}" -- "${file_path}" 2>>"${LOG_FILE}"; then
             if [[ -f "${webp_path}" ]]; then
-                # Copy metadata from original to WebP (EXIF, IPTC, XMP).
                 if command -v exiftool &>/dev/null; then
                     timeout "${TOOL_TIMEOUT}" exiftool -overwrite_original -tagsFromFile "${file_path}" "${webp_path}" 2>>"${LOG_FILE}" || true
                 fi
-                # Match permissions with original.
                 local orig_perms
                 orig_perms=$(stat -c%a "${file_path}" 2>/dev/null) || orig_perms=""
                 if [[ -n "${orig_perms}" ]]; then
                     chmod "${orig_perms}" "${webp_path}" 2>/dev/null || true
                 fi
-                # Match ownership with original — www-data needs to read this
-                # for metadata embedding and registration.
                 local orig_owner
                 orig_owner=$(stat -c '%U:%G' "${file_path}" 2>/dev/null) || orig_owner=""
                 if [[ -n "${orig_owner}" ]]; then
@@ -144,38 +120,25 @@ process_webp_job() {
                 message="WebP generated: ${orig_size} → ${new_size} bytes"
                 log "OK: ${message} (id: ${attachment_id}, size: ${size})"
 
-                # Register the WebP as a WP attachment — this triggers the
-                # cascade: wp_generate_attachment_metadata → on_upload →
-                # compression + metadata queue for the new WebP.
                 register_webp_attachment "${attachment_id}" "${webp_path}"
+                finish_job_db webp "${job_id}" completed "${message}"
             else
                 message="cwebp produced no output for: ${file_path}"
                 log "FAIL: ${message}"
+                finish_job_db webp "${job_id}" failed "${message}"
             fi
         else
             message="cwebp failed for: ${file_path}"
             log "FAIL: ${message}"
+            finish_job_db webp "${job_id}" failed "${message}"
         fi
     else
         message="cwebp not found at ${CWEBP}"
         log "WARNING: ${message}"
-    fi
-
-    exec 9>&-
-    rm -f "${lockfile}"
-
-    if [[ -f "${webp_path}" ]]; then
-        # Inject webp_path into the job JSON so it flows into the result file.
-        jq --arg wp "${webp_path}" '. + {webp_path: $wp}' "${tmpfile}" > "${tmpfile}.wp" 2>/dev/null && mv "${tmpfile}.wp" "${tmpfile}" || true
-        write_result "${tmpfile}" "completed" "${message}" "${orig_size}" "${new_size}"
-    else
-        write_result "${tmpfile}" "failed" "${message}" "0" "0"
+        finish_job_db webp "${job_id}" failed "${message}"
     fi
 }
 
-# Register the generated .webp as a WP attachment via wp eval-file.
-# This is the cascade point — registration triggers on_upload which
-# queues compression + metadata for the new WebP.
 register_webp_attachment() {
     local attachment_id="$1"
     local webp_path="$2"
@@ -224,6 +187,6 @@ register_webp_attachment() {
     log "REGISTER-VERIFY: ${verify_output}"
 }
 
-# --- Drain queued jobs and enter main loop ---
+DAEMON_JOB_TYPE="webp"
 drain_jobs_loop
 run_main_loop
