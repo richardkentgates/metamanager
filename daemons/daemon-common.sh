@@ -5,10 +5,16 @@
 # Sourced by metamanager-compress-daemon.sh and metamanager-meta-daemon.sh.
 # Requires the following variables to be set BEFORE sourcing:
 #   JOB_DIR, JOB_DONE, JOB_FAILED, LOG_FILE, PID_FILE, STATUS_FILE,
+#   WP_ROOT (derived from JOB_DIR if not already set).
 #   MAX_CONCURRENT, DAEMON_TAG
 # =============================================================================
 
 # --- Logging ---
+# Derive WP_ROOT from JOB_DIR (compress/meta/webp -> metamanager-jobs -> wp-content -> root).
+if [[ -z "${WP_ROOT:-}" ]] && [[ -n "${JOB_DIR:-}" ]]; then
+    WP_ROOT="$(dirname "$(dirname "$(dirname "${JOB_DIR}")")")"
+fi
+
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [${DAEMON_TAG}] $*" >> "${LOG_FILE}"
 }
