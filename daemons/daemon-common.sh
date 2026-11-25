@@ -265,7 +265,7 @@ run_main_loop() {
             qdepth=$(wp --path="${WP_ROOT}" eval "echo MM_DB::count_by_status('${job_type}', 'pending');" 2>/dev/null || echo 0)
             write_status "${qdepth}" "$(date '+%Y-%m-%d %H:%M:%S')"
         else
-            (( idle_count++ ))
+            idle_count=$(( idle_count + 1 ))
             # Back off when idle: 2s → 5s → 10s max
             if (( idle_count > 50 )); then
                 sleep 10
