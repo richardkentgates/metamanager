@@ -5,10 +5,16 @@
 # Sourced by metamanager-compress-daemon.sh and metamanager-meta-daemon.sh.
 # Requires the following variables to be set BEFORE sourcing:
 #   JOB_DIR, JOB_DONE, JOB_FAILED, LOG_FILE, PID_FILE, STATUS_FILE,
+#   WP_ROOT (derived from JOB_DIR if not already set).
 #   MAX_CONCURRENT, DAEMON_TAG
 # =============================================================================
 
 # --- Logging ---
+# Derive WP_ROOT from JOB_DIR (compress/meta/webp -> metamanager-jobs -> wp-content -> root).
+if [[ -z "${WP_ROOT:-}" ]] && [[ -n "${JOB_DIR:-}" ]]; then
+    WP_ROOT="$(dirname "$(dirname "$(dirname "${JOB_DIR}")")")"
+fi
+
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [${DAEMON_TAG}] $*" >> "${LOG_FILE}"
 }
@@ -34,12 +40,8 @@ write_status() {
 # --- Wait for job queue directory ---
 # The plugin creates this on activation. If not present yet, wait for it.
 wait_for_job_dir() {
-    while [[ ! -d "${JOB_DIR}" ]]; do
-        log "Job directory ${JOB_DIR} not found — waiting 10s..."
-        sleep 10
-    done
-    # Ensure subdirectories exist
-    mkdir -p "${JOB_DONE}" "${JOB_FAILED}"
+    # DB-only mode: no job directories needed
+    return 0
 }
 
 # --- PID file management ---
@@ -67,95 +69,21 @@ setup_pid_file() {
 # PHP cron handler never reads a partially-written result file.
 # Usage: write_result <tmpfile> <status> <message> [bytes_before] [bytes_after]
 write_result() {
-    echo "$(date +%Y-%m-%d_%H:%M:%S) WR_CALLED tmpfile=$1 status=$2 msg=$3" >> /tmp/mm-test.log
-    local tmpfile="$1"
-    local status="$2"
-    local message="$3"
-    local bytes_before="${4:-}"
-    local bytes_after="${5:-}"
-    local out_dir
-
-    if [[ "${status}" == "completed" ]]; then
-        out_dir="${JOB_DONE}"
-    else
-        out_dir="${JOB_FAILED}"
-    fi
-
-    local result_file
-    result_file="${out_dir}/$(basename "${tmpfile}" .processing)-result.json"
-    local result_tmp
-    result_tmp="${result_file}.tmp"
-
-    if [[ -n "${bytes_before}" && -n "${bytes_after}" ]]; then
-        jq --arg  status        "${status}" \
-           --arg  msg           "${message}" \
-           --arg  ts            "$(date '+%Y-%m-%d %H:%M:%S')" \
-           --argjson bytes_before "${bytes_before}" \
-           --argjson bytes_after  "${bytes_after}" \
-           '. + {status: $status, completed_at: $ts, bytes_before: $bytes_before, bytes_after: $bytes_after, details: {message: $msg}}' \
-           "${tmpfile}" > "${result_tmp}" 2>/dev/null || true
-    else
-        jq --arg status "${status}" \
-           --arg msg    "${message}" \
-           --arg ts     "$(date '+%Y-%m-%d %H:%M:%S')" \
-           '. + {status: $status, completed_at: $ts, details: {message: $msg}}' \
-           "${tmpfile}" > "${result_tmp}" 2>/dev/null || true
-    fi
-
-    local _jq_size=$(stat -c%s "${result_tmp}" 2>/dev/null || echo 0)
-    local _tmp_exists=$([ -f "${tmpfile}" ] && echo YES || echo NO)
-    echo "$(date +%Y-%m-%d_%H:%M:%S) WR_JQ result_size=${_jq_size} tmpfile_exists=${_tmp_exists}" >> /tmp/mm-test.log
-    # Atomic rename — only replaces .json once write is complete.
-    mv "${result_tmp}" "${result_file}" 2>/dev/null || true
-    rm -f "${tmpfile}"
-
-    # Ensure www-data can read result files (root-written daemons).
-    chown www-data:www-data "${result_file}" 2>/dev/null || true
-
-    # Immediately process the result into the DB via wp eval-file.
-    # No cron dependency — the daemon owns the full lifecycle.
-    process_result "${result_file}"
+    local job_type="$1"
+    local job_id="$2"
+    local status="$3"
+    local message="${4:-}"
+    finish_job_db "${job_type}" "${job_id}" "${status}" "${message}"
 }
 
-# Call the plugin's process-result.php to log the job to DB and run
-# post-processing (import results, verification queuing). Called from
-# write_result — daemon handles everything, cron is status reporting only.
 process_result() {
-    local result_file="$1"
-    [[ -f "${result_file}" ]] || return 0
-
-    # Derive WP root from JOB_DIR (compress/meta/webp → metamanager-jobs → wp-content → root).
-    local wp_root plugin_script
-    wp_root="$(dirname "$(dirname "$(dirname "${JOB_DIR}")")")"
-    plugin_script="${wp_root}/wp-content/plugins/metamanager/includes/process-result.php"
-
-    if [[ ! -f "${plugin_script}" ]]; then
-        log "WARNING: process-result.php not found at ${plugin_script}"
-        return 1
-    fi
-
-    # Run wp as www-data. If already www-data (compress/meta daemons run
-    # as www-data with NoNewPrivileges), call wp directly — sudo is blocked.
-    local wp_cmd=( wp --path="${wp_root}" )
-    if [[ "$(id -un)" != "www-data" ]]; then
-        wp_cmd=( sudo -u www-data wp --path="${wp_root}" )
-    fi
-
-    "${wp_cmd[@]}" eval-file "${plugin_script}" "${result_file}" 2>>"${LOG_FILE}" || {
-        log "WARNING: process-result.php failed for $(basename "${result_file}")"
-        return 1
-    }
+    # Result is already written to DB by finish_job. Nothing more to do.
+    return 0
 }
 
-# MXRoute Mailer pending count — the queue IS the database table; this
-# asks it through WP-CLI (PHP checks the DB and returns a result — the
-# bash side never touches the DB directly). The status JSON is
-# admin/monitor consumption only and is never read programmatically.
-# Missing WordPress / plugin / WP-CLI = not installed = idle.
 mxroute_pending_count() {
-    # JOB_DIR = <wp-content>/metamanager-jobs/{compress,meta} → WP root.
     local wp_root count
-    wp_root="$(dirname "$(dirname "$(dirname "${JOB_DIR}")")")"
+    wp_root="${WP_ROOT}"
     if [[ ! -f "${wp_root}/wp-load.php" && ! -f "${wp_root}/wp-config.php" ]]; then
         echo 0
         return 0
@@ -253,102 +181,99 @@ gate_calculate_concurrency() {
 
 # --- Job router: dispatch by job_type ---
 # Reads the job_type from the JSON and routes to the right processor.
-# Default is process_job (compression). process_webp_job handles WebP generation.
-dispatch_job() {
-    local jobfile="$1"
-    local job_type
-    job_type=$(jq -r '.job_type // "compression"' "${jobfile}" 2>/dev/null) || job_type="compression"
+# --- DB-based job processing ---
+# DB is the single source of truth. No file queues.
+
+# Claim and process a single job from the DB for the given job type.
+# Returns 0 if a job was processed, 1 if queue is empty.
+claim_and_process() {
+    local job_type="$1"
+    local job_json
+    job_json=$(wp --path="${WP_ROOT}" eval "global \$wpdb; \$t = MM_DB::table_for('${job_type}'); \$r = \$wpdb->get_row(\$wpdb->prepare('SELECT * FROM %i WHERE status = \\'pending\\' ORDER BY submitted_at ASC, id ASC LIMIT 1', \$t), ARRAY_A); if (\$r) { \$wpdb->query(\$wpdb->prepare('UPDATE %i SET status = \\'processing\\' WHERE id = %d AND status = \\'pending\\'', \$t, \$r['id'])); echo json_encode(\$r); }" 2>/dev/null)
+
+    if [[ -z "${job_json}" || "${job_json}" == "null" ]]; then
+        return 1
+    fi
+
+    dispatch_job_json "${job_type}" "${job_json}"
+    return 0
+}
+
+# Process a job from JSON (DB row).
+dispatch_job_json() {
+    local job_type="$1"
+    local job_json="$2"
+
     case "${job_type}" in
         webp)
-            if declare -F process_webp_job >/dev/null 2>&1; then
-                process_webp_job "${jobfile}"
+            if declare -F process_webp_job_json >/dev/null 2>&1; then
+                process_webp_job_json "${job_json}"
             else
-                log "ERROR: webp job received but process_webp_job not defined"
-                write_result "${jobfile}" "failed" "webp processor not available"
+                log "ERROR: webp processor not defined"
+            fi
+            ;;
+        compression)
+            if declare -F process_job_json >/dev/null 2>&1; then
+                process_job_json "${job_json}"
+            else
+                log "ERROR: compression processor not defined"
+            fi
+            ;;
+        metadata)
+            if declare -F process_meta_job_json >/dev/null 2>&1; then
+                process_meta_job_json "${job_json}"
+            else
+                log "ERROR: metadata processor not defined"
             fi
             ;;
         *)
-            process_job "${jobfile}"
+            log "ERROR: unknown job type: ${job_type}"
             ;;
     esac
 }
 
-# --- Drain jobs queued while daemon was offline ---
-# Cleans up leftover .mm_tmp files, recovers orphaned .json.processing files,
-# then loops until the queue is empty. Concurrent jobs may get LOCKED by
-# another daemon and re-queued as *.json, so multiple passes are needed.
-drain_jobs_loop() {
-    log "Startup scan: cleaning up leftover .mm_tmp files"
-    for tmpfile in "${JOB_DIR}"/*.mm_tmp; do
-        [[ -e "${tmpfile}" ]] || continue
-        log "Removing leftover .mm_tmp: $(basename "${tmpfile}")"
-        rm -f "${tmpfile}"
-    done
-
-    log "Startup scan: processing any pre-existing jobs in ${JOB_DIR}"
-    for orphan in "${JOB_DIR}"/*.json.processing; do
-        [[ -e "${orphan}" ]] || continue
-        recovered="${orphan%.processing}"
-        mv "${orphan}" "${recovered}" 2>/dev/null || true
-        log "Recovered orphaned job: $(basename "${recovered}")"
-    done
-
-    _pass=0
-    _max_passes=30
-    while (( _pass < _max_passes )); do
-        _pending=()
-        for _f in "${JOB_DIR}"/*.json; do
-            [[ -e "${_f}" ]] && _pending+=( "${_f}" )
-        done
-        [[ ${#_pending[@]} -eq 0 ]] && break
-        (( ++_pass ))
-
-        # FIFO in filename order (glob order) — no priority field (B4,
-        # 2026-11-16: the drain sorted by a .priority nothing wrote).
-        log "Startup scan pass ${_pass}: ${#_pending[@]} job(s)"
-        for jobfile in "${_pending[@]}"; do
-            gate_wait_for_turn
-            local _concurrency
-            _concurrency=$(gate_calculate_concurrency)
-            while (( $(jobs -rp | wc -l) >= _concurrency )); do
-                wait -n 2>/dev/null || true
-            done
-            dispatch_job "${jobfile}" &
-        done
-        wait || true
-        write_status "${#_pending[@]}" ""
-        sleep 2
-    done
-    unset _pass _max_passes _pending _f _sorted _pri
-    write_status 0 ""
-    log "Startup scan complete."
+# Finish a job in the DB (completed or failed).
+finish_job_db() {
+    local job_type="$1"
+    local job_id="$2"
+    local status="$3"
+    local details="${4:-}"
+    wp --path="${WP_ROOT}" eval "MM_DB::finish_job('${job_type}', ${job_id}, '${status}', addslashes('${details}'));" 2>/dev/null || true
 }
 
-# --- Main loop: inotifywait for new JSON files ---
-# close_write: new job written by PHP
-# moved_to:    LOCKED re-queue — daemon renames .processing back to .json via mv
+# --- Drain jobs queued while daemon was offline ---
+# DB queue mode: startup scan not needed. Jobs persist in DB.
+drain_jobs_loop() {
+    log "DB queue mode: startup scan not needed"
+    write_status 0 ""
+}
+
+# --- Main loop: DB polling ---
 run_main_loop() {
+    local job_type="${DAEMON_JOB_TYPE:-webp}"
+    local poll_interval=2
+    local idle_count=0
+
+    log "DB polling loop started for ${job_type} (interval: ${poll_interval}s)"
+
     while true; do
-        if [[ ! -d "${JOB_DIR}" ]]; then
-            log "Job directory ${JOB_DIR} disappeared — waiting..."
-            wait_for_job_dir
-            log "Job directory reappeared — resuming."
-        fi
-        inotifywait -m -e close_write,moved_to --format '%w%f' "${JOB_DIR}" 2>/dev/null \
-        | while IFS= read -r jobfile; do
-            if [[ "${jobfile}" == *.json ]]; then
-                gate_wait_for_turn
-                local _concurrency
-                _concurrency=$(gate_calculate_concurrency)
-                while (( $(jobs -rp | wc -l) >= _concurrency )); do
-                    wait -n 2>/dev/null || true
-                done
-                dispatch_job "${jobfile}" &
-                _qdepth=$(find "${JOB_DIR}" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l)
-                write_status "${_qdepth}" "$(date '+%Y-%m-%d %H:%M:%S')"
+        gate_wait_for_turn
+
+        if claim_and_process "${job_type}"; then
+            idle_count=0
+            local qdepth
+            qdepth=$(wp --path="${WP_ROOT}" eval "echo MM_DB::count_by_status('${job_type}', 'pending');" 2>/dev/null || echo 0)
+            write_status "${qdepth}" "$(date '+%Y-%m-%d %H:%M:%S')"
+        else
+            idle_count=$(( idle_count + 1 ))
+            # Back off when idle: 2s → 5s → 10s max
+            if (( idle_count > 50 )); then
+                sleep 10
+            elif (( idle_count > 10 )); then
+                sleep 5
+            else
+                sleep ${poll_interval}
             fi
-        done
-        log "inotifywait exited — retrying in 5s..."
-        sleep 5
+        fi
     done
 }
