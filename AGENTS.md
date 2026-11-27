@@ -68,7 +68,6 @@ The `VERSION` file is the single source of truth for the installed daemon versio
 **Sync with debian/changelog**: The CI workflow (`ci.yml`) auto-bumps both `debian/changelog` and `VERSION` on every push to dev. They must stay in sync — the patch version in `debian/changelog` (e.g. `2.4.10-1`) must match the `VERSION` file (e.g. `2.4.10`). CI handles this automatically; never edit either file manually.
 
 **Format difference**: `debian/changelog` uses Debian epoch format `2.4.10-1` (upstream-revision). The `VERSION` file uses plain semver `2.4.10` (no `-1` suffix). The CI strips the `-1` when writing `VERSION`.
-<<<<<<< Updated upstream
 
 ## Cross-Repo: Daemon Updates
 
@@ -82,6 +81,8 @@ Daemon updates are handled by OS apt (root context), not the plugin.
 **Daemon repo responsibility:** Build and deploy the `.deb` package to the apt server. Nothing else.
 
 **Plugin repo responsibility:** Read the VERSION file for dashboard display. Does not trigger updates.
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 
@@ -161,10 +162,10 @@ and is activated via the manual post-migration checklist.
 - Promotion = workflow_dispatch triggers direct git merge (no PRs; no manual merges to `test`/`main`)
 - VERSION file must stay in sync with debian/changelog (CI handles this automatically)
 - CI auto-bumps both `debian/changelog` and `VERSION` on every dev push — do not manually edit either
-<<<<<<< Updated upstream
 - PHP 8.4 for WP-CLI (`php8.4 /usr/local/bin/wp --path=/srv/www/wordpress`)
 - **Test channel**: Used for development verification before production deployment
 - **Production channel**: Used by production site, requires explicit workflow_dispatch promotion
 =======
+>>>>>>> Stashed changes
 - PHP 8.2 for WP-CLI (`php8.2 /usr/local/bin/wp --path=/srv/www/wordpress`)
 >>>>>>> Stashed changes
