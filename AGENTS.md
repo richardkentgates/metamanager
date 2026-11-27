@@ -69,6 +69,7 @@ The `VERSION` file is the single source of truth for the installed daemon versio
 
 **Format difference**: `debian/changelog` uses Debian epoch format `2.4.10-1` (upstream-revision). The `VERSION` file uses plain semver `2.4.10` (no `-1` suffix). The CI strips the `-1` when writing `VERSION`.
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
 ## Cross-Repo: Daemon Updates
 
@@ -82,6 +83,8 @@ Daemon updates are handled by OS apt (root context), not the plugin.
 **Daemon repo responsibility:** Build and deploy the `.deb` package to the apt server. Nothing else.
 
 **Plugin repo responsibility:** Read the VERSION file for dashboard display. Does not trigger updates.
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 
@@ -162,9 +165,12 @@ and is activated via the manual post-migration checklist.
 - VERSION file must stay in sync with debian/changelog (CI handles this automatically)
 - CI auto-bumps both `debian/changelog` and `VERSION` on every dev push — do not manually edit either
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 - PHP 8.4 for WP-CLI (`php8.4 /usr/local/bin/wp --path=/srv/www/wordpress`)
 - **Test channel**: Used for development verification before production deployment
 - **Production channel**: Used by production site, requires explicit workflow_dispatch promotion
 =======
+=======
+>>>>>>> Stashed changes
 - PHP 8.2 for WP-CLI (`php8.2 /usr/local/bin/wp --path=/srv/www/wordpress`)
 >>>>>>> Stashed changes
