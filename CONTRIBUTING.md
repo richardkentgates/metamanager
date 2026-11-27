@@ -34,8 +34,6 @@ dpkg-buildpackage -us -uc -b
 
 **Do not manually edit version numbers.** The CI pipeline auto-bumps `debian/changelog` and `VERSION` on every push to `dev`.
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 The `VERSION` file (installed to `/usr/local/lib/metamanager/VERSION`) must stay in sync with `debian/changelog`. CI handles this automatically — it reads the version from `dpkg-parsechangelog`, strips the Debian revision suffix (e.g. `X.Y.Z-1` → `X.Y.Z`), and writes it to both files.
 =======
 The `VERSION` file at `/usr/local/lib/metamanager/VERSION` must stay in sync with `debian/changelog`. The CI handles this automatically — it reads the version from `dpkg-parsechangelog`, strips the Debian revision suffix (e.g. `2.4.10-1` → `2.4.10`), and writes it to both files.
@@ -47,8 +45,6 @@ The `VERSION` file at `/usr/local/lib/metamanager/VERSION` must stay in sync wit
 ### If you change daemon code
 
 1. Push to `dev` — CI bumps the version automatically
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 2. Promote through the normal pipeline (`gh workflow run "Promote to Test"`,
    then `"Promote to Main"`)
 
@@ -57,7 +53,6 @@ server's apt channel (test/stable) decides which version installs. The plugin's
 `MM_Daemon_Updater` only displays the installed version — it never triggers
 updates. See `JOB_QUEUE_SPEC.md` for the plugin↔daemon contract.
 =======
-=======
 >>>>>>> Stashed changes
 2. Open `daemon-compatibility.json` in the **plugin repo** and add an entry mapping the next plugin version to your new daemon version
 3. Then release the plugin through the normal pipeline
@@ -65,7 +60,7 @@ updates. See `JOB_QUEUE_SPEC.md` for the plugin↔daemon contract.
 ### What happens if you forget
 
 If the plugin's `daemon-compatibility.json` doesn't have an entry for the current plugin version, the auto-updater cannot determine what daemon version to expect. It will show a persistent error in wp-admin until the mapping is fixed.
-<<<<<<< Updated upstream
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
